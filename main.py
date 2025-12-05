@@ -34,8 +34,7 @@ def init_controller():
         state.controller = ServoControler(
             WHEEL_USB, 
             HEAD_USB,
-            calibration_path=ARM_CALIBRATION_PATH,
-            auto_calibrate=False  # Don't run interactive calibration in web server
+            calibration_path=ARM_CALIBRATION_PATH
         )
         print("✓")
         
