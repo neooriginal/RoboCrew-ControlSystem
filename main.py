@@ -1,5 +1,5 @@
 """
-RoboCrew Web Control - Control your robot via browser with WASD + Mouse
+RoboCrew Web Control - Control your robot via browser with WASD + Mouse + Arm
 Run: python main.py
 Open: http://localhost:5000 (or your robot's IP)
 """
@@ -7,13 +7,15 @@ Open: http://localhost:5000 (or your robot's IP)
 import signal
 import sys
 import threading
+import os
 
 from flask import Flask
 
-from config import WEB_PORT, WHEEL_USB, HEAD_USB
+from config import WEB_PORT, WHEEL_USB, HEAD_USB, ARM_CALIBRATION_PATH
 from state import state
 from camera import init_camera, release_camera
 from movement import movement_loop, stop_movement
+from arm import arm_controller
 from routes import bp
 
 # Import servo controller
@@ -28,11 +30,36 @@ def create_app():
 
 
 def init_controller():
-    """Initialize the servo controller."""
+    """Initialize the servo controller with wheels, head, and arm."""
     print(f"🔧 Connecting servos ({WHEEL_USB}, {HEAD_USB})...", end=" ", flush=True)
+    
+    # Get calibration path
+    cal_path = os.path.join(os.path.dirname(__file__), ARM_CALIBRATION_PATH)
+    
     try:
-        state.controller = ServoControler(WHEEL_USB, HEAD_USB)
+        # Initialize with arm enabled - arm uses same bus as wheels (IDs 1-6)
+        state.controller = ServoControler(
+            WHEEL_USB, 
+            HEAD_USB,
+            enable_arm=True,
+            arm_calibration_path=cal_path
+        )
         print("✓")
+        
+        # Check if arm was enabled
+        if state.controller.arm_enabled:
+            print("🦾 Arm connected ✓")
+            state.arm_connected = True
+            
+            # Read current arm position
+            try:
+                pos = state.controller.get_arm_position()
+                state.update_arm_positions(pos)
+                arm_controller.set_from_current(pos)
+            except Exception as e:
+                print(f"⚠ Could not read arm: {e}")
+        else:
+            print("⚠ Arm not enabled")
         
         # Read current head position (don't move it!)
         print("📡 Reading current head position...", end=" ", flush=True)

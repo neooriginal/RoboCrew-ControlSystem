@@ -23,7 +23,7 @@ body {
     align-items: center;
     padding: 20px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
 }
 
 /* Header */
@@ -35,7 +35,7 @@ body {
 }
 
 h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
     font-weight: 700;
     background: linear-gradient(135deg, #00d4ff 0%, #7b2cbf 100%);
     -webkit-background-clip: text;
@@ -72,23 +72,91 @@ h1 {
     }
 }
 
-/* Video section */
-.video-wrapper {
-    position: relative;
+/* Panels container */
+.panels {
+    display: flex;
+    gap: 20px;
     width: 100%;
-    max-width: 960px;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow:
-        0 25px 60px rgba(0, 0, 0, 0.5),
-        0 0 100px rgba(0, 212, 255, 0.1),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
+/* Individual panel */
+.panel {
+    flex: 1;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.panel:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.panel.active {
+    border-color: #00d4ff;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+}
+
+.arm-panel.active {
+    border-color: #ffaa00;
+    box-shadow: 0 0 30px rgba(255, 170, 0, 0.2);
+}
+
+/* Panel header */
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-icon {
+    font-size: 1.2rem;
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+}
+
+.panel.active .panel-title {
+    color: #00d4ff;
+}
+
+.arm-panel.active .panel-title {
+    color: #ffaa00;
+}
+
+.mode-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #444;
+    margin-left: auto;
+    transition: all 0.3s;
+}
+
+.panel.active .mode-indicator {
+    background: #00d4ff;
+    box-shadow: 0 0 10px #00d4ff;
+}
+
+.arm-panel.active .mode-indicator {
+    background: #ffaa00;
+    box-shadow: 0 0 10px #ffaa00;
+}
+
+/* Video container (drive panel) */
 .video-container {
     position: relative;
     width: 100%;
-    aspect-ratio: 16/9;
+    aspect-ratio: 16/10;
     background: #000;
     cursor: pointer;
 }
@@ -111,7 +179,7 @@ h1 {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.3) 100%);
 }
 
 /* Crosshair */
@@ -130,8 +198,8 @@ h1 {
 }
 
 .crosshair-ring {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border: 2px solid rgba(0, 212, 255, 0.7);
     border-radius: 50%;
     position: relative;
@@ -141,21 +209,21 @@ h1 {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
     background: #00d4ff;
     border-radius: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 10px #00d4ff;
+    box-shadow: 0 0 8px #00d4ff;
 }
 
 .crosshair-line {
     position: absolute;
-    background: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 212, 255, 0.4);
 }
 
 .crosshair-line.h {
-    width: 15px;
+    width: 12px;
     height: 2px;
     top: 50%;
     transform: translateY(-50%);
@@ -163,46 +231,46 @@ h1 {
 
 .crosshair-line.v {
     width: 2px;
-    height: 15px;
+    height: 12px;
     left: 50%;
     transform: translateX(-50%);
 }
 
 .crosshair-line.left {
-    left: -20px;
+    left: -16px;
 }
 
 .crosshair-line.right {
-    right: -20px;
+    right: -16px;
 }
 
 .crosshair-line.top {
-    top: -20px;
+    top: -16px;
 }
 
 .crosshair-line.bottom {
-    bottom: -20px;
+    bottom: -16px;
 }
 
-/* Status overlay (top-left of video) */
+/* Status overlay */
 .status-overlay {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 10px;
+    left: 10px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 20px;
+    gap: 6px;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 16px;
     backdrop-filter: blur(8px);
     pointer-events: none;
     z-index: 10;
 }
 
 .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: #666;
     transition: all 0.2s;
@@ -210,41 +278,40 @@ h1 {
 
 .status-dot.active {
     background: #00ff88;
-    box-shadow: 0 0 8px #00ff88;
+    box-shadow: 0 0 6px #00ff88;
 }
 
 .status-dot.moving {
     background: #ffaa00;
-    box-shadow: 0 0 8px #ffaa00;
+    box-shadow: 0 0 6px #ffaa00;
 }
 
 .status-dot.error {
     background: #ff4444;
-    box-shadow: 0 0 8px #ff4444;
+    box-shadow: 0 0 6px #ff4444;
 }
 
 .status-text {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
 }
 
-/* Body direction compass */
+/* Body compass */
 .body-compass {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
-    width: 80px;
-    height: 80px;
+    bottom: 15px;
+    right: 15px;
+    width: 60px;
+    height: 60px;
     pointer-events: none;
 }
 
 .compass-ring {
     width: 100%;
     height: 100%;
-    border: 2px solid rgba(255, 170, 0, 0.5);
+    border: 2px solid rgba(255, 170, 0, 0.4);
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     position: relative;
 }
 
@@ -252,8 +319,8 @@ h1 {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 4px;
-    height: 30px;
+    width: 3px;
+    height: 22px;
     background: linear-gradient(to top, transparent 0%, #ffaa00 50%, #ff6600 100%);
     transform-origin: center bottom;
     transform: translate(-50%, -100%);
@@ -264,35 +331,33 @@ h1 {
 .compass-arrow::before {
     content: '';
     position: absolute;
-    top: -8px;
+    top: -6px;
     left: 50%;
     transform: translateX(-50%);
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 10px solid #ff6600;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 8px solid #ff6600;
 }
 
 .compass-center {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background: #ffaa00;
     border-radius: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
 }
 
 .compass-label {
     position: absolute;
-    bottom: -22px;
+    bottom: -18px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     color: #ffaa00;
     white-space: nowrap;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .compass-n {
@@ -300,9 +365,8 @@ h1 {
     top: 2px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.6rem;
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: bold;
+    font-size: 0.5rem;
+    color: rgba(255, 255, 255, 0.4);
 }
 
 /* Click prompt */
@@ -311,8 +375,8 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.8);
-    padding: 20px 40px;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 16px 28px;
     border-radius: 12px;
     text-align: center;
     pointer-events: none;
@@ -320,19 +384,164 @@ h1 {
     border: 1px solid rgba(0, 212, 255, 0.3);
 }
 
-.video-container.locked .click-prompt {
+.video-container.locked .click-prompt,
+.arm-container.locked .click-prompt {
     opacity: 0;
 }
 
 .click-prompt h2 {
     color: #00d4ff;
-    margin-bottom: 8px;
-    font-size: 1.2rem;
+    margin-bottom: 6px;
+    font-size: 1rem;
 }
 
 .click-prompt p {
     color: #888;
+    font-size: 0.8rem;
+}
+
+.click-prompt p.sub {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: #666;
+}
+
+/* Arm panel styles */
+.arm-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.arm-container.locked {
+    cursor: none;
+}
+
+.arm-panel .click-prompt {
+    border-color: rgba(255, 170, 0, 0.3);
+}
+
+.arm-panel .click-prompt h2 {
+    color: #ffaa00;
+}
+
+/* Arm visualization */
+.arm-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+}
+
+.arm-container.locked .arm-visual {
+    opacity: 1;
+}
+
+.arm-svg {
+    width: 150px;
+    height: 150px;
+}
+
+.arm-base {
+    fill: rgba(255, 170, 0, 0.3);
+    stroke: #ffaa00;
+    stroke-width: 2;
+}
+
+.arm-segment {
+    stroke: #ffaa00;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+.arm-wrist {
+    stroke-width: 3;
+}
+
+.arm-joint {
+    fill: #ff6600;
+}
+
+.gripper-finger {
+    stroke: #ffaa00;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: transform 0.2s;
+}
+
+.gripper-closed .gripper-finger:first-child {
+    transform: translateX(4px);
+}
+
+.gripper-closed .gripper-finger:last-child {
+    transform: translateX(-4px);
+}
+
+/* Arm info display */
+.arm-info {
+    display: flex;
+    gap: 20px;
+}
+
+.arm-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.stat-label {
+    font-size: 0.6rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.stat-value {
     font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffaa00;
+    font-family: 'Courier New', monospace;
+}
+
+/* Arm controls hint */
+.arm-controls-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.arm-container.locked .arm-controls-hint {
+    opacity: 1;
+}
+
+.hint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    color: #888;
+}
+
+.hint-row kbd {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Debug panel */

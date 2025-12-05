@@ -21,9 +21,25 @@ class RobotState:
         }
         self.lock = threading.Lock()
         self.last_error = None
-        # Current head position - read from servos at startup
+        
+        # Head position
         self.head_yaw = 0
         self.head_pitch = 0
+        
+        # Control mode: 'drive' or 'arm'
+        self.control_mode = 'drive'
+        
+        # Arm state
+        self.arm_connected = False
+        self.arm_positions = {
+            'shoulder_pan': 0,
+            'shoulder_lift': 0,
+            'elbow_flex': 0,
+            'wrist_flex': 0,
+            'wrist_roll': 0,
+            'gripper': 90  # Open by default
+        }
+        self.gripper_closed = False
     
     def update_movement(self, data):
         """Update movement state from request data."""
@@ -49,6 +65,31 @@ class RobotState:
                 'left': False,
                 'right': False
             }
+    
+    def set_control_mode(self, mode):
+        """Set control mode ('drive' or 'arm')."""
+        with self.lock:
+            if mode in ('drive', 'arm'):
+                self.control_mode = mode
+                return True
+            return False
+    
+    def get_control_mode(self):
+        """Get current control mode."""
+        with self.lock:
+            return self.control_mode
+    
+    def update_arm_positions(self, positions):
+        """Update arm position state."""
+        with self.lock:
+            for joint, angle in positions.items():
+                if joint in self.arm_positions:
+                    self.arm_positions[joint] = angle
+    
+    def get_arm_positions(self):
+        """Get a copy of current arm positions."""
+        with self.lock:
+            return self.arm_positions.copy()
 
 
 # Global state instance
