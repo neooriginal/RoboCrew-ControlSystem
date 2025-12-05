@@ -34,7 +34,8 @@ def init_controller():
         state.controller = ServoControler(
             WHEEL_USB, 
             HEAD_USB,
-            calibration_path=ARM_CALIBRATION_PATH
+            calibration_path=ARM_CALIBRATION_PATH,
+            auto_calibrate=False  # Don't run interactive calibration in web server
         )
         print("✓")
         
@@ -50,13 +51,11 @@ def init_controller():
             state.head_yaw = 0
             state.head_pitch = 35
         
-        # Read current arm position
-        print("🦾 Reading current arm position...", end=" ", flush=True)
-        try:
-            arm_pos = state.controller.get_arm_position()
-            print(f"✓ ({len(arm_pos)} joints)")
-        except Exception as e:
-            print(f"⚠ Could not read: {e}")
+        # Check arm status
+        if state.controller.arm_enabled:
+            print("🦾 Arm control enabled ✓")
+        else:
+            print("🦾 Arm control disabled (no calibration)")
         
         return True
     except Exception as e:

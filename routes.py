@@ -22,9 +22,14 @@ def index():
 @bp.route('/status')
 def get_status():
     """Get connection status for debugging."""
+    arm_enabled = False
+    if state.controller:
+        arm_enabled = getattr(state.controller, 'arm_enabled', False)
+    
     return jsonify({
         'controller_connected': state.controller is not None,
         'camera_connected': state.camera is not None and state.camera.isOpened(),
+        'arm_enabled': arm_enabled,
         'head_yaw': state.head_yaw,
         'head_pitch': state.head_pitch,
         'movement': state.movement,
@@ -115,9 +120,12 @@ def get_arm_position():
     if state.controller is None:
         return jsonify({'error': 'No controller connected'})
     
+    if not getattr(state.controller, 'arm_enabled', False):
+        return jsonify({'error': 'Arm not calibrated', 'positions': {}})
+    
     try:
         positions = state.controller.get_arm_position()
-        return jsonify({'status': 'ok', 'positions': positions})
+        return jsonify({'status': 'ok', 'positions': positions, 'enabled': True})
     except Exception as e:
         state.last_error = f"Arm read error: {str(e)}"
         print(f"[ARM READ ERROR] {e}")
@@ -129,6 +137,9 @@ def set_arm_joint():
     """Set a single arm joint position."""
     if state.controller is None:
         return jsonify({'status': 'error', 'error': 'No controller connected'})
+    
+    if not getattr(state.controller, 'arm_enabled', False):
+        return jsonify({'status': 'error', 'error': 'Arm not calibrated'})
     
     data = request.json
     joint = data.get('joint')
@@ -154,6 +165,9 @@ def set_arm():
     if state.controller is None:
         return jsonify({'status': 'error', 'error': 'No controller connected'})
     
+    if not getattr(state.controller, 'arm_enabled', False):
+        return jsonify({'status': 'error', 'error': 'Arm not calibrated'})
+    
     data = request.json
     positions = data.get('positions', {})
     
@@ -171,6 +185,9 @@ def set_gripper():
     """Control the gripper (open/close)."""
     if state.controller is None:
         return jsonify({'status': 'error', 'error': 'No controller connected'})
+    
+    if not getattr(state.controller, 'arm_enabled', False):
+        return jsonify({'status': 'error', 'error': 'Arm not calibrated'})
     
     data = request.json
     open_percent = float(data.get('open', 50))  # Default to half open
