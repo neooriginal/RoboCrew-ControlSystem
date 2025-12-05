@@ -59,7 +59,9 @@ def init_controller():
         
         return True
     except Exception as e:
+        import traceback
         print(f"✗ Failed: {e}")
+        traceback.print_exc()
         state.controller = None
         state.last_error = f"Controller init failed: {e}"
         return False
