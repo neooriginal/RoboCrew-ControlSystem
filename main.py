@@ -10,7 +10,7 @@ import threading
 
 from flask import Flask
 
-from config import WEB_PORT, WHEEL_USB, HEAD_USB, ARM_CALIBRATION_PATH
+from config import WEB_PORT, WHEEL_USB, HEAD_USB
 from state import state
 from camera import init_camera, release_camera
 from movement import movement_loop, stop_movement
@@ -28,14 +28,10 @@ def create_app():
 
 
 def init_controller():
-    """Initialize the servo controller with arm support."""
+    """Initialize the servo controller."""
     print(f"🔧 Connecting servos ({WHEEL_USB}, {HEAD_USB})...", end=" ", flush=True)
     try:
-        state.controller = ServoControler(
-            WHEEL_USB, 
-            HEAD_USB,
-            calibration_path=ARM_CALIBRATION_PATH
-        )
+        state.controller = ServoControler(WHEEL_USB, HEAD_USB)
         print("✓")
         
         # Read current head position (don't move it!)
@@ -50,17 +46,9 @@ def init_controller():
             state.head_yaw = 0
             state.head_pitch = 35
         
-        # Check arm status (use getattr for compatibility with older versions)
-        if getattr(state.controller, 'arm_enabled', False):
-            print("🦾 Arm control enabled ✓")
-        else:
-            print("🦾 Arm control not available")
-        
         return True
     except Exception as e:
-        import traceback
         print(f"✗ Failed: {e}")
-        traceback.print_exc()
         state.controller = None
         state.last_error = f"Controller init failed: {e}"
         return False
