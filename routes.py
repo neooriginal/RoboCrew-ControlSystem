@@ -225,6 +225,10 @@ def arm_key():
             arm_controller.handle_wrist_flex(1)
         elif key == 'f':
             arm_controller.handle_wrist_flex(-1)
+        elif key == 't':
+            arm_controller.handle_elbow_flex(-1)  # T = elbow up/back
+        elif key == 'g':
+            arm_controller.handle_elbow_flex(1)   # G = elbow down/forward
         
         targets = arm_controller.get_targets()
         result = state.controller.set_arm_position(targets)

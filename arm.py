@@ -1,9 +1,8 @@
 """
 RoboCrew Control System - Arm Control Module
-Handles arm movement with simplified IK-like X/Y control.
+Handles arm movement with direct joint control.
 """
 
-import math
 from state import state
 from config import (
     ARM_XY_SENSITIVITY,
@@ -12,17 +11,21 @@ from config import (
     ARM_WRIST_FLEX_STEP,
 )
 
+# Step size for elbow control
+ARM_ELBOW_STEP = 2.0
+
 
 class ArmController:
     """
-    Simplified arm controller that maps mouse X/Y to arm movement.
+    Arm controller with direct joint control.
     
-    The arm uses a simplified model:
-    - Mouse Y (vertical) → shoulder_lift + elbow_flex (reach forward/back)
-    - Mouse X (horizontal) → shoulder_pan (rotate base)
+    Controls:
+    - Mouse X → shoulder_pan (rotate base left/right)
+    - Mouse Y → shoulder_lift (tilt arm up/down)
     - Mouse wheel → wrist_roll
-    - Keyboard Q/E → shoulder_pan (coarse adjustment)
-    - Keyboard R/F → wrist_flex
+    - Q/E → shoulder_pan (fine tune)
+    - R/F → wrist_flex
+    - T/G → elbow_flex (NEW)
     - Mouse click → gripper
     """
     
@@ -36,10 +39,6 @@ class ArmController:
             'wrist_roll': 0,
             'gripper': 90  # Open
         }
-        
-        # Virtual X/Y position for IK-like mapping
-        self.virtual_x = 0.0  # -1 to 1, maps to shoulder_pan
-        self.virtual_y = 0.0  # -1 to 1, maps to reach (shoulder_lift + elbow_flex)
     
     def reset_to_home(self):
         """Reset arm to home position."""
@@ -51,88 +50,53 @@ class ArmController:
             'wrist_roll': 0,
             'gripper': 90
         }
-        self.virtual_x = 0.0
-        self.virtual_y = 0.0
         return self.targets.copy()
     
     def handle_mouse_move(self, delta_x, delta_y):
         """
         Handle mouse movement to control arm position.
         
-        Args:
-            delta_x: Horizontal mouse movement (pixels)
-            delta_y: Vertical mouse movement (pixels)
+        Mouse X → shoulder_pan
+        Mouse Y → shoulder_lift
         
-        Returns:
-            Updated target positions
+        Does NOT touch elbow_flex or wrist_flex - those are keyboard only.
         """
-        # Update virtual position
-        self.virtual_x += delta_x * ARM_XY_SENSITIVITY * 0.01
-        self.virtual_y += delta_y * ARM_XY_SENSITIVITY * 0.01
+        # Mouse X controls shoulder_pan (base rotation)
+        self.targets['shoulder_pan'] += delta_x * ARM_XY_SENSITIVITY
+        self.targets['shoulder_pan'] = max(-90, min(90, self.targets['shoulder_pan']))
         
-        # Clamp virtual position
-        self.virtual_x = max(-1.0, min(1.0, self.virtual_x))
-        self.virtual_y = max(-1.0, min(1.0, self.virtual_y))
-        
-        # Map virtual_x to shoulder_pan (-90 to 90 degrees)
-        self.targets['shoulder_pan'] = self.virtual_x * 90
-        
-        # Map virtual_y to reach (shoulder_lift + elbow_flex)
-        # Positive Y (mouse down) = extend arm forward
-        # This is a simplified "IK" - we coordinate the two joints
-        reach = self.virtual_y * 45  # -45 to 45 degrees
-        self.targets['shoulder_lift'] = reach
-        self.targets['elbow_flex'] = -reach * 0.5  # Counter-rotate elbow
-        
-        # Keep wrist level by compensating
-        self.targets['wrist_flex'] = -(self.targets['shoulder_lift'] + self.targets['elbow_flex'])
+        # Mouse Y controls shoulder_lift (arm tilt)
+        self.targets['shoulder_lift'] += delta_y * ARM_XY_SENSITIVITY
+        self.targets['shoulder_lift'] = max(-90, min(90, self.targets['shoulder_lift']))
         
         return self.targets.copy()
     
     def handle_scroll(self, delta):
-        """
-        Handle mouse scroll to control wrist roll.
-        
-        Args:
-            delta: Scroll delta (positive = scroll up)
-        
-        Returns:
-            Updated wrist_roll value
-        """
+        """Handle mouse scroll to control wrist roll."""
         self.targets['wrist_roll'] += delta * ARM_WRIST_SENSITIVITY
         self.targets['wrist_roll'] = max(-150, min(150, self.targets['wrist_roll']))
         return self.targets['wrist_roll']
     
     def handle_shoulder_pan(self, direction):
-        """
-        Handle keyboard Q/E for shoulder pan.
-        
-        Args:
-            direction: 1 for right (E), -1 for left (Q)
-        """
+        """Handle keyboard Q/E for shoulder pan."""
         self.targets['shoulder_pan'] += direction * ARM_SHOULDER_PAN_STEP
         self.targets['shoulder_pan'] = max(-90, min(90, self.targets['shoulder_pan']))
-        self.virtual_x = self.targets['shoulder_pan'] / 90.0
         return self.targets['shoulder_pan']
     
     def handle_wrist_flex(self, direction):
-        """
-        Handle keyboard R/F for wrist flex.
-        
-        Args:
-            direction: 1 for up (R), -1 for down (F)
-        """
+        """Handle keyboard R/F for wrist flex."""
         self.targets['wrist_flex'] += direction * ARM_WRIST_FLEX_STEP
         self.targets['wrist_flex'] = max(-90, min(90, self.targets['wrist_flex']))
         return self.targets['wrist_flex']
     
+    def handle_elbow_flex(self, direction):
+        """Handle keyboard T/G for elbow flex."""
+        self.targets['elbow_flex'] += direction * ARM_ELBOW_STEP
+        self.targets['elbow_flex'] = max(-90, min(90, self.targets['elbow_flex']))
+        return self.targets['elbow_flex']
+    
     def set_gripper(self, closed):
-        """
-        Set gripper state.
-        
-        Args:
-            closed: True to close gripper, False to open
-        """
+        """Set gripper state."""
         self.targets['gripper'] = 2 if closed else 90  # 2 = closed, 90 = open
         return self.targets['gripper']
     
@@ -141,19 +105,10 @@ class ArmController:
         return self.targets.copy()
     
     def set_from_current(self, positions):
-        """
-        Initialize targets from current arm positions.
-        
-        Args:
-            positions: Dict of joint positions from robot
-        """
+        """Initialize targets from current arm positions."""
         for joint, angle in positions.items():
             if joint in self.targets:
                 self.targets[joint] = angle
-        
-        # Update virtual position based on actual arm state
-        self.virtual_x = self.targets['shoulder_pan'] / 90.0
-        self.virtual_y = self.targets['shoulder_lift'] / 45.0
 
 
 # Global arm controller instance

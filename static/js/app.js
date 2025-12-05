@@ -421,7 +421,7 @@ document.addEventListener('keydown', (e) => {
         }
     } else if (currentMode === 'arm' && armLocked) {
         // Arm keyboard controls
-        if (['q', 'e', 'r', 'f'].includes(key)) {
+        if (['q', 'e', 'r', 'f', 't', 'g'].includes(key)) {
             sendArmKey(key);
         } else if (key === 'h') {
             armHome();
