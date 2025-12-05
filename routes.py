@@ -105,3 +105,80 @@ def move():
         return jsonify({'status': 'ok'})
     else:
         return jsonify({'status': 'error', 'error': state.last_error})
+
+
+# ==================== ARM CONTROL ENDPOINTS ====================
+
+@bp.route('/arm_position')
+def get_arm_position():
+    """Get current arm joint positions."""
+    if state.controller is None:
+        return jsonify({'error': 'No controller connected'})
+    
+    try:
+        positions = state.controller.get_arm_position()
+        return jsonify({'status': 'ok', 'positions': positions})
+    except Exception as e:
+        state.last_error = f"Arm read error: {str(e)}"
+        print(f"[ARM READ ERROR] {e}")
+        return jsonify({'error': str(e)})
+
+
+@bp.route('/arm_joint', methods=['POST'])
+def set_arm_joint():
+    """Set a single arm joint position."""
+    if state.controller is None:
+        return jsonify({'status': 'error', 'error': 'No controller connected'})
+    
+    data = request.json
+    joint = data.get('joint')
+    degrees = float(data.get('degrees', 0))
+    
+    if not joint:
+        return jsonify({'status': 'error', 'error': 'No joint specified'})
+    
+    try:
+        result = state.controller.set_arm_joint(joint, degrees)
+        return jsonify({'status': 'ok', 'joint': joint, 'degrees': result.get(joint, degrees)})
+    except ValueError as e:
+        return jsonify({'status': 'error', 'error': str(e)})
+    except Exception as e:
+        state.last_error = f"Arm write error: {str(e)}"
+        print(f"[ARM WRITE ERROR] {e}")
+        return jsonify({'status': 'error', 'error': str(e)})
+
+
+@bp.route('/arm', methods=['POST'])
+def set_arm():
+    """Set multiple arm joint positions at once."""
+    if state.controller is None:
+        return jsonify({'status': 'error', 'error': 'No controller connected'})
+    
+    data = request.json
+    positions = data.get('positions', {})
+    
+    try:
+        result = state.controller.set_arm_position(positions)
+        return jsonify({'status': 'ok', 'positions': result})
+    except Exception as e:
+        state.last_error = f"Arm write error: {str(e)}"
+        print(f"[ARM WRITE ERROR] {e}")
+        return jsonify({'status': 'error', 'error': str(e)})
+
+
+@bp.route('/gripper', methods=['POST'])
+def set_gripper():
+    """Control the gripper (open/close)."""
+    if state.controller is None:
+        return jsonify({'status': 'error', 'error': 'No controller connected'})
+    
+    data = request.json
+    open_percent = float(data.get('open', 50))  # Default to half open
+    
+    try:
+        result = state.controller.set_gripper(open_percent)
+        return jsonify({'status': 'ok', 'gripper': result.get('gripper', open_percent)})
+    except Exception as e:
+        state.last_error = f"Gripper error: {str(e)}"
+        print(f"[GRIPPER ERROR] {e}")
+        return jsonify({'status': 'error', 'error': str(e)})

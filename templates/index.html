@@ -30,15 +30,57 @@
                     <div class="crosshair-line v bottom"></div>
                 </div>
 
-                <div class="click-prompt">
+                <div class="click-prompt" id="click-prompt">
                     <h2>🖱️ Click to Control</h2>
                     <p>Mouse controls head • WASD moves robot</p>
+                    <p class="mode-hint">Press <kbd>Tab</kbd> to switch to Arm Mode</p>
                 </div>
 
                 <!-- Status indicator (top-left corner) -->
                 <div class="status-overlay">
                     <div class="status-dot" id="status-dot"></div>
                     <span class="status-text" id="status-text">Loading...</span>
+                </div>
+
+                <!-- Mode indicator (top-right corner) -->
+                <div class="mode-indicator" id="mode-indicator">
+                    <span class="mode-icon" id="mode-icon">🚗</span>
+                    <span class="mode-label" id="mode-label">Movement</span>
+                </div>
+
+                <!-- Arm control panel (visible in Arm Mode) -->
+                <div class="arm-panel" id="arm-panel">
+                    <div class="arm-header">
+                        <span class="arm-title">🦾 Arm Control</span>
+                        <span class="arm-hint">Mouse: shoulder • Scroll: elbow • Right-drag: wrist</span>
+                    </div>
+                    <div class="arm-joints">
+                        <div class="joint-row">
+                            <span class="joint-name">Shoulder Pan</span>
+                            <span class="joint-value" id="joint-shoulder_pan">0°</span>
+                        </div>
+                        <div class="joint-row">
+                            <span class="joint-name">Shoulder Lift</span>
+                            <span class="joint-value" id="joint-shoulder_lift">0°</span>
+                        </div>
+                        <div class="joint-row">
+                            <span class="joint-name">Elbow</span>
+                            <span class="joint-value" id="joint-elbow_flex">0°</span>
+                        </div>
+                        <div class="joint-row">
+                            <span class="joint-name">Wrist Flex</span>
+                            <span class="joint-value" id="joint-wrist_flex">0°</span>
+                        </div>
+                        <div class="joint-row">
+                            <span class="joint-name">Wrist Roll</span>
+                            <span class="joint-value" id="joint-wrist_roll">0°</span>
+                        </div>
+                        <div class="joint-row gripper-row">
+                            <span class="joint-name">Gripper</span>
+                            <span class="joint-value" id="joint-gripper">50%</span>
+                            <span class="gripper-hint">(Space to toggle)</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Body direction compass -->
