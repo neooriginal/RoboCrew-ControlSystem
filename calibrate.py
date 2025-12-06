@@ -39,10 +39,15 @@ ARM_MOTORS = {
 def read_position(bus, motor_id):
     """Read raw position from a motor."""
     try:
-        pos = bus.read("Present_Position", motor_id)
-        return int(pos)
+        # Use sync_read which returns actual values
+        result = bus.sync_read("Present_Position", [motor_id])
+        pos = result.get(motor_id)
+        if pos is not None:
+            return int(pos)
+        print(f"  No position returned for motor {motor_id}")
+        return None
     except Exception as e:
-        print(f"  Error reading position: {e}")
+        print(f"  Error reading motor {motor_id}: {e}")
         return None
 
 
