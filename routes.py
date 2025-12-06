@@ -1,6 +1,8 @@
 
 """RoboCrew Flask Routes"""
 
+import cv2
+import numpy as np
 from flask import Blueprint, Response, jsonify, request, render_template
 
 from state import state
@@ -279,3 +281,66 @@ def emergency_stop():
 @bp.route('/ai')
 def ai_page():
     return render_template('ai_control.html')
+
+
+def generate_cv_frames():
+    """Generate CV-processed frames showing what the AI sees."""
+    import time
+    while state.running:
+        if state.camera is None or not state.camera.isOpened():
+            time.sleep(0.1)
+            continue
+        
+        try:
+            state.camera.grab()
+            ret, frame = state.camera.retrieve()
+            if not ret:
+                time.sleep(0.02)
+                continue
+            
+            # CV Processing - show what AI safety check sees
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            h, w = gray.shape
+            
+            # Highlight bottom area (safety zone)
+            bottom_area = gray[int(h*0.7):, :]
+            variance = np.var(bottom_area)
+            
+            # Draw safety zone overlay
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (0, int(h*0.7)), (w, h), (0, 255, 255), 2)
+            
+            # Safety status indicator
+            if variance < 50:
+                status_color = (0, 0, 255)  # Red - unsafe
+                status_text = f"WALL CLOSE (var={variance:.0f})"
+            elif variance < 200:
+                status_color = (0, 165, 255)  # Orange - caution
+                status_text = f"CAUTION (var={variance:.0f})"
+            else:
+                status_color = (0, 255, 0)  # Green - safe
+                status_text = f"CLEAR (var={variance:.0f})"
+            
+            cv2.putText(overlay, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
+            
+            # Add AI status
+            if state.ai_enabled:
+                cv2.putText(overlay, "AI: ACTIVE", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            else:
+                cv2.putText(overlay, "AI: PAUSED", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 2)
+            
+            # Add task
+            task_text = state.ai_status[:40] if len(state.ai_status) > 40 else state.ai_status
+            cv2.putText(overlay, task_text, (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            
+            _, buffer = cv2.imencode('.jpg', overlay, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        except Exception as e:
+            time.sleep(0.05)
+
+
+@bp.route('/ai_video_feed')
+def ai_video_feed():
+    return Response(generate_cv_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+

@@ -15,12 +15,13 @@ def create_move_forward(servo_controller):
     @tool
     def move_forward(distance_meters: float) -> str:
         """Drives the robot forward (or backward) for a specific distance."""
-
         distance = float(distance_meters)
+        print(f"[TOOL] move_forward({distance}) - calling servo_controller")
         if distance >= 0:
-            servo_controller.go_forward(distance)
+            result = servo_controller.go_forward(distance)
         else:
-            servo_controller.go_backward(-distance)
+            result = servo_controller.go_backward(-distance)
+        print(f"[TOOL] move_forward result: {result}")
         return f"Moved {'forward' if distance >= 0 else 'backward'} {abs(distance):.2f} meters."
 
     return move_forward
@@ -30,7 +31,9 @@ def create_move_backward(servo_controller):
     def move_backward(distance_meters: float) -> str:
         """Drives the robot backward for a specific distance."""
         distance = float(distance_meters)
-        servo_controller.go_backward(distance)
+        print(f"[TOOL] move_backward({distance}) - calling servo_controller")
+        result = servo_controller.go_backward(distance)
+        print(f"[TOOL] move_backward result: {result}")
         return f"Moved backward {distance:.2f} meters."
 
     return move_backward
@@ -41,8 +44,10 @@ def create_turn_right(servo_controller):
     def turn_right(angle_degrees: float) -> str:
         """Turns the robot right by angle in degrees."""
         angle = float(angle_degrees)
-        servo_controller.turn_right(angle)
-        time.sleep(0.4)  # wait a bit after turn for stabilization
+        print(f"[TOOL] turn_right({angle}) - calling servo_controller")
+        result = servo_controller.turn_right(angle)
+        print(f"[TOOL] turn_right result: {result}")
+        time.sleep(0.4)
         return f"Turned right by {angle} degrees."
 
     return turn_right
@@ -53,8 +58,10 @@ def create_turn_left(servo_controller):
     def turn_left(angle_degrees: float) -> str:
         """Turns the robot left by angle in degrees."""
         angle = float(angle_degrees)
-        servo_controller.turn_left(angle)
-        time.sleep(0.4)  # wait a bit after turn for stabilization
+        print(f"[TOOL] turn_left({angle}) - calling servo_controller")
+        result = servo_controller.turn_left(angle)
+        print(f"[TOOL] turn_left result: {result}")
+        time.sleep(0.4)
         return f"Turned left by {angle} degrees."
 
     return turn_left
