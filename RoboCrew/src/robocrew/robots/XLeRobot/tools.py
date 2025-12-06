@@ -165,22 +165,22 @@ def create_look_center(servo_controller):
 def create_look_down(servo_controller):
     @tool
     def look_down() -> str:
-        """Tilt camera down to see the floor/ground in front of you."""
-        print("[TOOL] look_down - tilting head down")
-        servo_controller.turn_head_pitch(60)
+        """Tilt camera slightly down to see the ground closer to you."""
+        print("[TOOL] look_down - tilting head down slightly")
+        servo_controller.turn_head_pitch(50)
         time.sleep(0.3)
-        return "Camera is now looking down at the floor. Check for obstacles on the ground."
+        return "Camera tilted down slightly. Check for obstacles on the ground ahead."
     return look_down
 
 
 def create_look_up(servo_controller):
     @tool
     def look_up() -> str:
-        """Tilt camera up to see higher areas."""
-        print("[TOOL] look_up - tilting head up")
-        servo_controller.turn_head_pitch(10)
+        """Tilt camera slightly up to see further ahead."""
+        print("[TOOL] look_up - tilting head up slightly")
+        servo_controller.turn_head_pitch(25)
         time.sleep(0.3)
-        return "Camera is now looking up."
+        return "Camera tilted up slightly. You can now see further ahead."
     return look_up
 
 
