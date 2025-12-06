@@ -151,10 +151,10 @@ EXPLORATION:
             response = self.llm.invoke(self.message_history)
             self.message_history.append(response)
             
-            # Prune history aggressively - images take a lot of tokens
-            # Keep only system message + last 3 exchanges
-            if len(self.message_history) > 7:
-                self.message_history = [self.message_history[0]] + self.message_history[-6:]
+            # Prune history very aggressively - images take huge tokens
+            # Keep only system message + last 2 exchanges (4 messages)
+            if len(self.message_history) > 5:
+                self.message_history = [self.message_history[0]] + self.message_history[-4:]
             
             # 5. Execute Tools
             if response.tool_calls:

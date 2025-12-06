@@ -28,9 +28,6 @@ from robocrew.robots.XLeRobot.tools import (
     create_turn_left, 
     create_turn_right, 
     create_look_around,
-    create_look_center,
-    create_look_down,
-    create_look_up,
     create_end_task
 )
 
@@ -85,15 +82,13 @@ def main():
     # 2. Initialize AI Agent
     if robot.controller:
         print("🧠 Initializing AI Agent...")
+        # Minimal tools - no individual camera controls to avoid confusion
         tools = [
             create_move_forward(robot.controller),
             create_move_backward(robot.controller),
             create_turn_left(robot.controller),
             create_turn_right(robot.controller),
-            create_look_around(robot.controller, robot.camera),
-            create_look_center(robot.controller),
-            create_look_down(robot.controller),
-            create_look_up(robot.controller),
+            create_look_around(robot.controller, robot.camera),  # Emergency only
             create_end_task()
         ]
 
