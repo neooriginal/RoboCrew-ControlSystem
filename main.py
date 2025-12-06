@@ -27,7 +27,12 @@ from robocrew.robots.XLeRobot.tools import (
     create_move_backward, 
     create_turn_left, 
     create_turn_right, 
-    create_look_around
+    create_look_around,
+    create_look_left,
+    create_look_right,
+    create_look_center,
+    create_look_down,
+    create_look_up
 )
 
 # Configure logging - reduce verbosity
@@ -86,7 +91,12 @@ def main():
             create_move_backward(robot.controller),
             create_turn_left(robot.controller),
             create_turn_right(robot.controller),
-            create_look_around(robot.controller, robot.camera)
+            create_look_around(robot.controller, robot.camera),
+            create_look_left(robot.controller),
+            create_look_right(robot.controller),
+            create_look_center(robot.controller),
+            create_look_down(robot.controller),
+            create_look_up(robot.controller)
         ]
         
         # Use Gemini 2.0 Flash for navigation (requires GOOGLE_API_KEY in .env)
