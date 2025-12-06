@@ -30,8 +30,12 @@ class NavigationAgent:
         self.tool_map = {t.name: t for t in tools}
         self.history_len = history_len
         
-        # Initialize LLM
-        self.llm = init_chat_model(model_name).bind_tools(tools)
+        # Initialize LLM - parse model name for provider
+        if "/" in model_name:
+            provider, model = model_name.split("/", 1)
+            self.llm = init_chat_model(model, model_provider=provider).bind_tools(tools)
+        else:
+            self.llm = init_chat_model(model_name).bind_tools(tools)
         
         # System Prompt
         base_prompt = (
