@@ -32,7 +32,8 @@ from robocrew.robots.XLeRobot.tools import (
     create_look_right,
     create_look_center,
     create_look_down,
-    create_look_up
+    create_look_up,
+    create_end_task
 )
 
 # Configure logging - reduce verbosity
@@ -96,12 +97,11 @@ def main():
             create_look_right(robot.controller),
             create_look_center(robot.controller),
             create_look_down(robot.controller),
-            create_look_up(robot.controller)
+            create_look_up(robot.controller),
+            create_end_task()
         ]
-        
-        # Use Gemini 2.0 Flash for navigation (requires GOOGLE_API_KEY in .env)
-        # Available models: gemini-2.0-flash, gemini-1.5-pro, gemini-1.5-flash
-        model_name = os.getenv("AI_MODEL", "google_genai/gemini-2.0-flash") 
+
+        model_name = os.getenv("AI_MODEL", "openai/gpt-5.1") 
         
         try:
             agent = NavigationAgent(robot, model_name, tools)

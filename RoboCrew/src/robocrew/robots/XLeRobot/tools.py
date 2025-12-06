@@ -12,6 +12,18 @@ import threading
 
 from state import state as robot_state
 
+
+def create_end_task():
+    @tool
+    def end_task(reason: str) -> str:
+        """Call this when you have completed your assigned task or mission. Provide a reason explaining what was accomplished."""
+        print(f"[TOOL] end_task - reason: {reason}")
+        robot_state.ai_enabled = False
+        robot_state.ai_status = f"Task completed: {reason}"
+        robot_state.add_ai_log(f"TASK COMPLETED: {reason}")
+        return f"Task ended. Reason: {reason}. AI has been paused."
+    return end_task
+
 def create_move_forward(servo_controller):
     @tool
     def move_forward(distance_meters: float) -> str:
