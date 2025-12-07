@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoboCrew Display</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+</head>
+
+<body>
+    <div class="display-container" id="display-container">
+        <!-- Eyes Container -->
+        <div class="eyes-container">
+            <div class="eye left-eye" id="left-eye">
+                <div class="eye-white">
+                    <div class="eye-iris" id="left-iris">
+                        <div class="eye-pupil"></div>
+                        <div class="eye-highlight"></div>
+                    </div>
+                </div>
+                <div class="eyelid top-lid" id="left-top-lid"></div>
+                <div class="eyelid bottom-lid" id="left-bottom-lid"></div>
+            </div>
+
+            <div class="eye right-eye" id="right-eye">
+                <div class="eye-white">
+                    <div class="eye-iris" id="right-iris">
+                        <div class="eye-pupil"></div>
+                        <div class="eye-highlight"></div>
+                    </div>
+                </div>
+                <div class="eyelid top-lid" id="right-top-lid"></div>
+                <div class="eyelid bottom-lid" id="right-bottom-lid"></div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-label" id="status-label">Initializing...</span>
+            </div>
+            <div class="task-display" id="task-display">Ready to help!</div>
+        </div>
+
+        <!-- Touch Prompt (initial) -->
+        <div class="touch-prompt" id="touch-prompt">
+            <span>👆 Tap for fullscreen</span>
+        </div>
+
+        <!-- Connection indicator -->
+        <div class="connection-badge" id="connection-badge">
+            <div class="connection-dot"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/display.js') }}"></script>
+</body>
+
+</html>

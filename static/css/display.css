@@ -1,0 +1,362 @@
+/* Display Visualization Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a1a 100%);
+    cursor: none;
+}
+
+.display-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(ellipse at center, rgba(60, 80, 120, 0.15) 0%, transparent 70%);
+}
+
+/* Ambient animation */
+.display-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.05) 0%, transparent 40%);
+    animation: ambientPulse 8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes ambientPulse {
+
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Eyes Container */
+.eyes-container {
+    display: flex;
+    gap: 80px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 60px;
+}
+
+/* Individual Eye */
+.eye {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+
+.eye-white {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 30% 30%, #ffffff 0%, #f0f0f5 60%, #e0e0e8 100%);
+    border-radius: 50%;
+    box-shadow:
+        0 0 60px rgba(255, 255, 255, 0.3),
+        inset 0 -10px 30px rgba(0, 0, 0, 0.1),
+        inset 0 10px 20px rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.eye-iris {
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle at 30% 30%, #4a90d4 0%, #2a5a94 50%, #1a3a64 100%);
+    border-radius: 50%;
+    position: relative;
+    transition: transform 0.15s ease-out;
+    box-shadow:
+        inset 0 -5px 15px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(74, 144, 212, 0.4);
+}
+
+.eye-pupil {
+    width: 45px;
+    height: 45px;
+    background: radial-gradient(circle at 40% 40%, #1a1a2e 0%, #000000 100%);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.eye-highlight {
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%);
+    border-radius: 50%;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+}
+
+/* Eyelids */
+.eyelid {
+    position: absolute;
+    left: -5px;
+    right: -5px;
+    height: 110px;
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+    transition: transform 0.15s ease-out;
+    z-index: 10;
+}
+
+.top-lid {
+    top: -5px;
+    border-radius: 0 0 100px 100px;
+    transform: translateY(-100%);
+}
+
+.bottom-lid {
+    bottom: -5px;
+    border-radius: 100px 100px 0 0;
+    transform: translateY(100%);
+}
+
+/* Blink animation */
+.eye.blinking .top-lid {
+    transform: translateY(45%);
+}
+
+.eye.blinking .bottom-lid {
+    transform: translateY(-45%);
+}
+
+/* Happy expression - curved eyes */
+.eye.happy .top-lid {
+    transform: translateY(50%);
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+
+.eye.happy .bottom-lid {
+    transform: translateY(100%);
+}
+
+/* Thinking - look up */
+.eye.thinking .eye-iris {
+    transform: translateY(-25px);
+}
+
+/* Error expression */
+.eye.error .eye-white {
+    background: radial-gradient(ellipse at 30% 30%, #ffeeee 0%, #ffdddd 100%);
+}
+
+.eye.error .eye-iris {
+    background: radial-gradient(circle at 30% 30%, #d44a4a 0%, #942a2a 50%, #641a1a 100%);
+}
+
+/* Status Bar */
+.status-bar {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    min-width: 400px;
+    max-width: 80%;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    padding: 10px 25px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #666;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+.status-dot.active {
+    background: #4ade80;
+    box-shadow: 0 0 15px rgba(74, 222, 128, 0.6);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot.idle {
+    background: #60a5fa;
+    box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+}
+
+.status-dot.error {
+    background: #f87171;
+    box-shadow: 0 0 15px rgba(248, 113, 113, 0.6);
+    animation: pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+.status-label {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.5px;
+}
+
+.task-display {
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 20px;
+}
+
+/* Touch Prompt */
+.touch-prompt {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 12px 25px;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    animation: fadeInOut 3s ease-in-out infinite;
+    transition: opacity 0.3s;
+}
+
+.touch-prompt.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes fadeInOut {
+
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Connection Badge */
+.connection-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+}
+
+.connection-badge .connection-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+
+.connection-badge.disconnected .connection-dot {
+    background: #f87171;
+    box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 800px) {
+    .eyes-container {
+        gap: 40px;
+    }
+
+    .eye {
+        width: 150px;
+        height: 150px;
+    }
+
+    .eye-iris {
+        width: 75px;
+        height: 75px;
+    }
+
+    .eye-pupil {
+        width: 35px;
+        height: 35px;
+    }
+
+    .eyelid {
+        height: 85px;
+    }
+}
+
+@media (max-height: 500px) {
+    .eye {
+        width: 120px;
+        height: 120px;
+    }
+
+    .eye-iris {
+        width: 60px;
+        height: 60px;
+    }
+
+    .eye-pupil {
+        width: 28px;
+        height: 28px;
+    }
+
+    .eyelid {
+        height: 70px;
+    }
+
+    .eyes-container {
+        margin-bottom: 30px;
+    }
+}

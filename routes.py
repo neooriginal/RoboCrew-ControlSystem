@@ -287,6 +287,24 @@ def ai_page():
     return render_template('ai_control.html')
 
 
+@bp.route('/display')
+def display_page():
+    """Serve the fullscreen display visualization page."""
+    return render_template('display.html')
+
+
+@bp.route('/display/state')
+def display_state():
+    """API endpoint for display to poll current robot state."""
+    return jsonify({
+        'ai_enabled': state.ai_enabled,
+        'ai_status': state.ai_status,
+        'current_task': state.agent.current_task if state.agent and hasattr(state.agent, 'current_task') else None,
+        'controller_connected': state.controller is not None,
+        'camera_connected': state.camera is not None and state.camera.isOpened() if state.camera else False
+    })
+
+
 def generate_cv_frames():
     """Generate CV-processed frames showing what the AI sees."""
     import time

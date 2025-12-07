@@ -6,6 +6,7 @@ import threading
 import time
 import os
 import logging
+import webbrowser
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -118,8 +119,13 @@ def main():
     
     print()
     print(f"🌐 http://0.0.0.0:{WEB_PORT}")
+    print(f"📺 Display: http://localhost:{WEB_PORT}/display")
     print("Press Ctrl+C to stop")
     print("-" * 50)
+    
+    # Auto-open display if configured
+    if os.getenv('AUTO_OPEN_DISPLAY', 'true').lower() == 'true':
+        webbrowser.open(f'http://localhost:{WEB_PORT}/display')
     
     try:
         app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, use_reloader=False, debug=False)
