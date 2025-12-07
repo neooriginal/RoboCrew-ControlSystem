@@ -50,6 +50,7 @@ class RobotState:
         
         # Remote control tracking
         self.last_remote_activity = 0  # timestamp of last remote input
+        self.last_movement_command = 0  # timestamp of last movement command (for safety timeout)
     
     def update_movement(self, data):
         """Update movement state from request data."""
