@@ -19,6 +19,12 @@ def index():
     return render_template('index.html')
 
 
+@bp.route('/mobile')
+def mobile():
+    """Mobile-optimized control interface with touch joystick."""
+    return render_template('mobile.html')
+
+
 @bp.route('/status')
 def get_status():
     return jsonify({

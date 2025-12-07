@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>RoboCrew Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-dot.connected {
+            background: #4ade80;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        .status-dot.disconnected {
+            background: #f87171;
+        }
+
+        /* Video Feed */
+        .video-section {
+            flex: 1;
+            min-height: 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-section img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Controls Section */
+        .controls {
+            display: flex;
+            gap: 15px;
+            padding: 10px 0;
+        }
+
+        /* Joystick */
+        .joystick-container {
+            flex: 1;
+            aspect-ratio: 1;
+            max-width: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            position: relative;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .joystick-base {
+            position: absolute;
+            inset: 15%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        .joystick-handle {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #4a90d4 0%, #2a5a94 100%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.3),
+                inset 0 2px 5px rgba(255, 255, 255, 0.3);
+            transition: box-shadow 0.2s;
+        }
+
+        .joystick-handle.active {
+            box-shadow:
+                0 0 30px rgba(74, 144, 212, 0.5),
+                inset 0 2px 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .joystick-direction {
+            position: absolute;
+            font-size: 1.5rem;
+            opacity: 0.3;
+        }
+
+        .joystick-direction.up {
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .joystick-direction.down {
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .joystick-direction.left {
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .joystick-direction.right {
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn.emergency {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .action-btn.emergency:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(239, 68, 68, 0.6);
+        }
+
+        .action-btn.mode {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .action-btn.mode:active {
+            transform: scale(0.95);
+        }
+
+        /* Head Control */
+        .head-control {
+            flex: 1;
+            max-width: 200px;
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            position: relative;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .head-indicator {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .head-label {
+            position: absolute;
+            bottom: 10px;
+            font-size: 0.7rem;
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Footer */
+        .footer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .footer-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .footer-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .footer-btn.active {
+            background: rgba(74, 222, 128, 0.2);
+            border-color: rgba(74, 222, 128, 0.5);
+        }
+
+        /* Landscape hint */
+        @media (orientation: portrait) and (max-height: 600px) {
+            .video-section {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 RoboCrew</h1>
+            <div class="status-badge">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </div>
+
+        <div class="video-section">
+            <img id="video-feed" src="/video_feed" alt="Camera">
+            <div class="video-overlay">
+                <span id="mode-display">Drive Mode</span>
+                <span id="speed-display">--</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="joystick-container" id="joystick">
+                <div class="joystick-base"></div>
+                <div class="joystick-handle" id="joystick-handle"></div>
+                <span class="joystick-direction up">↑</span>
+                <span class="joystick-direction down">↓</span>
+                <span class="joystick-direction left">←</span>
+                <span class="joystick-direction right">→</span>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn emergency" id="emergency-btn">🛑</button>
+                <button class="action-btn mode" id="mode-btn">🔄</button>
+            </div>
+
+            <div class="head-control" id="head-control">
+                <div class="head-indicator" id="head-indicator"></div>
+                <span class="head-label">Head</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <button class="footer-btn" id="gripper-btn">✊ Gripper</button>
+            <button class="footer-btn" id="home-btn">🏠 Home</button>
+        </div>
+    </div>
+
+    <script>
+        class MobileController {
+            constructor() {
+                this.joystick = document.getElementById('joystick');
+                this.joystickHandle = document.getElementById('joystick-handle');
+                this.headControl = document.getElementById('head-control');
+                this.headIndicator = document.getElementById('head-indicator');
+                this.statusDot = document.getElementById('status-dot');
+                this.statusText = document.getElementById('status-text');
+
+                this.joystickActive = false;
+                this.headActive = false;
+                this.joystickCenter = { x: 0, y: 0 };
+                this.headCenter = { x: 0, y: 0 };
+                this.maxDistance = 60;
+
+                this.currentMovement = { forward: false, backward: false, left: false, right: false };
+                this.headPosition = { yaw: 0, pitch: 35 };
+
+                this.init();
+            }
+
+            init() {
+                // Joystick touch events
+                this.joystick.addEventListener('touchstart', (e) => this.onJoystickStart(e));
+                this.joystick.addEventListener('touchmove', (e) => this.onJoystickMove(e));
+                this.joystick.addEventListener('touchend', () => this.onJoystickEnd());
+                this.joystick.addEventListener('touchcancel', () => this.onJoystickEnd());
+
+                // Head control touch events
+                this.headControl.addEventListener('touchstart', (e) => this.onHeadStart(e));
+                this.headControl.addEventListener('touchmove', (e) => this.onHeadMove(e));
+                this.headControl.addEventListener('touchend', () => this.onHeadEnd());
+                this.headControl.addEventListener('touchcancel', () => this.onHeadEnd());
+
+                // Buttons
+                document.getElementById('emergency-btn').addEventListener('click', () => this.emergencyStop());
+                document.getElementById('mode-btn').addEventListener('click', () => this.toggleMode());
+                document.getElementById('gripper-btn').addEventListener('touchstart', () => this.setGripper(true));
+                document.getElementById('gripper-btn').addEventListener('touchend', () => this.setGripper(false));
+                document.getElementById('home-btn').addEventListener('click', () => this.goHome());
+
+                // Send commands at regular intervals
+                setInterval(() => this.sendMovement(), 100);
+
+                // Status polling
+                this.pollStatus();
+            }
+
+            getJoystickRect() {
+                const rect = this.joystick.getBoundingClientRect();
+                return {
+                    centerX: rect.left + rect.width / 2,
+                    centerY: rect.top + rect.height / 2,
+                    radius: rect.width / 2
+                };
+            }
+
+            onJoystickStart(e) {
+                e.preventDefault();
+                this.joystickActive = true;
+                this.joystickHandle.classList.add('active');
+                this.onJoystickMove(e);
+            }
+
+            onJoystickMove(e) {
+                if (!this.joystickActive) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                const rect = this.getJoystickRect();
+
+                let dx = touch.clientX - rect.centerX;
+                let dy = touch.clientY - rect.centerY;
+
+                // Limit to max distance
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > this.maxDistance) {
+                    dx = (dx / distance) * this.maxDistance;
+                    dy = (dy / distance) * this.maxDistance;
+                }
+
+                // Update handle position
+                this.joystickHandle.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                // Calculate movement direction
+                const threshold = this.maxDistance * 0.3;
+                this.currentMovement = {
+                    forward: dy < -threshold,
+                    backward: dy > threshold,
+                    left: dx < -threshold,
+                    right: dx > threshold
+                };
+            }
+
+            onJoystickEnd() {
+                this.joystickActive = false;
+                this.joystickHandle.classList.remove('active');
+                this.joystickHandle.style.transform = 'translate(-50%, -50%)';
+                this.currentMovement = { forward: false, backward: false, left: false, right: false };
+                this.sendMovement();
+            }
+
+            onHeadStart(e) {
+                e.preventDefault();
+                this.headActive = true;
+                const rect = this.headControl.getBoundingClientRect();
+                this.headCenter = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+                this.onHeadMove(e);
+            }
+
+            onHeadMove(e) {
+                if (!this.headActive) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                const rect = this.headControl.getBoundingClientRect();
+                const maxOffset = rect.width / 2 - 30;
+
+                let dx = touch.clientX - this.headCenter.x;
+                let dy = touch.clientY - this.headCenter.y;
+
+                // Limit to bounds
+                dx = Math.max(-maxOffset, Math.min(maxOffset, dx));
+                dy = Math.max(-maxOffset, Math.min(maxOffset, dy));
+
+                // Update indicator position
+                this.headIndicator.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                // Map to head angles
+                const yaw = (dx / maxOffset) * 60;  // -60 to 60 degrees
+                const pitch = 35 + (dy / maxOffset) * 25;  // 10 to 60 degrees
+
+                this.headPosition = { yaw, pitch };
+                this.sendHeadPosition();
+            }
+
+            onHeadEnd() {
+                this.headActive = false;
+            }
+
+            async sendMovement() {
+                try {
+                    await fetch('/move', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.currentMovement)
+                    });
+                } catch (e) {
+                    console.error('Movement error:', e);
+                }
+            }
+
+            async sendHeadPosition() {
+                try {
+                    await fetch('/head', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.headPosition)
+                    });
+                } catch (e) {
+                    console.error('Head error:', e);
+                }
+            }
+
+            async emergencyStop() {
+                try {
+                    await fetch('/emergency_stop', { method: 'POST' });
+                    this.currentMovement = { forward: false, backward: false, left: false, right: false };
+                } catch (e) {
+                    console.error('Emergency stop error:', e);
+                }
+            }
+
+            async toggleMode() {
+                // Toggle between drive and arm mode
+                try {
+                    const res = await fetch('/mode');
+                    const data = await res.json();
+                    const newMode = data.mode === 'drive' ? 'arm' : 'drive';
+                    await fetch('/mode', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: newMode })
+                    });
+                    document.getElementById('mode-display').textContent =
+                        newMode === 'drive' ? 'Drive Mode' : 'Arm Mode';
+                } catch (e) {
+                    console.error('Mode toggle error:', e);
+                }
+            }
+
+            async setGripper(closed) {
+                try {
+                    await fetch('/gripper', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ closed })
+                    });
+                    document.getElementById('gripper-btn').classList.toggle('active', closed);
+                } catch (e) {
+                    console.error('Gripper error:', e);
+                }
+            }
+
+            async goHome() {
+                try {
+                    await fetch('/arm/home', { method: 'POST' });
+                } catch (e) {
+                    console.error('Home error:', e);
+                }
+            }
+
+            async pollStatus() {
+                try {
+                    const res = await fetch('/status');
+                    const data = await res.json();
+
+                    this.statusDot.classList.toggle('connected', data.controller_connected);
+                    this.statusDot.classList.toggle('disconnected', !data.controller_connected);
+                    this.statusText.textContent = data.controller_connected ? 'Connected' : 'Disconnected';
+                } catch (e) {
+                    this.statusDot.classList.add('disconnected');
+                    this.statusText.textContent = 'Offline';
+                }
+
+                setTimeout(() => this.pollStatus(), 1000);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            new MobileController();
+        });
+
+        // Prevent zoom on double tap
+        document.addEventListener('dblclick', (e) => e.preventDefault());
+    </script>
+</body>
+
+</html>
