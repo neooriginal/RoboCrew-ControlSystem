@@ -1,6 +1,6 @@
 /**
- * RoboCrew Display Visualization
- * Animated eyes and status display
+ * RoboCrew Display Visualization - Enhanced Version
+ * Animated eyes with particles and dynamic effects
  */
 
 class RoboDisplay {
@@ -9,9 +9,12 @@ class RoboDisplay {
         this.rightIris = document.getElementById('right-iris');
         this.leftEye = document.getElementById('left-eye');
         this.rightEye = document.getElementById('right-eye');
+        this.eyesContainer = document.getElementById('eyes-container');
         this.statusDot = document.getElementById('status-dot');
         this.statusLabel = document.getElementById('status-label');
         this.taskDisplay = document.getElementById('task-display');
+        this.bgParticles = document.getElementById('bg-particles');
+        this.bgGlow = document.getElementById('bg-glow');
 
         // Control mode elements
         this.controlModeBadge = document.getElementById('control-mode-badge');
@@ -34,11 +37,34 @@ class RoboDisplay {
     }
 
     init() {
-        // Start animations
+        this.createParticles();
         this.startBlinkLoop();
         this.startLookAroundLoop();
+        this.startMicroMovements();
         this.startStatusPolling();
         this.animate();
+    }
+
+    // Create floating background particles
+    createParticles() {
+        const colors = [
+            'rgba(100, 150, 255, 0.6)',
+            'rgba(150, 100, 255, 0.5)',
+            'rgba(100, 200, 255, 0.4)',
+            'rgba(200, 150, 255, 0.4)'
+        ];
+
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (10 + Math.random() * 15) + 's';
+            particle.style.animationDelay = -(Math.random() * 15) + 's';
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.width = (2 + Math.random() * 4) + 'px';
+            particle.style.height = particle.style.width;
+            this.bgParticles.appendChild(particle);
+        }
     }
 
     // Eye movement
@@ -48,62 +74,112 @@ class RoboDisplay {
     }
 
     updateEyePosition() {
-        this.currentLook.x += (this.lookTarget.x - this.currentLook.x) * 0.1;
-        this.currentLook.y += (this.lookTarget.y - this.currentLook.y) * 0.1;
+        // Smooth interpolation with slight lag for natural feel
+        this.currentLook.x += (this.lookTarget.x - this.currentLook.x) * 0.08;
+        this.currentLook.y += (this.lookTarget.y - this.currentLook.y) * 0.08;
 
-        const maxOffset = 25;
+        const maxOffset = 28;
         const offsetX = this.currentLook.x * maxOffset;
         const offsetY = this.currentLook.y * maxOffset;
 
+        // Slight parallax - right eye moves slightly more
         this.leftIris.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-        this.rightIris.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        this.rightIris.style.transform = `translate(${offsetX * 1.05}px, ${offsetY}px)`;
     }
 
-    // Blinking
-    blink() {
+    // Blinking with double-blink sometimes
+    blink(double = false) {
         if (this.isBlinking) return;
         this.isBlinking = true;
 
-        this.leftEye.classList.add('blinking');
-        this.rightEye.classList.add('blinking');
+        const doBlink = () => {
+            this.leftEye.classList.add('blinking');
+            this.rightEye.classList.add('blinking');
 
-        setTimeout(() => {
-            this.leftEye.classList.remove('blinking');
-            this.rightEye.classList.remove('blinking');
-            this.isBlinking = false;
-        }, 150);
+            setTimeout(() => {
+                this.leftEye.classList.remove('blinking');
+                this.rightEye.classList.remove('blinking');
+            }, 120);
+        };
+
+        doBlink();
+
+        if (double) {
+            setTimeout(() => doBlink(), 250);
+            setTimeout(() => { this.isBlinking = false; }, 400);
+        } else {
+            setTimeout(() => { this.isBlinking = false; }, 150);
+        }
     }
 
     startBlinkLoop() {
         const doBlink = () => {
             if (this.currentExpression !== 'happy') {
-                this.blink();
+                // 20% chance of double blink
+                this.blink(Math.random() < 0.2);
             }
-            const nextBlink = 2000 + Math.random() * 4000;
+            // Random interval 2-5 seconds
+            const nextBlink = 2000 + Math.random() * 3000;
             setTimeout(doBlink, nextBlink);
         };
-        setTimeout(doBlink, 1000);
+        setTimeout(doBlink, 1500);
     }
 
-    // Look around randomly
+    // Random micro-movements for liveliness
+    startMicroMovements() {
+        const microMove = () => {
+            if (this.currentExpression === 'idle') {
+                // Tiny random adjustments
+                const microX = (Math.random() - 0.5) * 0.1;
+                const microY = (Math.random() - 0.5) * 0.05;
+                this.lookTarget.x += microX;
+                this.lookTarget.y += microY;
+            }
+            setTimeout(microMove, 200 + Math.random() * 300);
+        };
+        microMove();
+    }
+
+    // Look around randomly with varied patterns
     startLookAroundLoop() {
         const lookAround = () => {
             if (this.currentExpression === 'idle' || this.currentExpression === 'active') {
-                const x = (Math.random() - 0.5) * 1.5;
-                const y = (Math.random() - 0.5) * 0.8;
+                // Different look patterns
+                const pattern = Math.random();
+                let x, y;
+
+                if (pattern < 0.3) {
+                    // Look at something specific
+                    x = (Math.random() - 0.5) * 1.8;
+                    y = (Math.random() - 0.5) * 1.0;
+                } else if (pattern < 0.5) {
+                    // Glance to side
+                    x = Math.random() < 0.5 ? -0.8 : 0.8;
+                    y = (Math.random() - 0.5) * 0.4;
+                } else if (pattern < 0.7) {
+                    // Look up thoughtfully
+                    x = (Math.random() - 0.5) * 0.4;
+                    y = -0.5 - Math.random() * 0.3;
+                } else {
+                    // Return to center-ish
+                    x = (Math.random() - 0.5) * 0.3;
+                    y = (Math.random() - 0.5) * 0.2;
+                }
+
                 this.setLookTarget(x, y);
             }
-            const nextLook = 1000 + Math.random() * 3000;
+
+            const nextLook = 800 + Math.random() * 2500;
             setTimeout(lookAround, nextLook);
         };
         setTimeout(lookAround, 2000);
     }
 
-    // Expressions
+    // Expressions with enhanced animations
     setExpression(expression) {
         if (this.currentExpression === expression) return;
 
-        const expressions = ['happy', 'thinking', 'error'];
+        const expressions = ['happy', 'thinking', 'error', 'excited'];
         expressions.forEach(exp => {
             this.leftEye.classList.remove(exp);
             this.rightEye.classList.remove(exp);
@@ -116,77 +192,88 @@ class RoboDisplay {
 
         this.currentExpression = expression;
 
-        if (expression === 'happy') {
-            this.setLookTarget(0, 0);
-        } else if (expression === 'thinking') {
-            this.setLookTarget(0.3, -0.5);
+        // Special behaviors
+        switch (expression) {
+            case 'happy':
+                this.setLookTarget(0, 0.1);
+                // Quick excited look around
+                setTimeout(() => {
+                    if (this.currentExpression === 'happy') {
+                        this.setLookTarget(0.3, 0);
+                    }
+                }, 500);
+                break;
+            case 'thinking':
+                this.setLookTarget(0.4, -0.6);
+                break;
+            case 'excited':
+                this.blink(true);
+                break;
+            case 'error':
+                // Shake handled by CSS
+                break;
         }
     }
 
-    // Control mode update
+    // Control mode update with animation
     updateControlMode(mode) {
         if (this.currentControlMode === mode) return;
         this.currentControlMode = mode;
 
-        // Remove old mode classes
         this.controlModeBadge.classList.remove('idle', 'remote', 'ai');
         this.controlModeBadge.classList.add(mode);
 
-        // Update emoji and text
-        switch (mode) {
-            case 'remote':
-                this.modeEmoji.textContent = '🎮';
-                this.modeText.textContent = 'Remote Control';
-                break;
-            case 'ai':
-                this.modeEmoji.textContent = '🤖';
-                this.modeText.textContent = 'AI Driving';
-                break;
-            case 'idle':
-            default:
-                this.modeEmoji.textContent = '😴';
-                this.modeText.textContent = 'Idle';
-                break;
+        // Update emoji and text with bounce effect
+        this.modeEmoji.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            switch (mode) {
+                case 'remote':
+                    this.modeEmoji.textContent = '🎮';
+                    this.modeText.textContent = 'Remote Control';
+                    this.setExpression('active');
+                    break;
+                case 'ai':
+                    this.modeEmoji.textContent = '🤖';
+                    this.modeText.textContent = 'AI Driving';
+                    this.setExpression('excited');
+                    setTimeout(() => this.setExpression('active'), 1000);
+                    break;
+                case 'idle':
+                default:
+                    this.modeEmoji.textContent = '😴';
+                    this.modeText.textContent = 'Idle';
+                    break;
+            }
+            this.modeEmoji.style.transform = 'scale(1.1)';
+            setTimeout(() => { this.modeEmoji.style.transform = 'scale(1)'; }, 150);
+        }, 100);
+
+        // Update background glow color
+        if (mode === 'ai') {
+            this.bgGlow.style.background = 'radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%)';
+        } else if (mode === 'remote') {
+            this.bgGlow.style.background = 'radial-gradient(circle, rgba(96, 165, 250, 0.2) 0%, transparent 70%)';
+        } else {
+            this.bgGlow.style.background = 'radial-gradient(circle, rgba(80, 120, 200, 0.15) 0%, transparent 70%)';
         }
     }
 
     // Update system status indicators
     updateSystemStatus(data) {
-        // Controller
-        if (data.controller_connected) {
-            this.systemController.classList.add('operational');
-            this.systemController.classList.remove('offline');
-        } else {
-            this.systemController.classList.add('offline');
-            this.systemController.classList.remove('operational');
-        }
+        const updateItem = (element, connected) => {
+            if (connected) {
+                element.classList.add('operational');
+                element.classList.remove('offline');
+            } else {
+                element.classList.add('offline');
+                element.classList.remove('operational');
+            }
+        };
 
-        // Camera
-        if (data.camera_connected) {
-            this.systemCamera.classList.add('operational');
-            this.systemCamera.classList.remove('offline');
-        } else {
-            this.systemCamera.classList.add('offline');
-            this.systemCamera.classList.remove('operational');
-        }
-
-        // Arm
-        if (data.arm_connected) {
-            this.systemArm.classList.add('operational');
-            this.systemArm.classList.remove('offline');
-        } else {
-            this.systemArm.classList.add('offline');
-            this.systemArm.classList.remove('operational');
-        }
-
-        // AI
-        if (data.ai_enabled) {
-            this.systemAI.classList.add('operational');
-            this.systemAI.classList.remove('offline');
-        } else {
-            this.systemAI.classList.add('offline');
-            this.systemAI.classList.remove('operational');
-        }
+        updateItem(this.systemController, data.controller_connected);
+        updateItem(this.systemCamera, data.camera_connected);
+        updateItem(this.systemArm, data.arm_connected);
+        updateItem(this.systemAI, data.ai_enabled);
     }
 
     // Status polling
@@ -202,10 +289,10 @@ class RoboDisplay {
                 }
             } catch (error) {
                 // Connection lost
-                this.systemController.classList.add('offline');
-                this.systemCamera.classList.add('offline');
-                this.systemArm.classList.add('offline');
-                this.systemAI.classList.add('offline');
+                [this.systemController, this.systemCamera, this.systemArm, this.systemAI].forEach(el => {
+                    el.classList.add('offline');
+                    el.classList.remove('operational');
+                });
             }
             setTimeout(poll, 500);
         };
@@ -218,11 +305,12 @@ class RoboDisplay {
         if (data.ai_enabled) {
             this.statusDot.classList.add('active');
             this.statusLabel.textContent = 'AI Active';
-            this.setExpression('active');
         } else {
             this.statusDot.classList.add('idle');
             this.statusLabel.textContent = 'Idle';
-            this.setExpression('idle');
+            if (this.currentControlMode === 'idle') {
+                this.setExpression('idle');
+            }
         }
 
         // Update task display
@@ -234,7 +322,7 @@ class RoboDisplay {
             this.taskDisplay.textContent = 'Ready to help!';
         }
 
-        // Expression based on status
+        // Expression based on status keywords
         if (data.ai_status) {
             const status = data.ai_status.toLowerCase();
             if (status.includes('error') || status.includes('failed')) {

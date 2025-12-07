@@ -1,4 +1,4 @@
-/* Display Visualization Styles */
+/* Display Visualization Styles - Enhanced Version */
 
 * {
     margin: 0;
@@ -12,7 +12,7 @@ body {
     height: 100%;
     overflow: hidden;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a1a 100%);
+    background: #050510;
     cursor: none;
 }
 
@@ -24,22 +24,254 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    background: radial-gradient(ellipse at center, rgba(60, 80, 120, 0.15) 0%, transparent 70%);
+    background:
+        radial-gradient(ellipse at 50% 50%, rgba(30, 60, 120, 0.2) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 80%, rgba(100, 50, 150, 0.1) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 20%, rgba(50, 100, 150, 0.1) 0%, transparent 40%),
+        linear-gradient(180deg, #0a0a1a 0%, #0f0f25 50%, #0a0a1a 100%);
 }
 
-/* Ambient animation */
-.display-container::before {
-    content: '';
+/* Background Particles */
+.bg-particles {
     position: absolute;
     inset: 0;
-    background:
-        radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.05) 0%, transparent 40%);
-    animation: ambientPulse 8s ease-in-out infinite;
+    overflow: hidden;
     pointer-events: none;
 }
 
-@keyframes ambientPulse {
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(100, 150, 255, 0.6);
+    border-radius: 50%;
+    animation: floatParticle 15s linear infinite;
+    box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+}
+
+@keyframes floatParticle {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100px) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Background Glow */
+.bg-glow {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(80, 120, 200, 0.15) 0%, transparent 70%);
+    animation: pulseGlow 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulseGlow {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* Control Mode Badge */
+.control-mode-badge {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(10, 10, 30, 0.7);
+    backdrop-filter: blur(15px);
+    padding: 14px 24px;
+    border-radius: 30px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.control-mode-badge.idle {
+    border-color: rgba(100, 100, 120, 0.3);
+}
+
+.control-mode-badge.remote {
+    border-color: rgba(96, 165, 250, 0.6);
+    background: rgba(96, 165, 250, 0.15);
+    box-shadow: 0 8px 32px rgba(96, 165, 250, 0.2);
+}
+
+.control-mode-badge.ai {
+    border-color: rgba(168, 85, 247, 0.6);
+    background: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2);
+    animation: aiPulse 2s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 8px 48px rgba(168, 85, 247, 0.4);
+    }
+}
+
+.mode-emoji {
+    font-size: 2rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.mode-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Eyes Container */
+.eyes-container {
+    display: flex;
+    gap: 100px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 80px;
+    animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+/* Individual Eye */
+.eye {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    transition: transform 0.3s ease;
+}
+
+.eye-white {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 35% 35%, #ffffff 0%, #f5f5fa 50%, #e8e8f0 80%, #d0d0e0 100%);
+    border-radius: 50%;
+    box-shadow:
+        0 0 80px rgba(255, 255, 255, 0.4),
+        0 0 120px rgba(100, 150, 255, 0.2),
+        inset 0 -15px 40px rgba(0, 0, 0, 0.15),
+        inset 0 15px 30px rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.eye-iris {
+    width: 110px;
+    height: 110px;
+    background:
+        radial-gradient(circle at 35% 35%, #5aa8e8 0%, #3a78c8 30%, #2a58a8 60%, #1a3878 100%);
+    border-radius: 50%;
+    position: relative;
+    transition: transform 0.12s ease-out;
+    box-shadow:
+        inset 0 -8px 20px rgba(0, 0, 0, 0.4),
+        inset 0 4px 10px rgba(100, 180, 255, 0.3),
+        0 0 30px rgba(74, 144, 212, 0.5);
+}
+
+.eye-pupil {
+    width: 50px;
+    height: 50px;
+    background: radial-gradient(circle at 40% 40%, #1a1a2e 0%, #000000 100%);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+.eye-highlight {
+    width: 25px;
+    height: 25px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 70%);
+    border-radius: 50%;
+    position: absolute;
+    top: 12px;
+    left: 15px;
+    animation: sparkle 3s ease-in-out infinite;
+}
+
+.eye-highlight.small {
+    width: 12px;
+    height: 12px;
+    top: 45px;
+    left: 60px;
+    animation-delay: -1.5s;
+}
+
+@keyframes sparkle {
+
+    0%,
+    100% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* Eye Sparkle Effect */
+.eye-sparkle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 20%);
+    animation: twinkle 5s ease-in-out infinite;
+}
+
+@keyframes twinkle {
 
     0%,
     100% {
@@ -51,216 +283,148 @@ body {
     }
 }
 
-/* Control Mode Badge */
-.control-mode-badge {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(10px);
-    padding: 12px 20px;
-    border-radius: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-}
-
-.control-mode-badge.idle {
-    border-color: rgba(100, 100, 100, 0.3);
-}
-
-.control-mode-badge.remote {
-    border-color: rgba(96, 165, 250, 0.5);
-    background: rgba(96, 165, 250, 0.15);
-}
-
-.control-mode-badge.ai {
-    border-color: rgba(168, 85, 247, 0.5);
-    background: rgba(168, 85, 247, 0.15);
-}
-
-.mode-emoji {
-    font-size: 1.8rem;
-    line-height: 1;
-}
-
-.mode-text {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: 0.5px;
-}
-
-/* Eyes Container */
-.eyes-container {
-    display: flex;
-    gap: 80px;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 60px;
-}
-
-/* Individual Eye */
-.eye {
-    position: relative;
-    width: 200px;
-    height: 200px;
-}
-
-.eye-white {
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(ellipse at 30% 30%, #ffffff 0%, #f0f0f5 60%, #e0e0e8 100%);
-    border-radius: 50%;
-    box-shadow:
-        0 0 60px rgba(255, 255, 255, 0.3),
-        inset 0 -10px 30px rgba(0, 0, 0, 0.1),
-        inset 0 10px 20px rgba(255, 255, 255, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.eye-iris {
-    width: 100px;
-    height: 100px;
-    background: radial-gradient(circle at 30% 30%, #4a90d4 0%, #2a5a94 50%, #1a3a64 100%);
-    border-radius: 50%;
-    position: relative;
-    transition: transform 0.15s ease-out;
-    box-shadow:
-        inset 0 -5px 15px rgba(0, 0, 0, 0.3),
-        0 0 20px rgba(74, 144, 212, 0.4);
-}
-
-.eye-pupil {
-    width: 45px;
-    height: 45px;
-    background: radial-gradient(circle at 40% 40%, #1a1a2e 0%, #000000 100%);
-    border-radius: 50%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.eye-highlight {
-    width: 20px;
-    height: 20px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%);
-    border-radius: 50%;
-    position: absolute;
-    top: 15px;
-    left: 15px;
-}
-
 /* Eyelids */
 .eyelid {
     position: absolute;
-    left: -5px;
-    right: -5px;
-    height: 110px;
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
-    transition: transform 0.15s ease-out;
+    left: -10px;
+    right: -10px;
+    height: 120px;
+    background: linear-gradient(180deg, #0a0a1a 0%, #15152a 50%, #0a0a1a 100%);
+    transition: transform 0.12s ease-out;
     z-index: 10;
 }
 
 .top-lid {
-    top: -5px;
-    border-radius: 0 0 100px 100px;
+    top: -10px;
+    border-radius: 0 0 120px 120px;
     transform: translateY(-100%);
 }
 
 .bottom-lid {
-    bottom: -5px;
-    border-radius: 100px 100px 0 0;
+    bottom: -10px;
+    border-radius: 120px 120px 0 0;
     transform: translateY(100%);
 }
 
 /* Blink animation */
 .eye.blinking .top-lid {
-    transform: translateY(45%);
+    transform: translateY(48%);
 }
 
 .eye.blinking .bottom-lid {
-    transform: translateY(-45%);
+    transform: translateY(-48%);
 }
 
-/* Happy expression - curved eyes */
+/* Happy expression - curved smiling eyes */
 .eye.happy .top-lid {
-    transform: translateY(50%);
-    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+    transform: translateY(55%);
+    border-radius: 0 0 60% 60% / 0 0 100% 100%;
 }
 
 .eye.happy .bottom-lid {
     transform: translateY(100%);
 }
 
-/* Thinking - look up */
+.eye.happy .eye-iris {
+    background: radial-gradient(circle at 35% 35%, #6ac8f8 0%, #4a98d8 30%, #3a78b8 60%, #2a5898 100%);
+}
+
+/* Thinking - look up and squint slightly */
 .eye.thinking .eye-iris {
-    transform: translateY(-25px);
+    transform: translateY(-28px);
+}
+
+.eye.thinking .top-lid {
+    transform: translateY(15%);
+}
+
+/* Excited - bigger pupils */
+.eye.excited .eye-pupil {
+    width: 60px;
+    height: 60px;
+}
+
+.eye.excited .eye-iris {
+    box-shadow:
+        inset 0 -8px 20px rgba(0, 0, 0, 0.4),
+        0 0 50px rgba(100, 200, 255, 0.6);
 }
 
 /* Error expression */
 .eye.error .eye-white {
-    background: radial-gradient(ellipse at 30% 30%, #ffeeee 0%, #ffdddd 100%);
+    background: radial-gradient(ellipse at 35% 35%, #fff0f0 0%, #ffe0e0 50%, #ffd0d0 100%);
 }
 
 .eye.error .eye-iris {
-    background: radial-gradient(circle at 30% 30%, #d44a4a 0%, #942a2a 50%, #641a1a 100%);
+    background: radial-gradient(circle at 35% 35%, #e85a5a 0%, #c83a3a 30%, #a82a2a 60%, #781a1a 100%);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
 }
 
 /* Status Bar */
 .status-bar {
     position: absolute;
-    bottom: 40px;
+    bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
-    min-width: 400px;
+    gap: 18px;
+    min-width: 450px;
     max-width: 80%;
 }
 
 .status-indicator {
     display: flex;
     align-items: center;
-    gap: 12px;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(10px);
-    padding: 10px 25px;
-    border-radius: 30px;
+    gap: 14px;
+    background: rgba(10, 10, 30, 0.6);
+    backdrop-filter: blur(15px);
+    padding: 12px 28px;
+    border-radius: 35px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .status-dot {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: #666;
-    transition: background 0.3s, box-shadow 0.3s;
+    background: #555;
+    transition: all 0.3s ease;
 }
 
 .status-dot.active {
     background: #4ade80;
-    box-shadow: 0 0 15px rgba(74, 222, 128, 0.6);
-    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.7);
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
 .status-dot.idle {
     background: #60a5fa;
-    box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+    box-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
 }
 
 .status-dot.error {
     background: #f87171;
-    box-shadow: 0 0 15px rgba(248, 113, 113, 0.6);
-    animation: pulse 0.5s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.7);
+    animation: pulse 0.4s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -273,121 +437,125 @@ body {
 
     50% {
         opacity: 0.7;
-        transform: scale(1.1);
+        transform: scale(1.15);
     }
 }
 
 .status-label {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.95);
     letter-spacing: 0.5px;
 }
 
 .task-display {
-    font-size: 1.4rem;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.75);
     text-align: center;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 0 20px;
+    padding: 0 25px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* System Status Panel */
 .system-status-panel {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: 25px;
+    right: 25px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(10px);
-    padding: 15px 20px;
-    border-radius: 12px;
+    gap: 12px;
+    background: rgba(10, 10, 30, 0.6);
+    backdrop-filter: blur(15px);
+    padding: 18px 22px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .system-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    transition: all 0.3s ease;
 }
 
 .system-item .system-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #666;
-    transition: background 0.3s, box-shadow 0.3s;
+    background: #555;
+    transition: all 0.3s ease;
 }
 
 .system-item.operational .system-dot {
     background: #4ade80;
-    box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.7);
 }
 
 .system-item.offline .system-dot {
     background: #f87171;
-    box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+    box-shadow: 0 0 12px rgba(248, 113, 113, 0.6);
 }
 
 .system-label {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
     font-weight: 500;
-    min-width: 70px;
+    min-width: 75px;
 }
 
 /* Responsive adjustments */
 @media (max-width: 800px) {
     .eyes-container {
-        gap: 40px;
+        gap: 50px;
     }
 
     .eye {
-        width: 150px;
-        height: 150px;
+        width: 160px;
+        height: 160px;
     }
 
     .eye-iris {
-        width: 75px;
-        height: 75px;
+        width: 85px;
+        height: 85px;
     }
 
     .eye-pupil {
-        width: 35px;
-        height: 35px;
+        width: 40px;
+        height: 40px;
     }
 
     .eyelid {
-        height: 85px;
+        height: 90px;
     }
 }
 
 @media (max-height: 500px) {
     .eye {
-        width: 120px;
-        height: 120px;
+        width: 130px;
+        height: 130px;
     }
 
     .eye-iris {
-        width: 60px;
-        height: 60px;
+        width: 65px;
+        height: 65px;
     }
 
     .eye-pupil {
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
     }
 
     .eyelid {
-        height: 70px;
+        height: 75px;
     }
 
     .eyes-container {
-        margin-bottom: 30px;
+        margin-bottom: 40px;
+        gap: 40px;
     }
 }

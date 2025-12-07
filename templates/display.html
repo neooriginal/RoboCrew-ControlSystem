@@ -10,6 +10,10 @@
 
 <body>
     <div class="display-container" id="display-container">
+        <!-- Animated Background -->
+        <div class="bg-particles" id="bg-particles"></div>
+        <div class="bg-glow" id="bg-glow"></div>
+
         <!-- Control Mode Badge -->
         <div class="control-mode-badge" id="control-mode-badge">
             <span class="mode-emoji" id="mode-emoji">😴</span>
@@ -17,16 +21,18 @@
         </div>
 
         <!-- Eyes Container -->
-        <div class="eyes-container">
+        <div class="eyes-container" id="eyes-container">
             <div class="eye left-eye" id="left-eye">
                 <div class="eye-white">
                     <div class="eye-iris" id="left-iris">
                         <div class="eye-pupil"></div>
                         <div class="eye-highlight"></div>
+                        <div class="eye-highlight small"></div>
                     </div>
                 </div>
                 <div class="eyelid top-lid" id="left-top-lid"></div>
                 <div class="eyelid bottom-lid" id="left-bottom-lid"></div>
+                <div class="eye-sparkle"></div>
             </div>
 
             <div class="eye right-eye" id="right-eye">
@@ -34,10 +40,12 @@
                     <div class="eye-iris" id="right-iris">
                         <div class="eye-pupil"></div>
                         <div class="eye-highlight"></div>
+                        <div class="eye-highlight small"></div>
                     </div>
                 </div>
                 <div class="eyelid top-lid" id="right-top-lid"></div>
                 <div class="eyelid bottom-lid" id="right-bottom-lid"></div>
+                <div class="eye-sparkle"></div>
             </div>
         </div>
 
