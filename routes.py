@@ -341,7 +341,8 @@ def generate_cv_frames():
                 continue
             
             # Process frame using the new ObstacleDetector
-            command, overlay, metrics = detector.process(frame)
+            # Now returns (safe_actions, overlay, metrics)
+            safe_actions, overlay, metrics = detector.process(frame)
             
             # Add AI status overlay on top of the detector's overlay
             if state.ai_enabled:
@@ -354,6 +355,10 @@ def generate_cv_frames():
                 task_text = state.agent.current_task[:40] if len(state.agent.current_task) > 40 else state.agent.current_task
                 cv2.putText(overlay, task_text, (10, frame.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             
+            # Display Safe Actions cleanly
+            if "FORWARD" not in safe_actions:
+                 cv2.putText(overlay, "BLOCKED AHEAD", (overlay.shape[1]//2 - 80, overlay.shape[0]//2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
             _, buffer = cv2.imencode('.jpg', overlay, [cv2.IMWRITE_JPEG_QUALITY, 70])
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')

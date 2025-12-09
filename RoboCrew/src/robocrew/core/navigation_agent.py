@@ -87,16 +87,15 @@ WHEN YOU SEE A WALL:
         self.message_history.append(HumanMessage(content=f"New Task: {task}"))
         logger.info(f"Agent task set: {task}")
 
-    def _check_safety(self, image: np.ndarray) -> tuple[bool, str, np.ndarray]:
+    def _check_safety(self, image: np.ndarray) -> tuple[list, np.ndarray]:
         """
         Safety check using ObstacleDetector.
         Returns:
-            is_safe (bool): Always True now (per user request "dont steer against the AI").
-            recommendation (str): Warning message for the AI.
+            safe_actions (list): List of allowed actions.
             overlay (np.ndarray): Image with visual debugging.
         """
         if image is None:
-            return False, "No camera feed", image
+            return [], image
             
         try:
             # Use import inside method to avoid circular imports layout issues
@@ -108,18 +107,13 @@ WHEN YOU SEE A WALL:
             if not hasattr(self, 'detector'):
                 self.detector = ObstacleDetector()
                 
-            # detector now returns (warning_msg, overlay, metrics)
-            warning_msg, overlay, _ = self.detector.process(image)
-            
-            # User request: "inform the AI... dont steer against the AI"
-            # So we return checks as "safe" (allowing AI to decide) but pass the warning.
-            
-            return True, warning_msg, overlay
+            safe_actions, overlay, _ = self.detector.process(image)
+            return safe_actions, overlay
                 
         except Exception as e:
             logger.error(f"Obstacle detection failed: {e}")
             # Fallback to safe
-            return True, "", image
+            return ["FORWARD", "LEFT", "RIGHT", "BACKWARD"], image
 
     def step(self) -> str:
         """
@@ -135,7 +129,7 @@ WHEN YOU SEE A WALL:
             return "Camera error"
             
         # 2. Safety Check & Processing
-        _, safety_warning, overlay = self._check_safety(frame)
+        safe_actions, overlay = self._check_safety(frame)
         
         # Use overlay if available, otherwise raw frame
         display_frame = overlay if overlay is not None else frame
@@ -149,12 +143,11 @@ WHEN YOU SEE A WALL:
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}}
         ]
         
-        # Inject warning if present
-        if safety_warning:
-            content.append({
-                "type": "text", 
-                "text": f"VISUAL SYSTEM ALERT: {safety_warning}. Please use caution."
-            })
+        # Inject Allowed Actions
+        content.append({
+             "type": "text", 
+             "text": f"REFLEX SYSTEM: Allowed actions are {safe_actions}. Green Marked Paths are SAFE. Red Marked Areas are BLOCKED."
+        })
             
         self.message_history.append(HumanMessage(content=content))
 
@@ -169,23 +162,42 @@ WHEN YOU SEE A WALL:
             if len(self.message_history) > 5:
                 self.message_history = [self.message_history[0]] + self.message_history[-4:]
             
-            # 5. Execute Tools
+            # 5. Execute Tools with SAFETY INTERCEPTION
             if response.tool_calls:
                 for tool_call in response.tool_calls:
                     tool_name = tool_call["name"]
                     args = tool_call["args"]
                     logger.info(f"Agent executing: {tool_name}({args})")
                     
-                    if tool_name in self.tool_map:
-                        tool = self.tool_map[tool_name]
-                        try:
-                            result = tool.invoke(args)
-                        except Exception as e:
-                            result = f"Error executing {tool_name}: {e}"
+                    # --- SAFETY CHECK ---
+                    # Map tool names to abstract actions
+                    action_map = {
+                        "move_forward": "FORWARD",
+                        "turn_left": "LEFT",
+                        "turn_right": "RIGHT",
+                        "move_backward": "BACKWARD"
+                    }
+                    
+                    blocked = False
+                    if tool_name in action_map:
+                        required_action = action_map[tool_name]
+                        if required_action not in safe_actions:
+                            blocked = True
+                            result = f"REFLEX SYSTEM INTERVENTION: Action '{tool_name}' BLOCKED. detected obstacle. Allowed: {safe_actions}. Please choose another path."
+                    
+                    if not blocked:
+                        if tool_name in self.tool_map:
+                            tool = self.tool_map[tool_name]
+                            try:
+                                result = tool.invoke(args)
+                            except Exception as e:
+                                result = f"Error executing {tool_name}: {e}"
+                        else:
+                            result = f"Unknown tool: {tool_name}"
+                            logger.error(result)
                             
-                        self.message_history.append(ToolMessage(content=str(result), tool_call_id=tool_call["id"]))
-                    else:
-                        logger.error(f"Unknown tool: {tool_name}")
+                    self.message_history.append(ToolMessage(content=str(result), tool_call_id=tool_call["id"]))
+                    
                 return f"Executed {len(response.tool_calls)} actions"
             else:
                 return "Thinking..."
