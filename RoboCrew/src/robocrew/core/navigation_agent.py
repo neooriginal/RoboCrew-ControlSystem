@@ -87,36 +87,39 @@ WHEN YOU SEE A WALL:
         self.message_history.append(HumanMessage(content=f"New Task: {task}"))
         logger.info(f"Agent task set: {task}")
 
-    def _check_safety(self, image: np.ndarray) -> bool:
+    def _check_safety(self, image: np.ndarray) -> tuple[bool, str, np.ndarray]:
         """
-        Basic CV2 safety check.
-        Returns True if safe to proceed, False if obstacle detected.
+        Safety check using ObstacleDetector.
+        Returns:
+            is_safe (bool): Always True now (per user request "dont steer against the AI").
+            recommendation (str): Warning message for the AI.
+            overlay (np.ndarray): Image with visual debugging.
         """
         if image is None:
-            return False
+            return False, "No camera feed", image
             
-        # 1. Check for "stuck" condition (image identical to last frame despite movement)
-        # This requires knowing if we moved, which we can track via state or just heuristics
-        # For now, let's just check for extremely close obstacles (blur/darkness/uniformity)
-        
-        # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Check bottom area (immediate path)
-        h, w = gray.shape
-        bottom_area = gray[int(h*0.7):, :]
-        
-        # Check for low variance (flat wall/floor filling view)
-        variance = np.var(bottom_area)
-        mean_brightness = np.mean(bottom_area)
-        
-        # Heuristics for "face against wall"
-        # Very low variance often means looking at a blank wall close up
-        if variance < 50: 
-            logger.warning(f"Safety Warning: Low variance ({variance:.1f}) - Wall likely close")
-            return False
+        try:
+            # Use import inside method to avoid circular imports layout issues
+            import sys
+            if os.getcwd() not in sys.path:
+                sys.path.append(os.getcwd())
+            from obstacle_detection import ObstacleDetector
             
-        return True
+            if not hasattr(self, 'detector'):
+                self.detector = ObstacleDetector()
+                
+            # detector now returns (warning_msg, overlay, metrics)
+            warning_msg, overlay, _ = self.detector.process(image)
+            
+            # User request: "inform the AI... dont steer against the AI"
+            # So we return checks as "safe" (allowing AI to decide) but pass the warning.
+            
+            return True, warning_msg, overlay
+                
+        except Exception as e:
+            logger.error(f"Obstacle detection failed: {e}")
+            # Fallback to safe
+            return True, "", image
 
     def step(self) -> str:
         """
@@ -131,16 +134,14 @@ WHEN YOU SEE A WALL:
         if frame is None:
             return "Camera error"
             
-        # 2. Safety Check
-        if not self._check_safety(frame):
-            # If unsafe, override with safety maneuver (e.g., stop or back up)
-            # For now, just warn and let LLM decide, but inject warning
-            safety_warning = "WARNING: Visual safety check failed. You may be too close to a wall. Consider backing up."
-        else:
-            safety_warning = ""
-
+        # 2. Safety Check & Processing
+        _, safety_warning, overlay = self._check_safety(frame)
+        
+        # Use overlay if available, otherwise raw frame
+        display_frame = overlay if overlay is not None else frame
+        
         # 3. Prepare Prompt
-        _, buffer = cv2.imencode('.jpg', frame)
+        _, buffer = cv2.imencode('.jpg', display_frame)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
         
         content = [
@@ -148,10 +149,15 @@ WHEN YOU SEE A WALL:
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}}
         ]
         
+        # Inject warning if present
         if safety_warning:
-            content.append({"type": "text", "text": safety_warning})
+            content.append({
+                "type": "text", 
+                "text": f"VISUAL SYSTEM ALERT: {safety_warning}. Please use caution."
+            })
             
         self.message_history.append(HumanMessage(content=content))
+
         
         # 4. LLM Inference
         try:

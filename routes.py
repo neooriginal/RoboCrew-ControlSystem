@@ -321,8 +321,13 @@ def display_state():
 
 
 def generate_cv_frames():
-    """Generate CV-processed frames showing what the AI sees."""
+    """Generate CV-processed frames showing what the AI sees with Obstacle Detection."""
     import time
+    from obstacle_detection import ObstacleDetector
+    
+    # Initialize detector
+    detector = ObstacleDetector()
+    
     while state.running:
         if state.camera is None or not state.camera.isOpened():
             time.sleep(0.1)
@@ -335,83 +340,19 @@ def generate_cv_frames():
                 time.sleep(0.02)
                 continue
             
-            # CV Processing - improved obstacle detection
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            h, w = gray.shape
+            # Process frame using the new ObstacleDetector
+            command, overlay, metrics = detector.process(frame)
             
-            # Analyze center region for obstacles
-            center_region = gray[int(h*0.3):int(h*0.8), int(w*0.3):int(w*0.7)]
-            left_region = gray[int(h*0.3):int(h*0.8), :int(w*0.3)]
-            right_region = gray[int(h*0.3):int(h*0.8), int(w*0.7):]
-            
-            # Edge detection for wall detection
-            edges_center = cv2.Canny(center_region, 50, 150)
-            edges_left = cv2.Canny(left_region, 50, 150)
-            edges_right = cv2.Canny(right_region, 50, 150)
-            
-            edge_count_center = np.sum(edges_center > 0)
-            edge_count_left = np.sum(edges_left > 0)
-            edge_count_right = np.sum(edges_right > 0)
-            
-            # Determine status based on edge density
-            overlay = frame.copy()
-            
-            # Draw detection zones
-            cv2.rectangle(overlay, (int(w*0.3), int(h*0.3)), (int(w*0.7), int(h*0.8)), (255, 255, 0), 1)  # Center zone
-            
-            # Calculate danger level
-            center_danger = edge_count_center > 3000
-            left_danger = edge_count_left > 2000
-            right_danger = edge_count_right > 2000
-            
-            status_parts = []
-            if center_danger:
-                status_parts.append("AHEAD")
-                cv2.rectangle(overlay, (int(w*0.3), int(h*0.3)), (int(w*0.7), int(h*0.8)), (0, 0, 255), 3)
-            if left_danger:
-                status_parts.append("LEFT")
-                cv2.rectangle(overlay, (0, int(h*0.3)), (int(w*0.3), int(h*0.8)), (0, 165, 255), 2)
-            if right_danger:
-                status_parts.append("RIGHT")
-                cv2.rectangle(overlay, (int(w*0.7), int(h*0.3)), (w, int(h*0.8)), (0, 165, 255), 2)
-            
-            if status_parts:
-                status_color = (0, 0, 255) if center_danger else (0, 165, 255)
-                status_text = "OBSTACLE: " + ", ".join(status_parts)
-            else:
-                status_color = (0, 255, 0)
-                status_text = "Path looks clear"
-            
-            cv2.putText(overlay, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, status_color, 2)
-            
-            # Add AI status
+            # Add AI status overlay on top of the detector's overlay
             if state.ai_enabled:
-                cv2.putText(overlay, "AI: ACTIVE", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(overlay, "AI: ACTIVE", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             else:
-                cv2.putText(overlay, "AI: PAUSED", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 2)
+                cv2.putText(overlay, "AI: PAUSED", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 2)
             
             # Add task
-            task_text = state.ai_status[:40] if len(state.ai_status) > 40 else state.ai_status
-            cv2.putText(overlay, task_text, (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            
-            # Draw navigation arrows (left/right/forward)
-            arrow_color = (255, 255, 255)
-            center_x, center_y = w // 2, h // 2
-            
-            # Left arrow
-            pts_left = np.array([[30, center_y], [60, center_y - 20], [60, center_y + 20]], np.int32)
-            cv2.polylines(overlay, [pts_left], True, arrow_color, 2)
-            cv2.putText(overlay, "L", (35, center_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, arrow_color, 1)
-            
-            # Right arrow  
-            pts_right = np.array([[w - 30, center_y], [w - 60, center_y - 20], [w - 60, center_y + 20]], np.int32)
-            cv2.polylines(overlay, [pts_right], True, arrow_color, 2)
-            cv2.putText(overlay, "R", (w - 50, center_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, arrow_color, 1)
-            
-            # Forward arrow (top center)
-            pts_fwd = np.array([[center_x, 80], [center_x - 15, 110], [center_x + 15, 110]], np.int32)
-            cv2.polylines(overlay, [pts_fwd], True, arrow_color, 2)
-            cv2.putText(overlay, "FWD", (center_x - 15, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.4, arrow_color, 1)
+            if state.agent and hasattr(state.agent, 'current_task'):
+                task_text = state.agent.current_task[:40] if len(state.agent.current_task) > 40 else state.agent.current_task
+                cv2.putText(overlay, task_text, (10, frame.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             
             _, buffer = cv2.imencode('.jpg', overlay, [cv2.IMWRITE_JPEG_QUALITY, 70])
             yield (b'--frame\r\n'
