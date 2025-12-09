@@ -33,10 +33,10 @@ class ObstacleDetector:
         if frame is None:
             return ["STOP"], None, {}
 
-        # 1. Noise Reduction using Bilateral Filter
+        # Noise Reduction
         filtered = cv2.bilateralFilter(frame, 9, 75, 75)
         
-        # 2. Canny Edge Detection
+        # Edge Detection
         edges = cv2.Canny(filtered, 50, 150)
         
         h, w = edges.shape
@@ -46,7 +46,7 @@ class ObstacleDetector:
         overlay = frame.copy()
         shapes = frame.copy()
         
-        # 3. Column Scan
+        # Column Scan
         for x in range(0, w, 5):
             detected_y = 0 
             found = False
@@ -59,8 +59,7 @@ class ObstacleDetector:
             if found:
                 cv2.circle(overlay, (x, detected_y), 2, (0, 0, 255), -1)
 
-        # 4. Chunking & Metics
-        # 4. Chunking & Metics
+        # Chunking & Metrics
         num_points = len(edge_points)
         # Narrower Forward Zone for Doors (1/6th instead of 1/5th)
         center_width = num_points // 6
@@ -91,7 +90,7 @@ class ObstacleDetector:
         c_fwd = get_top_average(center_chunk)
         c_right = get_top_average(right_chunk)
 
-        # 5. Safety Logic (The "Prohibit" Logic)
+        # Safety Logic
         
         # Determine INSTANT blocked actions
         instant_blocked = set()
@@ -152,7 +151,7 @@ class ObstacleDetector:
         alpha = 0.4
         cv2.addWeighted(shapes, alpha, overlay, 1 - alpha, 0, overlay)
         
-        # 6. Gap Detection (Tight Space Navigation)
+        # Gap Detection
         # Find the "Center of Safety" to guide the robot
         # We classify columns as "Passable" if their obstacle is far away (e.g. Y < 350)
         # We classify columns as "Passable" if their obstacle is far away (e.g. Y < 350)

@@ -75,12 +75,12 @@ def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     
-    # 1. Initialize Robot System
+    # Initialize Robot System
     print("🔧 Initializing Robot System...")
     robot = RobotSystem()
     state.robot_system = robot
     
-    # 2. Initialize AI Agent
+    # Initialize AI Agent
     if robot.controller:
         print("🧠 Initializing AI Agent...")
         # Minimal tools - no individual camera controls to avoid confusion
@@ -104,7 +104,7 @@ def main():
     else:
         print("⚠ Robot controller not ready, AI disabled")
 
-    # 3. Start Threads
+    # Start Threads
     print("🔄 Starting background threads...", end=" ", flush=True)
     
     # Movement thread (manual control)
@@ -114,7 +114,7 @@ def main():
     threading.Thread(target=agent_loop, daemon=True).start()
     print("✓")
     
-    # 4. Start Web Server
+    # Start Web Server
     app = create_app()
     
     print()
