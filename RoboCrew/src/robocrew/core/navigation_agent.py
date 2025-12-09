@@ -73,6 +73,12 @@ WHEN YOU SEE A WALL:
 - Back up 0.2m
 - Turn 45-90 degrees AWAY
 - Check again before moving
+
+BACKWARD MOVEMENT SAFETY:
+- You have NO rear camera. Going backward is BLIND.
+- Only go backward to unstick yourself from a wall.
+- NEVER go backward twice in a row. It is unsafe.
+- If you back up, your next move MUST be a turn or forward.
 """
         self.system_prompt = system_prompt or base_prompt
         self.message_history = [SystemMessage(content=self.system_prompt)]
@@ -80,7 +86,9 @@ WHEN YOU SEE A WALL:
         # State
         self.current_task = "Idle"
         self.last_image = None
+        self.last_image = None
         self.stuck_counter = 0
+        self.last_action = None
 
     def set_task(self, task: str):
         """Set a new task for the agent."""
@@ -187,12 +195,19 @@ WHEN YOU SEE A WALL:
                         if required_action not in safe_actions:
                             blocked = True
                             result = f"REFLEX SYSTEM INTERVENTION: Action '{tool_name}' BLOCKED. detected obstacle. Allowed: {safe_actions}. Please choose another path."
+                        
+                        # --- BACKWARD SAFETY ---
+                        if tool_name == "move_backward":
+                            if self.last_action == "move_backward":
+                                blocked = True
+                                result = "SAFETY INTERVENTION: You cannot move backward twice in a row. You are blind behind you. Please TURN or move FORWARD."
                     
                     if not blocked:
                         if tool_name in self.tool_map:
                             tool = self.tool_map[tool_name]
                             try:
                                 result = tool.invoke(args)
+                                self.last_action = tool_name
                             except Exception as e:
                                 result = f"Error executing {tool_name}: {e}"
                         else:
