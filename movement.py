@@ -17,16 +17,25 @@ def execute_movement(movement):
         return False
     
     try:
-        if movement.get('forward'):
-            state.controller._wheels_write('up')
-        elif movement.get('backward'):
-            state.controller._wheels_write('down')
-        elif movement.get('left'):
-            state.controller._wheels_write('left')
-        elif movement.get('right'):
-            state.controller._wheels_write('right')
+        # Calculate net movement vector
+        fwd = 0.0
+        if movement.get('forward'): fwd += 1.0
+        if movement.get('backward'): fwd -= 1.0
+        
+        lat = 0.0
+        if movement.get('left'): lat += 1.0
+        if movement.get('right'): lat -= 1.0
+        
+        # Use vector control if available
+        if hasattr(state.controller, 'set_velocity_vector'):
+            state.controller.set_velocity_vector(fwd, lat)
         else:
-            state.controller._wheels_stop()
+            # Fallback to single direction
+            if fwd > 0: state.controller._wheels_write('up')
+            elif fwd < 0: state.controller._wheels_write('down')
+            elif lat > 0: state.controller._wheels_write('left')
+            elif lat < 0: state.controller._wheels_write('right')
+            else: state.controller._wheels_stop()
         return True
     except Exception as e:
         state.last_error = f"Movement error: {str(e)}"

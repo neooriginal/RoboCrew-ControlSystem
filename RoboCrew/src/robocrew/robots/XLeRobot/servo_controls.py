@@ -193,6 +193,31 @@ class ServoControler:
     def turn_right(self, degrees: float) -> Dict[int, int]:
         return self._wheels_run("right", float(degrees) / ANGULAR_DPS)
 
+    def set_velocity_vector(self, forward: float, lateral: float) -> Dict[int, int]:
+        """
+        Set wheel velocities based on forward and lateral components using vector addition.
+        
+        Args:
+            forward: Forward component (-1.0 to 1.0)
+            lateral: Lateral/Left component (-1.0 to 1.0)
+        """
+        up_vec = self.action_map['up']
+        left_vec = self.action_map['left']
+        
+        payload = {}
+        for wid in self._wheel_ids:
+            # Calculate combined motor factor
+            u_val = up_vec.get(wid, 0)
+            l_val = left_vec.get(wid, 0)
+            
+            combined_factor = (forward * u_val) + (lateral * l_val)
+            
+            # Scale by base speed
+            payload[wid] = int(self.speed * combined_factor)
+            
+        self.wheel_bus.sync_write("Goal_Velocity", payload)
+        return payload
+
     def apply_wheel_modes(self) -> None:
         for wid in self._wheel_ids:
             self.wheel_bus.write("Operating_Mode", wid, OperatingMode.VELOCITY.value)
