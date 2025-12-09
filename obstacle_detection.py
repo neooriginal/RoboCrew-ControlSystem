@@ -8,8 +8,9 @@ class ObstacleDetector:
     def __init__(self, width=640, height=480):
         self.width = width
         self.height = height
-        # Thresholds from user request/deduced
-        self.obstacle_threshold_y = 250
+        # Thresholds tuned for "Stop at the very last moment"
+        # Y=480 is bottom. Y=420 is very close.
+        self.obstacle_threshold_y = 420
         self.center_x_threshold = 310
         
     def process(self, frame):
