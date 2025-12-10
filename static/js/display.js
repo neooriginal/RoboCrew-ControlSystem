@@ -27,6 +27,11 @@ class RoboDisplay {
         this.systemArm = document.getElementById('system-arm');
         this.systemAI = document.getElementById('system-ai');
 
+        // Blockage zones
+        this.warnLeft = document.getElementById('warn-left');
+        this.warnCenter = document.getElementById('warn-center');
+        this.warnRight = document.getElementById('warn-right');
+
         this.currentExpression = 'idle';
         this.currentControlMode = 'idle';
         this.isBlinking = false;
@@ -337,6 +342,25 @@ class RoboDisplay {
                         this.setExpression('idle');
                     }
                 }, 3000);
+            }
+        }
+
+        // Update Blockage Visualization
+        if (data.blockage) {
+            const toggle = (el, active) => {
+                if (active) el.classList.add('visible');
+                else el.classList.remove('visible');
+            };
+
+            toggle(this.warnLeft, data.blockage.left);
+            toggle(this.warnCenter, data.blockage.forward);
+            toggle(this.warnRight, data.blockage.right);
+
+            // If any blockage, show stress expression
+            if (data.blockage.left || data.blockage.forward || data.blockage.right) {
+                if (this.currentExpression !== 'error' && this.currentExpression !== 'thinking') {
+                    this.setExpression('error');
+                }
             }
         }
     }

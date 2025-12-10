@@ -37,6 +37,55 @@ body {
     inset: 0;
     overflow: hidden;
     pointer-events: none;
+    z-index: -1;
+}
+
+/* Warning Zones */
+.warning-zone {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+}
+
+.warning-zone.visible {
+    opacity: 1;
+    animation: warning-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.warning-zone.left {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 150px;
+    background: linear-gradient(to right, rgba(255, 0, 0, 0.6), transparent);
+}
+
+.warning-zone.right {
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 150px;
+    background: linear-gradient(to left, rgba(255, 0, 0, 0.6), transparent);
+}
+
+.warning-zone.center {
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 150px;
+    background: linear-gradient(to bottom, rgba(255, 0, 0, 0.6), transparent);
+}
+
+@keyframes warning-pulse {
+    0% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 0.8;
+    }
 }
 
 .particle {
