@@ -247,18 +247,25 @@ class ObstacleDetector:
                     center_offset = gap_center - (w // 2)
                     # > 0 means Target is Right. < 0 means Target is Left.
                     
-                    if abs(center_offset) < 20:
+                    is_aligned = abs(center_offset) < 20
+                    is_too_close_to_align = c_fwd > 380 # If obstacles are closer than Y=380, back off to align
+                    
+                    if is_aligned:
                         guidance = "ALIGNMENT: PERFECT. ACTION: Move FORWARD."
                         # Draw green "GO" line
                         cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 255, 0), 3)
-                    elif center_offset < 0:
-                        guidance = "ALIGNMENT: OFF-CENTER (Left). ACTION: STOP. Turn LEFT."
-                        # Draw red target line
-                        cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
                     else:
-                        guidance = "ALIGNMENT: OFF-CENTER (Right). ACTION: STOP. Turn RIGHT."
-                        # Draw red target line
-                        cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
+                        # We are NOT aligned.
+                        if is_too_close_to_align:
+                            # If we are too close and misaligned, we must back up to get a better view/angle
+                            guidance = "ALIGNMENT: UNSAFE DISTANCE. ACTION: STOP. BACK UP to Align."
+                            cv2.rectangle(shapes, (0, 0), (w, h), (0, 0, 255), 20) # Red border
+                        elif center_offset < 0:
+                            guidance = "ALIGNMENT: OFF-CENTER (Left). ACTION: STOP. Turn LEFT."
+                            cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
+                        else:
+                            guidance = "ALIGNMENT: OFF-CENTER (Right). ACTION: STOP. Turn RIGHT."
+                            cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
             
             if guidance:
                  cv2.putText(overlay, guidance, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
