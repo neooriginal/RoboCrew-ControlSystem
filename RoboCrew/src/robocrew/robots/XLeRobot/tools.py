@@ -126,8 +126,12 @@ def create_turn_right(servo_controller):
     def turn_right(angle_degrees: float) -> str:
         """Turns the robot right by angle in degrees."""
         angle = float(angle_degrees)
-        duration = abs(angle) / 60
-        print(f"[TOOL] turn_right({angle}) for {duration:.1f}s")
+        # Minimum duration to overcome motor stiction
+        MIN_DURATION = 0.15 
+        calculated_duration = abs(angle) / 60
+        duration = max(calculated_duration, MIN_DURATION)
+        
+        print(f"[TOOL] turn_right({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': True}
         completed = _interruptible_sleep(duration)
@@ -145,8 +149,12 @@ def create_turn_left(servo_controller):
     def turn_left(angle_degrees: float) -> str:
         """Turns the robot left by angle in degrees."""
         angle = float(angle_degrees)
-        duration = abs(angle) / 60
-        print(f"[TOOL] turn_left({angle}) for {duration:.1f}s")
+        # Minimum duration to overcome motor stiction
+        MIN_DURATION = 0.15
+        calculated_duration = abs(angle) / 60
+        duration = max(calculated_duration, MIN_DURATION)
+        
+        print(f"[TOOL] turn_left({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': True, 'right': False}
         completed = _interruptible_sleep(duration)
