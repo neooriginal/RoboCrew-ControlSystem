@@ -179,7 +179,7 @@ class RoboDisplay {
     setExpression(expression) {
         if (this.currentExpression === expression) return;
 
-        const expressions = ['happy', 'thinking', 'error', 'excited', 'blocked'];
+        const expressions = ['happy', 'thinking', 'error', 'excited', 'cross-eyed', 'worry'];
         expressions.forEach(exp => {
             this.leftEye.classList.remove(exp);
             this.rightEye.classList.remove(exp);
@@ -212,8 +212,12 @@ class RoboDisplay {
             case 'error':
                 // Shake handled by CSS
                 break;
-            case 'blocked':
-                this.setLookTarget(0, 0); // Center but eyes will be crossed by CSS
+            case 'cross-eyed':
+                this.leftEye.classList.add('cross-eyed');
+                this.rightEye.classList.add('cross-eyed');
+                break;
+            case 'worry':
+                // Slight squint or widen? For now just look away logic handles direction
                 break;
         }
     }
@@ -289,6 +293,7 @@ class RoboDisplay {
                     this.updateFromState(data);
                     this.updateSystemStatus(data);
                     this.updateControlMode(data.control_mode || 'idle');
+                    this.updateBlockage(data.obstacles || {});
                 }
             } catch (error) {
                 // Connection lost
@@ -323,14 +328,6 @@ class RoboDisplay {
             this.taskDisplay.textContent = data.ai_status;
         } else {
             this.taskDisplay.textContent = 'Ready to help!';
-        }
-
-        // Blocked State Override
-        if (data.is_blocked) {
-            this.setExpression('blocked');
-            this.statusDot.className = 'status-dot error';
-            this.statusLabel.textContent = 'Blocked';
-            return; // Skip other status checks
         }
 
         // Expression based on status keywords

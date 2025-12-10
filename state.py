@@ -53,9 +53,7 @@ class RobotState:
         self.last_movement_activity = 0 # timestamp of last movement command
         
         # Shared Obstacle Detector
-        # Shared Obstacle Detector
         self.detector = None
-        self.is_blocked = False
 
     
     def update_movement(self, data):
