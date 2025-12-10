@@ -33,4 +33,7 @@ python main.py
 ## Special Thanks 🙏
 Some code was taken from the [RoboCrew](https://github.com/Grigorij-Dudnik/RoboCrew) project. 
 
+## 📝 License
+[MIT License](LICENSE)
+
 Made with ❤️ by [Neo](https://github.com/neooriginal)
