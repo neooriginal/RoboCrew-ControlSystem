@@ -128,6 +128,24 @@ BACKWARD MOVEMENT SAFETY:
             # Fallback to safe
             return ["FORWARD", "LEFT", "RIGHT", "BACKWARD"], image, ""
 
+    def _check_stuck_condition(self) -> Optional[str]:
+        """
+        Check if the agent is stuck and return a forced action or warning if needed.
+        """
+        stuck_threshold = 3
+        
+        if self.stuck_counter >= stuck_threshold:
+            logger.warning(f"Agent is stuck (counter={self.stuck_counter}). Forcing intervention.")
+            
+            # Reset stuck counter partially to give it a chance after intervention
+            self.stuck_counter = 0 
+            
+            # Force a turn to break the loop
+            # If we were stuck going forward, turn around.
+            return "FORCE_TURN_AROUND"
+            
+        return None
+
     def step(self) -> str:
         """
         Execute one step of the agent loop.
@@ -147,7 +165,10 @@ BACKWARD MOVEMENT SAFETY:
         # Use overlay if available, otherwise raw frame
         display_frame = overlay if overlay is not None else frame
         
-        # 3. Prepare Prompt
+        # 3. Check Stuck Condition
+        forced_action = self._check_stuck_condition()
+        
+        # 4. Prepare Prompt
         _, buffer = cv2.imencode('.jpg', display_frame)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
         
@@ -156,16 +177,37 @@ BACKWARD MOVEMENT SAFETY:
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}}
         ]
         
-        # Inject Allowed Actions
+        # Inject Allowed Actions & Warnings
+        reflex_msg = f"REFLEX SYSTEM: Allowed actions are {safe_actions}. Green Marked Paths are SAFE. Red Marked Areas are BLOCKED.\nVISUAL GUIDANCE: {guidance}"
+        
+        if self.stuck_counter > 0:
+            reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
+            
+        if forced_action == "FORCE_TURN_AROUND":
+            reflex_msg += "\nCRITICAL: YOU ARE STUCK. IGNORING YOUR OUTPUT. FORCING A TURN."
+            # We don't return here because we want to log this to history, but we could skip LLM.
+            # actually, let's skip LLM to save tokens and time if we are forcing it.
+            
         content.append({
              "type": "text", 
-             "text": f"REFLEX SYSTEM: Allowed actions are {safe_actions}. Green Marked Paths are SAFE. Red Marked Areas are BLOCKED.\nVISUAL GUIDANCE: {guidance}"
+             "text": reflex_msg
         })
             
         self.message_history.append(HumanMessage(content=content))
 
+        # 5. Forced Intervention or LLM Inference
+        if forced_action == "FORCE_TURN_AROUND":
+             # Execute hardcoded turn
+             logger.info("Executing FORCED TURN AROUND due to stuck condition")
+             if "turn_left" in self.tool_map:
+                 self.tool_map["turn_left"].invoke({"angle_degrees": 90})
+             elif "turn_right" in self.tool_map:
+                 self.tool_map["turn_right"].invoke({"angle_degrees": 90})
+                 
+             self.message_history.append(ToolMessage(content="System forced 90 degree turn to unstuck robot.", tool_call_id="system_forced_turn"))
+             return "Stuck Detected - Forced Turn Executed"
         
-        # 4. LLM Inference
+        # 6. LLM Inference
         try:
             response = self.llm.invoke(self.message_history)
             self.message_history.append(response)
@@ -175,8 +217,10 @@ BACKWARD MOVEMENT SAFETY:
             if len(self.message_history) > 5:
                 self.message_history = [self.message_history[0]] + self.message_history[-4:]
             
-            # 5. Execute Tools with SAFETY INTERCEPTION
+            # 7. Execute Tools with SAFETY INTERCEPTION
             if response.tool_calls:
+                any_blocked = False
+                
                 for tool_call in response.tool_calls:
                     tool_name = tool_call["name"]
                     args = tool_call["args"]
@@ -204,12 +248,24 @@ BACKWARD MOVEMENT SAFETY:
                                 blocked = True
                                 result = "SAFETY INTERVENTION: You cannot move backward twice in a row. You are blind behind you. Please TURN or move FORWARD."
                     
+                    if blocked:
+                        any_blocked = True
+                        self.stuck_counter += 1
+                        logger.warning(f"Action blocked. Stuck counter: {self.stuck_counter}")
+                    
                     if not blocked:
                         if tool_name in self.tool_map:
                             tool = self.tool_map[tool_name]
                             try:
                                 result = tool.invoke(args)
                                 self.last_action = tool_name
+                                
+                                # Successful move resets stuck counter (mostly)
+                                # Only reset if we actually moved successfully.
+                                # Start/End task shouldn't reset counter ideally, but simple movement should.
+                                if tool_name in ["move_forward", "turn_left", "turn_right"]:
+                                     self.stuck_counter = 0
+                                     
                             except Exception as e:
                                 result = f"Error executing {tool_name}: {e}"
                         else:
@@ -218,6 +274,10 @@ BACKWARD MOVEMENT SAFETY:
                             
                     self.message_history.append(ToolMessage(content=str(result), tool_call_id=tool_call["id"]))
                     
+                if not any_blocked and len(response.tool_calls) > 0:
+                     # If we executed tools and none were blocked, we aren't stuck right now.
+                     pass
+
                 return f"Executed {len(response.tool_calls)} actions"
             else:
                 return "Thinking..."
