@@ -31,6 +31,6 @@ python main.py
 - Python 3.10+
 
 ## Special Thanks 🙏
-Some code was taken from the (RoboCrew)[https://github.com/Grigorij-Dudnik/RoboCrew] project. 
+Some code was taken from the [RoboCrew](https://github.com/Grigorij-Dudnik/RoboCrew) project. 
 
 Made with ❤️ by [Neo](https://github.com/neooriginal)
