@@ -249,7 +249,10 @@ def arm_home():
 @bp.route('/ai/start', methods=['POST'])
 def ai_start():
     if not state.agent:
-        return jsonify({'status': 'error', 'error': 'AI Agent not initialized'})
+        # Try lazy init
+        if not state.init_agent():
+            return jsonify({'status': 'error', 'error': 'AI Agent not initialized - Check Robot Hardware'})
+            
     state.ai_enabled = True
     state.add_ai_log("AI Started")
     return jsonify({'status': 'ok'})
@@ -263,7 +266,10 @@ def ai_stop():
 @bp.route('/ai/task', methods=['POST'])
 def ai_task():
     if not state.agent:
-        return jsonify({'status': 'error', 'error': 'AI Agent not initialized'})
+        # Try lazy init
+        if not state.init_agent():
+            return jsonify({'status': 'error', 'error': 'AI Agent not initialized - Check Robot Hardware'})
+
     data = request.json
     task = data.get('task', '')
     if task:

@@ -82,29 +82,12 @@ def main():
     robot = RobotSystem()
     state.robot_system = robot
     
-    # Initialize AI Agent
-    if robot.controller:
-        print("🧠 Initializing AI Agent...")
-        # Minimal tools - no individual camera controls to avoid confusion
-        tools = [
-            create_move_forward(robot.controller),
-            create_move_backward(robot.controller),
-            create_turn_left(robot.controller),
-            create_turn_right(robot.controller),
-            create_look_around(robot.controller, robot.camera),  # Emergency only
-            create_look_around(robot.controller, robot.camera),  # Emergency only
-            create_end_task(),
-            create_check_alignment()
-        ]
-
-        model_name = os.getenv("AI_MODEL", "openai/gpt-5.1") 
-        
-        try:
-            agent = NavigationAgent(robot, model_name, tools)
-            state.agent = agent
-            print("✓ AI Agent ready")
-        except Exception as e:
-            print(f"⚠ AI Agent init failed: {e}")
+    # Initialize AI Agent (using new robust init)
+    print("🧠 Initializing AI Agent...")
+    if state.init_agent():
+        print("✓ AI Agent ready")
+    else:
+        print("⚠ AI Agent deferred (waiting for controller/camera)")
     else:
         print("⚠ Robot controller not ready, AI disabled")
 
