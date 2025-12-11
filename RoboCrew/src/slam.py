@@ -245,12 +245,11 @@ class SimpleSLAM:
             end_grid_y = int(end_y / self.map_resolution) + self.map_center
             
             # Draw Line (Free Space) using Bresenham
-            self.draw_line(grid_x, grid_y, end_grid_x, end_grid_y, 255) # White = Free
-            
-            if is_obstacle and dist < 2.0:
-                 # Mark valid obstacle
-                 if 0 <= end_grid_x < self.map_size and 0 <= end_grid_y < self.map_size:
-                     cv2.circle(self.grid_map, (end_grid_x, end_grid_y), 1, 0, -1) # Black = Occupied
+            if 0 <= grid_x < self.map_size and 0 <= grid_y < self.map_size and 0 <= end_grid_x < self.map_size and 0 <= end_grid_y < self.map_size:
+                self.draw_line(grid_x, grid_y, end_grid_x, end_grid_y, 255) # White = Free
+
+                if is_obstacle and dist < 2.0:
+                    cv2.circle(self.grid_map, (end_grid_x, end_grid_y), 1, 0, -1) # Black = Occupied
     
     def draw_line(self, x0, y0, x1, y1, color):
         cv2.line(self.grid_map, (x0, y0), (x1, y1), int(color), 1)
