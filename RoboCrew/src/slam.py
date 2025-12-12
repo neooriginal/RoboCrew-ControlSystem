@@ -17,7 +17,12 @@ class SimpleSLAM:
         self.map_size = map_size_pixels
         self.map_center = map_size_pixels // 2
         
-        # 0 = Unknown/Free, 1 = Free, 255 = Occupied (Visually: 127=Gray, 255=White, 0=Black)
+        # 0 = Occupied, 127 = Unknown, 255 = Free
+        # We use a float map for accumulation to allow "Log-Odds" style soft updates
+        # But for performance and simplicity with OpenCV, we'll use uint8 with saturation.
+        # Start at 127 (50% probability).
+        # Free space adds value (towards 255).
+        # Obstacles subtract value (towards 0).
         self.grid_map = np.full((self.map_size, self.map_size), 127, dtype=np.uint8)
         
         # Robot State
@@ -215,27 +220,75 @@ class SimpleSLAM:
             if is_obstacle and dist < 2.5:
                 obstacle_points.append((gex, gey))
         
-        # 1. Clear Free Space (White Polygon)
-        # We draw a filled polygon representing the current FOV as "Free"
-        # This overwrites any previous "Unknown" (Gray) or "transient" obstacles
-        # However, to avoid erasing REAL static obstacles we saw before, 
-        # usually we use log-odds. But for "SimpleSLAM", Overwriting is fine 
-        # as long as the sensor is trusted.
-        cv2.fillPoly(self.grid_map, [np.array(poly_points)], 255)
+        # 1. Create Masks for Update
+        # Free Space Mask (Polygon)
+        free_mask = np.zeros_like(self.grid_map)
+        cv2.fillPoly(free_mask, [np.array(poly_points)], 255)
         
-        # 2. Draw Obstacles (Black Dots)
+        # Obstacle Mask (Dots)
+        obs_mask = np.zeros_like(self.grid_map)
         for (ox, oy) in obstacle_points:
             if 0 <= ox < self.map_size and 0 <= oy < self.map_size:
-                 cv2.circle(self.grid_map, (ox, oy), 2, 0, -1)
-    
-    def draw_line(self, x0, y0, x1, y1, color):
-        cv2.line(self.grid_map, (x0, y0), (x1, y1), int(color), 1)
+                 cv2.circle(obs_mask, (ox, oy), 2, 255, -1)
+        
+        # 2. Probabilistic Update
+        # "Free" observation: Increase brightness (Confidence that it is free)
+        # We only update pixels that are IN the FOV (free_mask > 0)
+        # Increment by small amount (e.g., 5) per frame.
+        # Currently, grid_map is 127. 
+        # If free: 127 -> 132 -> ... -> 255.
+        # If obstacle: 127 -> 100 -> ... -> 0.
+        
+        # Apply Free update
+        # We want to ADD to grid_map where free_mask is 255.
+        # cv2.add with mask only adds where mask is non-zero.
+        # But we must be careful not to overwrite Obstacles that were just detected?
+        # Actually, if we detect obstacle, we should DECREASE strongly.
+        
+        # Strategy:
+        # A. Apply Free Space increment to everything in polygon.
+        # B. Apply Obstacle decrement to specific points (stronger).
+        
+        # Increase "Free-ness"
+        # We use a temporary array for the increment amount
+        increment = 3 # Slow build up
+        cv2.add(self.grid_map, increment, dst=self.grid_map, mask=free_mask)
+
+        # Decrease "Free-ness" (Increase Obstacle probability)
+        # Obstacles are more "certain" usually if seen by structure light, but here it's heuristic.
+        # Make it strong.
+        decrement = 25 
+        cv2.subtract(self.grid_map, decrement, dst=self.grid_map, mask=obs_mask)
 
     def get_map_overlay(self):
         """Return the map as a BGR image with robot pose drawn."""
-        # Convert grid to color
+        # Color Map Visualization
+        # 0 (Occupied) -> Black/Blue
+        # 127 (Unknown) -> Gray
+        # 255 (Free) -> White
+        
+        # Apply nice color map
+        # cv2.applyColorMap expects 0..255.
+        # Let's customize:
+        # Create 3-channel image
         vis_map = cv2.cvtColor(self.grid_map, cv2.COLOR_GRAY2BGR)
         
+        # Draw Grid (every 1 meter)
+        # 1 meter = 1 / 0.05 = 20 pixels
+        grid_step = 20
+        # Draw faint grid lines
+        # Only draw where it is UNKNOWN (127) or FREE? 
+        # Just draw everywhere with alpha blending? Too slow manually.
+        # Draw lines directly
+        
+        # Vertical lines
+        for x in range(0, self.map_size, grid_step):
+            cv2.line(vis_map, (x, 0), (x, self.map_size), (40, 40, 40), 1)
+        
+        # Horizontal lines
+        for y in range(0, self.map_size, grid_step):
+            cv2.line(vis_map, (0, y), (self.map_size, y), (40, 40, 40), 1)
+            
         # Draw Path
         path_points = []
         for (px, py) in self.path:
@@ -244,17 +297,39 @@ class SimpleSLAM:
              path_points.append((gx, gy))
         
         if len(path_points) > 1:
-            cv2.polylines(vis_map, [np.array(path_points)], False, (255, 0, 0), 1)
+            cv2.polylines(vis_map, [np.array(path_points)], False, (0, 255, 255), 1) # Yellow path
             
         # Draw Robot
         rx = int(self.x / self.map_resolution) + self.map_center
         ry = int(self.y / self.map_resolution) + self.map_center
         
-        cv2.circle(vis_map, (rx, ry), 3, (0, 0, 255), -1)
+        # Robot Body
+        cv2.circle(vis_map, (rx, ry), 5, (0, 0, 255), -1) # Red dot
         
         # Heading Vector
-        hx = int(rx + 10 * math.cos(self.theta))
-        hy = int(ry + 10 * math.sin(self.theta))
+        hx = int(rx + 15 * math.cos(self.theta))
+        hy = int(ry + 15 * math.sin(self.theta))
         cv2.line(vis_map, (rx, ry), (hx, hy), (0, 0, 255), 2)
         
+        # Draw Tracked Features (Projected onto Map)
+        if self.last_keypoints is not None:
+            # These are in Image Space. We need to project them to Map Space?
+            # That's hard without depth for every point.
+            # But we can just draw them in the CORNER of the image as a "Camera View" PIP (Picture in Picture)?
+            # Or just ignore them on the map.
+            # User wants to know "indexed" map.
+            # Let's draw the "Field of View" wedge outline clearly
+            fov_len = 30 # pixels on map (1.5m)
+            fov_angle = math.radians(60)
+            
+            # Left edge
+            lx = int(rx + fov_len * math.cos(self.theta - fov_angle/2))
+            ly = int(ry + fov_len * math.sin(self.theta - fov_angle/2))
+            cv2.line(vis_map, (rx, ry), (lx, ly), (0, 255, 0), 1)
+            
+            # Right edge
+            rrx = int(rx + fov_len * math.cos(self.theta + fov_angle/2))
+            rry = int(ry + fov_len * math.sin(self.theta + fov_angle/2))
+            cv2.line(vis_map, (rx, ry), (rrx, rry), (0, 255, 0), 1)
+            
         return vis_map
