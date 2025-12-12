@@ -220,19 +220,33 @@ class ObstacleDetector:
         AI-First Mode: Provide rich visual overlays for the AI to interpret.
         NO algorithmic path guidance - the AI decides where to go.
         """
-        # 1. Red Danger Zones around obstacles
-        for x, y in edge_points:
-            if y > 200:
-                radius = int(10 + (y - 200) * 0.15)
-                color = (0, 0, 255)
-                cv2.circle(shapes, (x, y), radius, color, -1)
+        # 1. Red Danger Zones around obstacles (MASK bottom 60px - door threshold)
+        left_edge_x = 0
+        right_edge_x = w
         
-        # 2. Heading Indicator (Cyan line showing "straight ahead")
+        for x, y in edge_points:
+            if y > 200 and y < 420:
+                radius = int(10 + (y - 200) * 0.15)
+                cv2.circle(shapes, (x, y), radius, (0, 0, 255), -1)
+                
+                # Track left and right obstacle edges for gap center
+                if x < w // 2 and y > 300:
+                    left_edge_x = max(left_edge_x, x)
+                elif x > w // 2 and y > 300:
+                    right_edge_x = min(right_edge_x, x)
+        
+        # 2. Gap Center Marker (Green line between left/right obstacles)
+        if left_edge_x > 0 or right_edge_x < w:
+            gap_center = (left_edge_x + right_edge_x) // 2
+            cv2.line(overlay, (gap_center, h//2), (gap_center, h - 60), (0, 255, 0), 3)
+            cv2.putText(overlay, "GAP", (gap_center - 15, h//2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        
+        # 3. Heading Indicator (Yellow line showing "straight ahead")
         center_x = w // 2
         cv2.line(overlay, (center_x, h), (center_x, int(h * 0.3)), (255, 255, 0), 2)
         cv2.putText(overlay, "HEADING", (center_x - 30, int(h * 0.28)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
-        # 3. Proximity Bar (Top bar showing how close the forward obstacle is)
+        # 4. Proximity Bar (Top bar showing how close the forward obstacle is)
         bar_height = 20
         bar_width = int((c_fwd / 480) * w)
         bar_color = (0, 255, 0) if c_fwd < 300 else (0, 255, 255) if c_fwd < 400 else (0, 0, 255)
