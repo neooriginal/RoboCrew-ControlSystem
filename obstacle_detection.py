@@ -89,21 +89,23 @@ class ObstacleDetector:
         # Update Safety History & Public State
         safe_actions = self._update_safety_state(instant_blocked, is_blind, shapes, overlay, w, h)
 
-        # 5. AI-First Visualization (No Guidance Calculation)
-        # In precision mode, we just provide *richer* visual overlays.
-        # The AI decides where to go based on what it sees.
+        # 5. Compute Precision Guidance (if enabled)
+        guidance = ""
         if state.precision_mode:
-            self._draw_ai_first_overlays(edge_points, c_fwd, w, h, overlay, shapes)
+            guidance = self._compute_precision_guidance(edge_points, c_fwd, w, h, overlay, shapes)
 
         # Blend Visualization
         alpha = 0.4
         cv2.addWeighted(shapes, alpha, overlay, 1 - alpha, 0, overlay)
+        if guidance:
+            cv2.putText(overlay, guidance, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
         return safe_actions, overlay, {
             'c_left': c_left, 
             'c_fwd': c_fwd, 
             'c_right': c_right, 
-            'edges': total_edge_pixels
+            'edges': total_edge_pixels,
+            'guidance': guidance
         }
 
     def _detect_edges(self, frame):
@@ -146,21 +148,30 @@ class ObstacleDetector:
         return sum(top_values) / len(top_values)
 
     def _determine_blocked_directions(self, c_left, c_fwd, c_right, is_blind):
-        """Determine which directions are unsafe. NO precision mode exceptions."""
+        """Determine which directions are unsafe based on thresholds."""
         blocked = set()
         
+        # Adjust threshold based on mode
         threshold = self.obstacle_threshold_y
+        if state.precision_mode:
+             # Relax threshold to allow closer approach
+             threshold += 30
+             
         side_threshold = threshold + 50
         
         if is_blind:
             blocked.add("FORWARD")
         else:
-            if c_fwd > threshold:
-                blocked.add("FORWARD")
-            if c_left > side_threshold:
-                blocked.add("LEFT")
-            if c_right > side_threshold:
-                blocked.add("RIGHT")
+            if state.precision_mode:
+                 if c_fwd > 460:
+                     blocked.add("FORWARD")
+            else:
+                 if c_fwd > threshold:
+                     blocked.add("FORWARD")
+                 if c_left > side_threshold:
+                     blocked.add("LEFT")
+                 if c_right > side_threshold:
+                     blocked.add("RIGHT")
                 
         return blocked
 
@@ -215,40 +226,102 @@ class ObstacleDetector:
                 
         return safe_actions
 
-    def _draw_ai_first_overlays(self, edge_points, c_fwd, w, h, overlay, shapes):
+    def _compute_precision_guidance(self, edge_points, c_fwd, w, h, overlay, shapes):
         """
-        AI-First Mode: Provide rich visual overlays for the AI to interpret.
-        NO algorithmic path guidance - the AI decides where to go.
+        Identify usable gaps and provide alignment guidance.
         """
-        # 1. Red Danger Zones around obstacles (MASK bottom 60px - door threshold)
-        left_edge_x = 0
-        right_edge_x = w
+        # 1. Smooth Y-values to reduce noise
+        raw_ys = [p[1] for p in edge_points]
+        smoothed_ys = []
+        for i in range(len(raw_ys)):
+            prev_y = raw_ys[i-1] if i > 0 else raw_ys[i]
+            next_y = raw_ys[i+1] if i < len(raw_ys)-1 else raw_ys[i]
+            smoothed_ys.append(sorted([prev_y, raw_ys[i], next_y])[1]) # Median
+            
+        # 2. Identify "Passable" Columns (Obstacle is far away)
+        passable_limit_y = 350
+        is_very_close = c_fwd > 400
         
-        for x, y in edge_points:
-            if y > 200 and y < 420:
-                radius = int(10 + (y - 200) * 0.15)
-                cv2.circle(shapes, (x, y), radius, (0, 0, 255), -1)
-                
-                # Track left and right obstacle edges for gap center
-                if x < w // 2 and y > 300:
-                    left_edge_x = max(left_edge_x, x)
-                elif x > w // 2 and y > 300:
-                    right_edge_x = min(right_edge_x, x)
+        passable_indices = []
+        for i, y in enumerate(smoothed_ys):
+             effective_y = y
+             if state.precision_mode and y > 420:
+                 effective_y = 0 
+                 
+             if effective_y < passable_limit_y:
+                 passable_indices.append(edge_points[i][0])
         
-        # 2. Gap Center Marker (Green line between left/right obstacles)
-        if left_edge_x > 0 or right_edge_x < w:
-            gap_center = (left_edge_x + right_edge_x) // 2
-            cv2.line(overlay, (gap_center, h//2), (gap_center, h - 60), (0, 255, 0), 3)
-            cv2.putText(overlay, "GAP", (gap_center - 15, h//2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        if not passable_indices:
+            return "ALIGNMENT: NO GAP DETECTED."
+
+        # 3. Find Largest Contiguous Gap
+        # Points are separated by 'step=5'. Allow skip of 1-2 points (approx 15px)
+        clusters = []
+        current_cluster = [passable_indices[0]]
+        for i in range(1, len(passable_indices)):
+            if passable_indices[i] - passable_indices[i-1] <= 8:
+                current_cluster.append(passable_indices[i])
+            else:
+                clusters.append(current_cluster)
+                current_cluster = [passable_indices[i]]
+        clusters.append(current_cluster)
         
-        # 3. Heading Indicator (Yellow line showing "straight ahead")
-        center_x = w // 2
-        cv2.line(overlay, (center_x, h), (center_x, int(h * 0.3)), (255, 255, 0), 2)
-        cv2.putText(overlay, "HEADING", (center_x - 30, int(h * 0.28)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+        # Filter small gaps (noise) and find cluster closest to center
+        # Minimum gap width approx 20px
+        valid_clusters = [c for c in clusters if (c[-1] - c[0]) > 20]
         
-        # 4. Proximity Bar (Top bar showing how close the forward obstacle is)
-        bar_height = 20
-        bar_width = int((c_fwd / 480) * w)
-        bar_color = (0, 255, 0) if c_fwd < 300 else (0, 255, 255) if c_fwd < 400 else (0, 0, 255)
-        cv2.rectangle(overlay, (0, 0), (bar_width, bar_height), bar_color, -1)
-        cv2.putText(overlay, f"PROX: {int(c_fwd)}", (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+        if not valid_clusters:
+            if is_very_close:
+                 return "ALIGNMENT: BLIND COMMIT. GO FORWARD."
+                 
+            return "ALIGNMENT: NO GAP DETECTED."
+            
+        # Smart Gap Selection: Score = Width - (DistanceToCenter * Weight)
+        # We want wide gaps, but we PENALIZE gaps far from the center.
+        image_center = w // 2
+        
+        def gap_score(cluster):
+            width = cluster[-1] - cluster[0]
+            center = (cluster[0] + cluster[-1]) // 2
+            dist = abs(center - image_center)
+            # Weight: 1.0 means 1px of distance cancels 1px of width. 
+            # Lower weight (0.5) means we prefer width more. Higher (2.0) means we prefer center more.
+            # Using 1.2 to slightly bias towards center over raw width.
+            return width - (dist * 1.2)
+            
+        best_cluster = max(valid_clusters, key=gap_score)
+        
+        raw_gap_center = (best_cluster[0] + best_cluster[-1]) // 2
+        
+        # EMA Smoothing
+        if self.last_gap_center is None:
+            self.last_gap_center = raw_gap_center
+            
+        # Alpha: 0.3 = 30% new, 70% old. Smooths jitter.
+        alpha = 0.3
+        self.last_gap_center = int(alpha * raw_gap_center + (1 - alpha) * self.last_gap_center)
+        gap_center = self.last_gap_center
+        
+        # Draw Target Line
+        cv2.line(overlay, (gap_center, h//2), (gap_center, h), (255, 255, 0), 2)
+        cv2.putText(overlay, "TARGET", (gap_center - 20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+        
+        # 4. Generate Guidance
+        center_offset = gap_center - (w // 2)
+        is_aligned = abs(center_offset) < 20
+        is_too_close_to_align = c_fwd > 440
+        
+        if is_aligned:
+            cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 255, 0), 3)
+            return "ALIGNMENT: PERFECT. Go FORWARD."
+        else:
+            if is_too_close_to_align:
+                # Proximity Warning
+                cv2.rectangle(shapes, (0, 0), (w, h), (0, 0, 255), 20)
+                return "ALIGNMENT: TOO CLOSE. BACK UP."
+            elif center_offset < 0:
+                cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
+                return "ALIGNMENT: TARGET LEFT. Turn LEFT."
+            else:
+                cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
+                return "ALIGNMENT: TARGET RIGHT. Turn RIGHT."

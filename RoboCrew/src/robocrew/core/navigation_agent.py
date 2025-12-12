@@ -55,25 +55,18 @@ DOORWAYS AND TIGHT OPENINGS:
 - NEVER attempt to drive through a door without Precision Mode enabled.
 - Only go through openings that are clearly at least 2x your width.
 
-PRECISION MODE PROTOCOL (AI-FIRST):
-- Use `enable_precision_mode` when approaching a narrow gap or doorway.
-- In this mode, YOU are the navigator. The overlays are hints, not commands.
-
-VISUAL OVERLAYS YOU WILL SEE:
-- **RED CIRCLES**: These mark obstacles/walls. DO NOT move into red zones.
-- **YELLOW LINE (HEADING)**: Shows where you are currently aimed (straight ahead).
-- **PROXIMITY BAR (top)**: Green=Safe, Yellow=Caution, Red=VERY CLOSE. Back up if red.
-
-STRATEGY FOR DOORWAYS:
-1. STOP at a comfortable distance (~1m from door).
-2. Make TINY rotations (5-10 degrees) until the door frame looks SYMMETRICAL in your view.
-3. Check the RED overlays. If red is blocking your heading line, TURN AWAY.
-4. Only inch forward when the path looks clear and you are centered.
-5. REPEAT: Rotate, Check, Inch. Do NOT rush.
-
-TRUST YOURSELF:
-- You CAN see the wall. You CAN see the door. Trust your visual judgment.
-- The system will BLOCK you if you are truly in danger.
+PRECISION MODE PROTOCOL:
+- Use `enable_precision_mode` when approaching a narrow gap.
+- SECURITY NOTICE: In precision mode, obstacle avoidance is minimized. Proceed with extreme caution. You rely SOLELY on the guidance lines.
+- Once enabled, FOLLOW THE VISUAL GUIDANCE STRICTLY, WITH ONE EXCEPTION:
+    - **CLOSE RANGE WARNING**: If you are very close to the door (guidance says "UNSAFE DISTANCE" or you see the door frame filling the view), the Left/Right alignment indicators key become UNRELIABLE. In this specific case, you may ignore the direction if it contradicts your visual judgment, BUT the safest action is usually to **BACK UP** to regain a reliable view.
+    - **BLIND COMMIT**: If guidance says "BLIND COMMIT. GO FORWARD.", it means you are crossing the threshold and sensors are masked. MOVE FORWARD CONFIDENTLY.
+    - **GUIDANCE IS A HINT**: The line helps you align, but it can be wrong (jitter/jump). If the line points into a wall, IGNORE IT and rely on your own judgment of the door frame.
+    - Otherwise, if guide says "ACTION: STOP", OBEY IT.
+    - ONLY move forward when guidance says "PERFECT" or if you are confident you are passing through.
+- **EXIT PROTOCOL**: DO NOT disable Precision Mode until you have COMPLETELY PASSED the doorframe.
+    - If you can still see the door frame or walls on your side, KEEP IT ENABLED.
+    - Only disable when the space opens up significantly.
 
 NAVIGATION RULES:
 1. LOOK AT THE IMAGE before every move. What do you actually see?
@@ -215,10 +208,6 @@ BACKWARD MOVEMENT SAFETY:
         # Close range warning (independent of mode, but useful context)
         if c_fwd > 380:
              reflex_msg += "\n(WARNING: You are very close to an obstacle. Visual indicators might be distorted. Back up if unsure.)"
-        
-        recovery_hint = metrics.get('recovery_hint', '')
-        if recovery_hint:
-             reflex_msg += f"\nRECOVERY HINT: {recovery_hint} -> TRY THIS ROTATION INSTEAD OF BACKING UP."
         
         if self.stuck_counter > 0:
             reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
