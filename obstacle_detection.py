@@ -253,7 +253,7 @@ class ObstacleDetector:
         
         # CLOSE-RANGE BYPASS: When very close, gap detection is unreliable
         if is_very_close:
-            return "ALIGNMENT: BLIND COMMIT. GO FORWARD."
+            return "BLIND COMMIT: Decide based on what you see."
         
         passable_indices = []
         for i, y in enumerate(smoothed_ys):
@@ -265,7 +265,7 @@ class ObstacleDetector:
                  passable_indices.append(edge_points[i][0])
         
         if not passable_indices:
-            return "ALIGNMENT: NO GAP DETECTED."
+            return ""
 
         # 3. Find Largest Contiguous Gap
         # Points are separated by 'step=5'. Allow skip of 1-2 points (approx 15px)
@@ -284,7 +284,7 @@ class ObstacleDetector:
         valid_clusters = [c for c in clusters if (c[-1] - c[0]) > 20]
         
         if not valid_clusters:
-            return "ALIGNMENT: NO GAP DETECTED."
+            return ""
             
         # Smart Gap Selection: Score = Width - (DistanceToCenter * Weight)
         # We want wide gaps, but we PENALIZE gaps far from the center.
@@ -331,15 +331,14 @@ class ObstacleDetector:
         
         if is_aligned:
             cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 255, 0), 3)
-            return "ALIGNMENT: PERFECT. Go FORWARD."
+            return ""
         else:
             if is_too_close_to_align:
-                # Proximity Warning
                 cv2.rectangle(shapes, (0, 0), (w, h), (0, 0, 255), 20)
-                return "ALIGNMENT: TOO CLOSE. BACK UP."
+                return ""
             elif center_offset < 0:
                 cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
-                return "ALIGNMENT: TARGET LEFT. Turn LEFT."
+                return ""
             else:
                 cv2.line(overlay, (gap_center, h//2), (gap_center, h), (0, 0, 255), 2)
-                return "ALIGNMENT: TARGET RIGHT. Turn RIGHT."
+                return ""
