@@ -84,7 +84,7 @@ class ObstacleDetector:
 
         # 4. Check Safety Constraints
         is_blind = total_edge_pixels < self.min_edge_pixels
-        instant_blocked = self._determine_blocked_directions(c_left, c_fwd, c_right, is_blind)
+        instant_blocked, rotation_hint = self._determine_blocked_directions(c_left, c_fwd, c_right, is_blind)
         
         # Update Safety History & Public State
         safe_actions = self._update_safety_state(instant_blocked, is_blind, shapes, overlay, w, h)
@@ -93,6 +93,9 @@ class ObstacleDetector:
         guidance = ""
         if state.precision_mode:
             guidance = self._compute_precision_guidance(edge_points, c_fwd, w, h, overlay, shapes)
+            # Append rotation hint if we're blocked
+            if rotation_hint and "FORWARD" in instant_blocked:
+                guidance = f"{guidance} [{rotation_hint}]"
 
         # Blend Visualization
         alpha = 0.4
@@ -105,7 +108,8 @@ class ObstacleDetector:
             'c_fwd': c_fwd, 
             'c_right': c_right, 
             'edges': total_edge_pixels,
-            'guidance': guidance
+            'guidance': guidance,
+            'rotation_hint': rotation_hint
         }
 
     def _detect_edges(self, frame):
@@ -148,13 +152,14 @@ class ObstacleDetector:
         return sum(top_values) / len(top_values)
 
     def _determine_blocked_directions(self, c_left, c_fwd, c_right, is_blind):
-        """Determine which directions are unsafe based on thresholds."""
+        """Determine which directions are unsafe based on thresholds.
+        Returns: (blocked_set, rotation_hint)
+        """
         blocked = set()
+        rotation_hint = None
         
-        # Adjust threshold based on mode
         threshold = self.obstacle_threshold_y
         if state.precision_mode:
-             # Relax threshold to allow closer approach
              threshold += 30
              
         side_threshold = threshold + 50
@@ -165,6 +170,11 @@ class ObstacleDetector:
             if state.precision_mode:
                  if c_fwd > 460:
                      blocked.add("FORWARD")
+                     # Provide rotation hint based on clearance
+                     if c_left < c_right:
+                         rotation_hint = "ROTATE LEFT to align"
+                     elif c_right < c_left:
+                         rotation_hint = "ROTATE RIGHT to align"
             else:
                  if c_fwd > threshold:
                      blocked.add("FORWARD")
@@ -173,7 +183,7 @@ class ObstacleDetector:
                  if c_right > side_threshold:
                      blocked.add("RIGHT")
                 
-        return blocked
+        return blocked, rotation_hint
 
     def _update_safety_state(self, instant_blocked, is_blind, shapes, overlay, w, h):
         """
@@ -240,7 +250,11 @@ class ObstacleDetector:
             
         # 2. Identify "Passable" Columns (Obstacle is far away)
         passable_limit_y = 350
-        is_very_close = c_fwd > 400
+        is_very_close = c_fwd > 420
+        
+        # CLOSE-RANGE BYPASS: When very close, gap detection is unreliable
+        if is_very_close:
+            return "ALIGNMENT: BLIND COMMIT. GO FORWARD."
         
         passable_indices = []
         for i, y in enumerate(smoothed_ys):
@@ -271,9 +285,6 @@ class ObstacleDetector:
         valid_clusters = [c for c in clusters if (c[-1] - c[0]) > 20]
         
         if not valid_clusters:
-            if is_very_close:
-                 return "ALIGNMENT: BLIND COMMIT. GO FORWARD."
-                 
             return "ALIGNMENT: NO GAP DETECTED."
             
         # Smart Gap Selection: Score = Width - (DistanceToCenter * Weight)

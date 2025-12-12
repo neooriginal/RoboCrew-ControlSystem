@@ -62,6 +62,7 @@ PRECISION MODE PROTOCOL:
     - **CLOSE RANGE WARNING**: If you are very close to the door (guidance says "UNSAFE DISTANCE" or you see the door frame filling the view), the Left/Right alignment indicators key become UNRELIABLE. In this specific case, you may ignore the direction if it contradicts your visual judgment, BUT the safest action is usually to **BACK UP** to regain a reliable view.
     - **BLIND COMMIT**: If guidance says "BLIND COMMIT. GO FORWARD.", it means you are crossing the threshold and sensors are masked. MOVE FORWARD CONFIDENTLY.
     - **GUIDANCE IS A HINT**: The line helps you align, but it can be wrong (jitter/jump). If the line points into a wall, IGNORE IT and rely on your own judgment of the door frame.
+    - **ROTATION HINTS**: When blocked near a door, guidance may include [ROTATE LEFT/RIGHT to align]. Make a SMALL turn (5-10 degrees) in that direction, then try forward again. Do NOT back up unless you've tried rotating first.
     - Otherwise, if guide says "ACTION: STOP", OBEY IT.
     - ONLY move forward when guidance says "PERFECT" or if you are confident you are passing through.
 - **EXIT PROTOCOL**: DO NOT disable Precision Mode until you have COMPLETELY PASSED the doorframe.
