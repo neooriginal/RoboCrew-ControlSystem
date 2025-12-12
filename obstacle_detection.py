@@ -159,12 +159,20 @@ class ObstacleDetector:
         if is_blind:
             blocked.add("FORWARD")
         else:
-            if c_fwd > threshold:
-                blocked.add("FORWARD")
-            if c_left > side_threshold:
-                blocked.add("LEFT")
-            if c_right > side_threshold:
-                blocked.add("RIGHT")
+            # In precision mode, we ignore side obstacles and allow getting much closer
+            if state.precision_mode:
+                 # Only check forward, and use relaxed threshold (460 allows ignoring bottom ~20px)
+                 # We essentially ignore left/right boundaries of the door frame
+                 if c_fwd > 460:
+                     blocked.add("FORWARD")
+            else:
+                 # Normal Safety Mode
+                 if c_fwd > threshold:
+                     blocked.add("FORWARD")
+                 if c_left > side_threshold:
+                     blocked.add("LEFT")
+                 if c_right > side_threshold:
+                     blocked.add("RIGHT")
                 
         return blocked
 
