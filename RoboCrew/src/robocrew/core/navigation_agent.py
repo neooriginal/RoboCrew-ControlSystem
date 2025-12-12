@@ -60,6 +60,7 @@ PRECISION MODE PROTOCOL:
 - SECURITY NOTICE: In precision mode, obstacle avoidance is minimized. Proceed with extreme caution. You rely SOLELY on the guidance lines.
 - Once enabled, FOLLOW THE VISUAL GUIDANCE STRICTLY, WITH ONE EXCEPTION:
     - **CLOSE RANGE WARNING**: If you are very close to the door (guidance says "UNSAFE DISTANCE" or you see the door frame filling the view), the Left/Right alignment indicators key become UNRELIABLE. In this specific case, you may ignore the direction if it contradicts your visual judgment, BUT the safest action is usually to **BACK UP** to regain a reliable view.
+    - **BLIND COMMIT**: If guidance says "BLIND COMMIT. GO FORWARD.", it means you are crossing the threshold and sensors are masked. MOVE FORWARD CONFIDENTLY.
     - Otherwise, if guide says "ACTION: STOP", OBEY IT.
     - ONLY move forward when guidance says "PERFECT" or if you are confident you are passing through.
 - **EXIT PROTOCOL**: DO NOT disable Precision Mode until you have COMPLETELY PASSED the doorframe.

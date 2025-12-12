@@ -159,14 +159,10 @@ class ObstacleDetector:
         if is_blind:
             blocked.add("FORWARD")
         else:
-            # In precision mode, we ignore side obstacles and allow getting much closer
             if state.precision_mode:
-                 # Only check forward, and use relaxed threshold (460 allows ignoring bottom ~20px)
-                 # We essentially ignore left/right boundaries of the door frame
                  if c_fwd > 460:
                      blocked.add("FORWARD")
             else:
-                 # Normal Safety Mode
                  if c_fwd > threshold:
                      blocked.add("FORWARD")
                  if c_left > side_threshold:
@@ -241,11 +237,16 @@ class ObstacleDetector:
             
         # 2. Identify "Passable" Columns (Obstacle is far away)
         passable_limit_y = 350
-        passable_indices = [
-            edge_points[i][0] 
-            for i, y in enumerate(smoothed_ys) 
-            if y < passable_limit_y
-        ]
+        is_very_close = c_fwd > 400
+        
+        passable_indices = []
+        for i, y in enumerate(smoothed_ys):
+             effective_y = y
+             if state.precision_mode and y > 420:
+                 effective_y = 0 
+                 
+             if effective_y < passable_limit_y:
+                 passable_indices.append(edge_points[i][0])
         
         if not passable_indices:
             return "ALIGNMENT: NO GAP DETECTED."
@@ -267,6 +268,9 @@ class ObstacleDetector:
         valid_clusters = [c for c in clusters if (c[-1] - c[0]) > 20]
         
         if not valid_clusters:
+            if is_very_close:
+                 return "ALIGNMENT: BLIND COMMIT. GO FORWARD."
+                 
             return "ALIGNMENT: NO GAP DETECTED."
             
         # Select target closest to image center instead of just the widest
