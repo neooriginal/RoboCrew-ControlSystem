@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLAM Debugger - ARCS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .slam-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .map-view {
+            width: 800px;
+            height: 800px;
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #map-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            /* Keep it crisp */
+        }
+
+        .info-panel {
+            display: flex;
+            gap: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-name {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-back {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <a href="/" class="btn-back">← Back to Control</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>SLAM Debugger</h1>
+        </div>
+
+        <div class="slam-container">
+            <div class="info-panel">
+                <div class="stat-box">
+                    <span class="stat-name">X Position</span>
+                    <span class="stat-value" id="val-x">0.00</span>
+                    <span class="stat-unit" style="color:#666; font-size:0.8em">m</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-name">Y Position</span>
+                    <span class="stat-value" id="val-y">0.00</span>
+                    <span class="stat-unit" style="color:#666; font-size:0.8em">m</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-name">Heading</span>
+                    <span class="stat-value" id="val-theta">0.0</span>
+                    <span class="stat-unit" style="color:#666; font-size:0.8em">deg</span>
+                </div>
+            </div>
+
+            <div class="map-view">
+                <img id="map-image" src="" alt="SLAM Map">
+            </div>
+
+            <p style="color: #666; font-size: 0.9em;">Map updates automatically. Green dot = Robot. Red line = Heading.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const mapImage = document.getElementById('map-image');
+        const valX = document.getElementById('val-x');
+        const valY = document.getElementById('val-y');
+        const valTheta = document.getElementById('val-theta');
+
+        function updateData() {
+            // Update Pose
+            fetch('/pose')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) return;
+                    valX.innerText = data.x.toFixed(2);
+                    valY.innerText = data.y.toFixed(2);
+                    // Native theta is radians, convert to degrees for display
+                    const deg = (data.theta * 180 / Math.PI) % 360;
+                    valTheta.innerText = deg.toFixed(1);
+                })
+                .catch(err => console.error("Pose fetch error:", err));
+        }
+
+        function updateMap() {
+            // Refresh map image
+            // Add timestamp to prevent caching
+            mapImage.src = '/map?' + new Date().getTime();
+        }
+
+        // Update data frequently (10Hz)
+        setInterval(updateData, 100);
+
+        // Update map less frequently (2Hz) to save bandwidth
+        setInterval(updateMap, 500);
+
+        // Initial load
+        updateMap();
+    </script>
+</body>
+
+</html>

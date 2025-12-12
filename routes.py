@@ -301,6 +301,10 @@ def emergency_stop():
 def ai_page():
     return render_template('ai_control.html')
 
+@bp.route('/slam_debug')
+def slam_debug_page():
+    return render_template('slam_debug.html')
+
 
 @bp.route('/display')
 def display_page():
