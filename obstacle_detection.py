@@ -91,8 +91,20 @@ class ObstacleDetector:
 
         # 5. Compute Precision Guidance (if enabled)
         guidance = ""
+        recovery_hint = ""
         if state.precision_mode:
             guidance = self._compute_precision_guidance(edge_points, c_fwd, w, h, overlay, shapes)
+            
+            # Recovery/Wiggle Logic:
+            # If we are blocked forward but in precision mode, maybe we just need to rotate?
+            if "FORWARD" not in safe_actions:
+                # Compare sides. If left is closer (higher Y), we should rotate right.
+                # Threshold for "significant difference" to avoid noise
+                diff = c_left - c_right
+                if diff > 30: # Left is closer
+                     recovery_hint = "OBSTACLE ON LEFT. ROTATE RIGHT TO UNSTICK."
+                elif diff < -30: # Right is closer
+                     recovery_hint = "OBSTACLE ON RIGHT. ROTATE LEFT TO UNSTICK."
 
         # Blend Visualization
         alpha = 0.4
@@ -105,7 +117,9 @@ class ObstacleDetector:
             'c_fwd': c_fwd, 
             'c_right': c_right, 
             'edges': total_edge_pixels,
-            'guidance': guidance
+            'edges': total_edge_pixels,
+            'guidance': guidance,
+            'recovery_hint': recovery_hint
         }
 
     def _detect_edges(self, frame):

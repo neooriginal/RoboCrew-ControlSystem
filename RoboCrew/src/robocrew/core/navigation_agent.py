@@ -209,6 +209,10 @@ BACKWARD MOVEMENT SAFETY:
         if c_fwd > 380:
              reflex_msg += "\n(WARNING: You are very close to an obstacle. Visual indicators might be distorted. Back up if unsure.)"
         
+        recovery_hint = metrics.get('recovery_hint', '')
+        if recovery_hint:
+             reflex_msg += f"\nRECOVERY HINT: {recovery_hint} -> TRY THIS ROTATION INSTEAD OF BACKING UP."
+        
         if self.stuck_counter > 0:
             reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
             
