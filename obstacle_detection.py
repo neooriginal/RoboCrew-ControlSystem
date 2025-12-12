@@ -89,37 +89,21 @@ class ObstacleDetector:
         # Update Safety History & Public State
         safe_actions = self._update_safety_state(instant_blocked, is_blind, shapes, overlay, w, h)
 
-        # 5. Compute Precision Guidance (if enabled)
-        guidance = ""
-        recovery_hint = ""
+        # 5. AI-First Visualization (No Guidance Calculation)
+        # In precision mode, we just provide *richer* visual overlays.
+        # The AI decides where to go based on what it sees.
         if state.precision_mode:
-            guidance = self._compute_precision_guidance(edge_points, c_fwd, w, h, overlay, shapes)
-            
-            # Recovery/Wiggle Logic:
-            # If we are blocked forward but in precision mode, maybe we just need to rotate?
-            if "FORWARD" not in safe_actions:
-                # Compare sides. If left is closer (higher Y), we should rotate right.
-                # Threshold for "significant difference" to avoid noise
-                diff = c_left - c_right
-                if diff > 30: # Left is closer
-                     recovery_hint = "OBSTACLE ON LEFT. ROTATE RIGHT TO UNSTICK."
-                elif diff < -30: # Right is closer
-                     recovery_hint = "OBSTACLE ON RIGHT. ROTATE LEFT TO UNSTICK."
+            self._draw_ai_first_overlays(edge_points, c_fwd, w, h, overlay, shapes)
 
         # Blend Visualization
         alpha = 0.4
         cv2.addWeighted(shapes, alpha, overlay, 1 - alpha, 0, overlay)
-        if guidance:
-            cv2.putText(overlay, guidance, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
         return safe_actions, overlay, {
             'c_left': c_left, 
             'c_fwd': c_fwd, 
             'c_right': c_right, 
-            'edges': total_edge_pixels,
-            'edges': total_edge_pixels,
-            'guidance': guidance,
-            'recovery_hint': recovery_hint
+            'edges': total_edge_pixels
         }
 
     def _detect_edges(self, frame):
@@ -162,30 +146,21 @@ class ObstacleDetector:
         return sum(top_values) / len(top_values)
 
     def _determine_blocked_directions(self, c_left, c_fwd, c_right, is_blind):
-        """Determine which directions are unsafe based on thresholds."""
+        """Determine which directions are unsafe. NO precision mode exceptions."""
         blocked = set()
         
-        # Adjust threshold based on mode
         threshold = self.obstacle_threshold_y
-        if state.precision_mode:
-             # Relax threshold to allow closer approach
-             threshold += 30
-             
         side_threshold = threshold + 50
         
         if is_blind:
             blocked.add("FORWARD")
         else:
-            if state.precision_mode:
-                 if c_fwd > 460:
-                     blocked.add("FORWARD")
-            else:
-                 if c_fwd > threshold:
-                     blocked.add("FORWARD")
-                 if c_left > side_threshold:
-                     blocked.add("LEFT")
-                 if c_right > side_threshold:
-                     blocked.add("RIGHT")
+            if c_fwd > threshold:
+                blocked.add("FORWARD")
+            if c_left > side_threshold:
+                blocked.add("LEFT")
+            if c_right > side_threshold:
+                blocked.add("RIGHT")
                 
         return blocked
 
@@ -240,131 +215,26 @@ class ObstacleDetector:
                 
         return safe_actions
 
-    def _compute_precision_guidance(self, edge_points, c_fwd, w, h, overlay, shapes):
+    def _draw_ai_first_overlays(self, edge_points, c_fwd, w, h, overlay, shapes):
         """
-        VISION-FGM (Follow The Gap Method) with Safety Bubbles.
-        1. Convert visual boundaries to "Free Space" array.
-        2. "Inflate" obstacles (Safety Bubbles) to account for robot width.
-        3. Find largest/deepest gap in non-inflated space.
+        AI-First Mode: Provide rich visual overlays for the AI to interpret.
+        NO algorithmic path guidance - the AI decides where to go.
         """
-        # --- 1. Generate Pseudo-Scan (Free Space Profile) ---
-        # Map x-coordinate to available depth (inv_y)
-        # We process 'edge_points' which are sparse (step=5) into a dense array if needed,
-        # but working with the sparse array is faster.
-        
-        # 'scan' will hold the Y-coordinate of the obstacle (High Y = Close Obstacle)
-        # We want to minimize Y.
-        scan = np.zeros(w, dtype=np.int32)
-        
-        # Fill scan with 0 (infinite depth) initially
-        # Then populate with detected obstacles
+        # 1. Red Danger Zones around obstacles
         for x, y in edge_points:
-            # Masking bottom threshold (Optional, keeping it for robustness)
-            if y > 420:
-                 y = 0
-            
-            # Simple interpolation/filling for sparse points
-            # Fill a small kernel around the point to make it solid
-            start = max(0, x - 2)
-            end = min(w, x + 3)
-            scan[start:end] = np.maximum(scan[start:end], y)
-
-        # --- 2. Safety Bubble Inflation ---
-        # If an obstacle is close (High Y), we must be far from it.
-        # Robot Width approx 30-40cm. In pixels this varies by depth.
-        # Simple heuristic: The "Close" zone (Y > 300) requires ~60px clearance radius.
+            if y > 200:
+                radius = int(10 + (y - 200) * 0.15)
+                color = (0, 0, 255)
+                cv2.circle(shapes, (x, y), radius, color, -1)
         
-        inflated_scan = scan.copy()
+        # 2. Heading Indicator (Cyan line showing "straight ahead")
+        center_x = w // 2
+        cv2.line(overlay, (center_x, h), (center_x, int(h * 0.3)), (255, 255, 0), 2)
+        cv2.putText(overlay, "HEADING", (center_x - 30, int(h * 0.28)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
-        # Iterate through scan to apply bubbles
-        # This is O(W*R), optimization possible but W=640 is small.
-        for x in range(0, w, 5): 
-            y = scan[x]
-            if y > 300: # Obstacle is "Close"
-                # Radius increases with proximity
-                # y=300 -> radius=30
-                # y=450 -> radius=60
-                radius = int(30 + (y - 300) * 0.2)
-                
-                left_bound = max(0, x - radius)
-                right_bound = min(w, x + radius)
-                
-                # Mark inflated area as "Blocked" (Max Y)
-                # We use 480 (Bottom) to signify "Blocked by Bubble"
-                inflated_scan[left_bound:right_bound] = np.maximum(inflated_scan[left_bound:right_bound], 480)
-                
-                # Visualization: Draw bubbles
-                cv2.circle(shapes, (x, y), radius, (0, 0, 255), 1)
-
-        # --- 3. Find Deepest/Best Gap ---
-        # A gap is a sequence where inflated_scan < PASSABLE_THRESHOLD (e.g. 350)
-        PASSABLE_LIMIT_Y = 350
-        
-        gaps = []
-        current_gap = []
-        
-        for x in range(w):
-            if inflated_scan[x] < PASSABLE_LIMIT_Y:
-                current_gap.append(x)
-            else:
-                if len(current_gap) > 20: # Min gap width ~20px
-                    gaps.append(current_gap)
-                current_gap = []
-        if len(current_gap) > 20:
-            gaps.append(current_gap)
-            
-        if not gaps:
-            # FGM Fail-safe: "Blind Commit" if we are close but no gaps (likely inside door)
-            if c_fwd > 400:
-                 return "ALIGNMENT: FGM SAYS COMMIT. GO FORWARD."
-            return "ALIGNMENT: BLOCKED. NO PATH."
-
-        # --- 4. Select Best Gap ---
-        image_center = w // 2
-        
-        def gap_score(gap):
-            # Same scoring logic: Width - Penalty * DistToCenter
-            width = len(gap)
-            center = (gap[0] + gap[-1]) // 2
-            dist = abs(center - image_center)
-            
-            # Use 'Last Gap' Hysteresis
-            bonus = 0
-            if self.last_gap_center is not None:
-                if abs(center - self.last_gap_center) < 50:
-                    bonus = 100
-                    
-            return width - (dist * 1.0) + bonus
-            
-        best_gap = max(gaps, key=gap_score)
-        raw_gap_center = (best_gap[0] + best_gap[-1]) // 2
-        
-        # EMA Smoothing
-        if self.last_gap_center is None:
-            self.last_gap_center = raw_gap_center
-        
-        alpha = 0.3
-        smoothed_center = int(alpha * raw_gap_center + (1 - alpha) * self.last_gap_center)
-        self.last_gap_center = smoothed_center
-        
-        # --- 5. Visualization & Guidance ---
-        # Draw dynamic green road
-        path_poly = np.array([
-            [int(w*0.2), h], 
-            [int(w*0.8), h], 
-            [smoothed_center + 40, int(h*0.5)], 
-            [smoothed_center - 40, int(h*0.5)]
-        ], np.int32)
-        cv2.fillPoly(shapes, [path_poly], (0, 255, 0))
-        
-        cv2.line(overlay, (smoothed_center, h//2), (smoothed_center, h), (255, 255, 0), 3)
-        cv2.putText(overlay, "FGM TARGET", (smoothed_center - 40, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-
-        # Navigation Logic
-        center_offset = smoothed_center - image_center
-        if abs(center_offset) < 25:
-            return "ALIGNMENT: ON PATH. GO FORWARD."
-        elif center_offset < 0:
-            return "ALIGNMENT: PATH LEFTSIDE. Turn LEFT."
-        else:
-            return "ALIGNMENT: PATH RIGHTSIDE. Turn RIGHT."
+        # 3. Proximity Bar (Top bar showing how close the forward obstacle is)
+        bar_height = 20
+        bar_width = int((c_fwd / 480) * w)
+        bar_color = (0, 255, 0) if c_fwd < 300 else (0, 255, 255) if c_fwd < 400 else (0, 0, 255)
+        cv2.rectangle(overlay, (0, 0), (bar_width, bar_height), bar_color, -1)
+        cv2.putText(overlay, f"PROX: {int(c_fwd)}", (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
