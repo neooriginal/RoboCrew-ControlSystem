@@ -2,8 +2,7 @@ import threading
 import time
 import cv2
 import logging
-import glob
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 
 from state import state
 from robocrew.robots.XLeRobot.servo_controls import ServoControler
@@ -46,110 +45,13 @@ class RobotSystem:
             self.camera = None
             state.camera = None
 
-    def _detect_serial_ports(self) -> Tuple[Optional[str], Optional[str]]:
-        """
-        Scan for connected serial ports and identify which is Wheel/Arm and which is Head.
-        Returns: (wheel_port, head_port)
-        """
-        # Candidate ports
-        ports = glob.glob('/dev/ttyACM*') + glob.glob('/dev/robot_acm*')
-        # Filter duplicates (e.g. symlinks) - prioritized /dev/robot_acm if available? 
-        # Actually set makes them unique but we want to prefer robot_acm if it works.
-        # Simple unique list:
-        ports = sorted(list(set(ports)))
-        
-        logger.info(f"Scanning ports: {ports}")
-        
-        wheel_port = None
-        head_port = None
-        
-        # Identification Logic:
-        # Wheel/Arm bus has ID 9 (Wheel) and ID 1 (Arm).
-        # Head bus has ID 7 and 8 (Head) ONLY (conceptually).
-        # Caveat: IDs 7 and 8 are ALSO on the Wheel bus (Left/Right Rear wheels?).
-        # Wait, if 7/8 are on BOTH, we must distinguish by finding 9 or 1 first.
-        # If a port has 9 or 1 -> IT IS THE WHEEL BUS.
-        # If a port DOES NOT have 9/1 but HAS 7 or 8 -> IT IS THE HEAD BUS.
-        
-        from lerobot.motors.feetech import FeetechMotorsBus
-        from lerobot.motors import Motor, MotorNormMode
-        
-        for port in ports:
-            try:
-                logger.info(f"Checking port {port}...")
-                
-                # Check for Marker ID 9 (Rear Wheel) or 1 (Shoulder)
-                # We need to init bus to check.
-                # Use a dummy motor config to probe.
-                
-                # Probe for Wheel/Arm (ID 9)
-                probe_motor_id = 9
-                bus = FeetechMotorsBus(
-                    port=port,
-                    motors={probe_motor_id: Motor(probe_motor_id, "sts3215", MotorNormMode.DEGREES)}
-                )
-                bus.connect()
-                
-                # Try to read position
-                try:
-                    pos = bus.read("Present_Position", probe_motor_id)
-                    if pos is not None:
-                        logger.info(f"  -> Found Motor {probe_motor_id} on {port}. This is WHEEL/ARM bus.")
-                        wheel_port = port
-                        bus.disconnect()
-                        continue
-                except:
-                    pass
-                
-                bus.disconnect()
-                
-                # Probe for Head (ID 7) - IF it wasn't Wheel bus
-                # Setup probing for 7
-                probe_motor_id = 7
-                bus = FeetechMotorsBus(
-                    port=port,
-                    motors={probe_motor_id: Motor(probe_motor_id, "sts3215", MotorNormMode.DEGREES)}
-                )
-                bus.connect()
-                try:
-                    pos = bus.read("Present_Position", probe_motor_id)
-                    if pos is not None:
-                         logger.info(f"  -> Found Motor {probe_motor_id} on {port} (and not 9). This is HEAD bus.")
-                         head_port = port
-                except:
-                    pass
-                
-                bus.disconnect()
-                
-            except Exception as e:
-                logger.warning(f"  -> Port {port} check failed: {e}")
-                
-        return wheel_port, head_port
-
     def _init_servos(self):
         """Initialize servo controller."""
-        
-        # 1. Detect Ports
-        if WHEEL_USB is None or HEAD_USB is None:
-            logger.info("Auto-detecting ports...")
-            detected_wheel, detected_head = self._detect_serial_ports()
-            
-            wheel_port = WHEEL_USB or detected_wheel
-            head_port = HEAD_USB or detected_head
-        else:
-            wheel_port = WHEEL_USB
-            head_port = HEAD_USB
-
-        if not wheel_port or not head_port:
-             logger.error(f"Failed to identify ports! Wheel={wheel_port}, Head={head_port}")
-             state.last_error = "Port Detection Failed"
-             return
-
-        logger.info(f"Connecting servos (Wheel={wheel_port}, Head={head_port})...")
+        logger.info(f"Connecting servos ({WHEEL_USB}, {HEAD_USB})...")
         try:
             self.controller = ServoControler(
-                wheel_port, 
-                head_port,
+                WHEEL_USB, 
+                HEAD_USB,
                 enable_arm=True
             )
             state.controller = self.controller

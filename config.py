@@ -1,10 +1,9 @@
 """ARCS Configuration"""
 
 # Hardware ports
-# Hardware ports (Auto-detected if None)
 CAMERA_PORT = "/dev/video0"
-WHEEL_USB = None # Was "/dev/robot_acm0"
-HEAD_USB = None  # Was "/dev/robot_acm1"
+WHEEL_USB = "/dev/robot_acm0"
+HEAD_USB = "/dev/robot_acm1"
 
 # Web server
 WEB_PORT = 5000
