@@ -11,10 +11,10 @@ from langchain.chat_models import init_chat_model
 
 load_dotenv()
 
-from robocrew.core.robot_system import RobotSystem
 from robocrew.core.utils import capture_image
 from state import state
 from qr_scanner import QRScanner
+from robocrew.core.robot_system import RobotSystem # Added missing import for RobotSystem
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,12 @@ PRECISION MODE PROTOCOL:
     - If you can still see the door frame or walls on your side, KEEP IT ENABLED.
     - Only disable when the space opens up significantly.
 
+QR CODE CONTEXT:
+- You may occasionally see QR codes in the environment. These contain context about the location or objects (e.g., "Room: Kitchen", "Object: Generator").
+- **DO NOT EXPECT THEM everywhere**. They are sparse.
+- If the system explicitly tells you a QR code was detected ("CONTEXT: Visible QR Code says..."), use that information to orient yourself or confirm you are in the right place.
+- Do not ask for QR codes or refuse to move because you don't see one. Rely on your vision and obstacles first.
+
 NAVIGATION RULES:
 1. LOOK AT THE IMAGE before every move. What do you actually see?
 2. If there is a wall in the view, TURN AWAY first.
@@ -101,8 +107,8 @@ BACKWARD MOVEMENT SAFETY:
         self.latest_rotation_hint = None
         
         # QR Scanner
-        self.qr_detector = QRScanner()
-        self.qr_context = [] # Store recent QR codes to keep reminding the agent? Or just once?
+        self.qr_scanner = QRScanner()
+        self.qr_context = [] 
         # User said "not spammed... and only once". 
         # So we will inject it into the prompt ONCE when discovered.
 
@@ -181,13 +187,13 @@ BACKWARD MOVEMENT SAFETY:
             return "Camera error"
             
         # --- QR SCAN ---
-        qr_title, qr_points, qr_new_data = self.qr_detector.scan(frame, state.pose)
+        qr_title, qr_points, qr_new_data = self.qr_scanner.scan(frame, state.pose)
         qr_alert = ""
         
         if qr_new_data:
             loc_str = f"x={state.pose.get('x', 0):.1f}, y={state.pose.get('y', 0):.1f}"
             qr_alert = f"CONTEXT UPDATE: Visual System detected meaningful marker: '{qr_new_data}' at estimated location ({loc_str})."
-            
+
         # 2. Safety Check & Processing
         safe_actions, overlay, guidance, metrics = self._check_safety(frame)
         self.latest_rotation_hint = metrics.get('rotation_hint')
@@ -245,6 +251,10 @@ BACKWARD MOVEMENT SAFETY:
         if c_fwd > 380:
              reflex_msg += "\n(WARNING: You are very close to an obstacle. Visual indicators might be distorted. Back up if unsure.)"
         
+        # We use the NEW data as immediate context, but we could also use the raw string if we want:
+        if qr_new_data:
+             reflex_msg += f"\nCONTEXT: Visible QR Code says: '{qr_new_data}'. Use this info if relevant."
+
         if self.stuck_counter > 0:
             reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
             
@@ -253,6 +263,8 @@ BACKWARD MOVEMENT SAFETY:
             # We don't return here because we want to log this to history, but we could skip LLM.
             # actually, let's skip LLM to save tokens and time if we are forcing it.
             
+        content.append({
+             "type": "text", 
              "text": reflex_msg
         })
         
@@ -335,9 +347,7 @@ BACKWARD MOVEMENT SAFETY:
                                 result = tool.invoke(args)
                                 self.last_action = tool_name
                                 
-                                # Successful move resets stuck counter (mostly)
-                                # Only reset if we actually moved successfully.
-                                # Start/End task shouldn't reset counter ideally, but simple movement should.
+                                # Successful move resets stuck counter
                                 if tool_name in ["move_forward", "turn_left", "turn_right"]:
                                      self.stuck_counter = 0
                                      
