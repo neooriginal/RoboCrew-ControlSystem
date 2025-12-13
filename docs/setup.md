@@ -42,6 +42,16 @@
 
 ## 🔧 Calibration
 
+### Environment Variables
+You can tune these in your `.env` file:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `OPENAI_API_KEY` | - | Required for AI Agent |
+| `ROBOT_SPEED` | `10000` | Motor speed (Units/s). Increase for faster movement. |
+| `ROBOT_LINEAR_MPS` | `0.25` | Calibrated meters/sec at default speed. |
+| `AI_MODEL` | `openai/gpt-5.2` | Model to use. |
+
 **Critical Step**: You must calibrate the motors before first use.
 
 ```bash
