@@ -4,6 +4,7 @@ import numpy as np
 import logging
 import time
 import os
+import sys
 from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
@@ -117,7 +118,6 @@ BACKWARD MOVEMENT SAFETY:
             
         try:
             # Use import inside method to avoid circular imports layout issues
-            import sys
             if os.getcwd() not in sys.path:
                 sys.path.append(os.getcwd())
             from obstacle_detection import ObstacleDetector
@@ -299,9 +299,7 @@ BACKWARD MOVEMENT SAFETY:
                                 result = tool.invoke(args)
                                 self.last_action = tool_name
                                 
-                                # Successful move resets stuck counter (mostly)
-                                # Only reset if we actually moved successfully.
-                                # Start/End task shouldn't reset counter ideally, but simple movement should.
+                                # Successful move resets stuck counter
                                 if tool_name in ["move_forward", "turn_left", "turn_right"]:
                                      self.stuck_counter = 0
                                      

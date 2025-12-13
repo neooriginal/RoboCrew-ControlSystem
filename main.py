@@ -131,13 +131,11 @@ def main():
     # Auto-open display on Raspberry Pi's physical screen (works over SSH)
     if os.getenv('AUTO_OPEN_DISPLAY', 'true').lower() == 'true':
         def open_display():
-            import time
-            time.sleep(2)  # Wait for server to start
+            time.sleep(2)  # Wait for server start
             display_url = f'http://localhost:{WEB_PORT}/display'
             env = os.environ.copy()
-            env['DISPLAY'] = ':0'  # Target the main display
+            env['DISPLAY'] = ':0' 
             try:
-                # Try chromium-browser first (common on Raspberry Pi)
                 subprocess.Popen(
                     ['chromium-browser', '--kiosk', '--noerrdialogs', '--disable-infobars', display_url],
                     env=env,
