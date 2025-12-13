@@ -14,6 +14,7 @@ load_dotenv()
 from robocrew.core.robot_system import RobotSystem
 from robocrew.core.utils import capture_image
 from state import state
+from qr_scanner import QRScanner
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,12 @@ BACKWARD MOVEMENT SAFETY:
         self.stuck_counter = 0
         self.last_action = None
         self.latest_rotation_hint = None
+        
+        # QR Scanner
+        self.qr_detector = QRScanner()
+        self.qr_context = [] # Store recent QR codes to keep reminding the agent? Or just once?
+        # User said "not spammed... and only once". 
+        # So we will inject it into the prompt ONCE when discovered.
 
     def set_task(self, task: str):
         """Set a new task for the agent."""
@@ -173,9 +180,34 @@ BACKWARD MOVEMENT SAFETY:
         if frame is None:
             return "Camera error"
             
+        # --- QR SCAN ---
+        qr_title, qr_points, qr_new_data = self.qr_detector.scan(frame, state.pose)
+        qr_alert = ""
+        
+        if qr_new_data:
+            loc_str = f"x={state.pose.get('x', 0):.1f}, y={state.pose.get('y', 0):.1f}"
+            qr_alert = f"CONTEXT UPDATE: Visual System detected meaningful marker: '{qr_new_data}' at estimated location ({loc_str})."
+            
         # 2. Safety Check & Processing
         safe_actions, overlay, guidance, metrics = self._check_safety(frame)
         self.latest_rotation_hint = metrics.get('rotation_hint')
+        
+        # Draw QR Visuals on Overlay (if overlay exists)
+        if overlay is not None and qr_points is not None:
+             try:
+                 points = qr_points.astype(int)
+                 # Draw Green Polygon
+                 for i in range(len(points)):
+                     pt1 = tuple(points[i][0])
+                     pt2 = tuple(points[(i+1) % len(points)][0])
+                     cv2.line(overlay, pt1, pt2, (0, 255, 0), 3)
+                 
+                 # Draw Title Text under the box
+                 if qr_title:
+                     x, y = points[0][0]
+                     cv2.putText(overlay, qr_title, (int(x), int(y) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+             except Exception as e:
+                 logger.warning(f"Failed to draw QR visuals: {e}")
         
         # Use overlay if available, otherwise raw frame
         display_frame = overlay if overlay is not None else frame
@@ -221,10 +253,14 @@ BACKWARD MOVEMENT SAFETY:
             # We don't return here because we want to log this to history, but we could skip LLM.
             # actually, let's skip LLM to save tokens and time if we are forcing it.
             
-        content.append({
-             "type": "text", 
              "text": reflex_msg
         })
+        
+        if qr_alert:
+            content.append({
+                "type": "text", 
+                "text": qr_alert
+            })
             
         self.message_history.append(HumanMessage(content=content))
 
