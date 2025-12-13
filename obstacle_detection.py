@@ -137,7 +137,7 @@ class ObstacleDetector:
             if y > 0:
                 cv2.circle(overlay, (x, y), 2, (0, 0, 255), -1)
 
-    def _get_chunk_average(self, chunk, top_n=2):
+    def _get_chunk_average(self, chunk, top_n=10):
         """
         Calculate average Y-position of the closest points in a chunk.
         Robust against single-pixel noise.
