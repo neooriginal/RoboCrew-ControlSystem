@@ -20,9 +20,6 @@ from config import WEB_PORT
 from state import state
 from movement import movement_loop, stop_movement
 from routes import bp
-from memory_db import init_db
-
-init_db()
 
 from robocrew.core.robot_system import RobotSystem
 from robocrew.core.navigation_agent import NavigationAgent
@@ -34,8 +31,7 @@ from robocrew.robots.XLeRobot.tools import (
     create_look_around,
     create_end_task,
     create_enable_precision_mode,
-    create_disable_precision_mode,
-    create_remember_fact
+    create_disable_precision_mode
 )
 
 # Configure logging - reduce verbosity
@@ -99,8 +95,7 @@ def main():
             create_look_around(robot.controller, robot.camera),  # Emergency only
             create_end_task(),
             create_enable_precision_mode(),
-            create_disable_precision_mode(),
-            create_remember_fact()
+            create_disable_precision_mode()
         ]
 
         model_name = os.getenv("AI_MODEL", "openai/gpt-5.2") 

@@ -15,8 +15,6 @@ from robocrew.core.utils import capture_image
 from state import state
 from qr_scanner import QRScanner
 from robocrew.core.robot_system import RobotSystem # Added missing import for RobotSystem
-from oscillation_detector import OscillationDetector
-from memory_db import get_recent_memories
 
 logger = logging.getLogger(__name__)
 
@@ -79,17 +77,6 @@ QR CODE CONTEXT:
 - If the system explicitly tells you a QR code was detected ("CONTEXT: Visible QR Code says..."), use that information to orient yourself or confirm you are in the right place.
 - Do not ask for QR codes or refuse to move because you don't see one. Rely on your vision and obstacles first.
 
-AUTONOMOUS MEMORY PROTOCOL:
-- You are equipped with a Long-Term Memory.
-- PROACTIVELY RECORD FACTS about the environment using the `remember_fact` tool.
-- **WHEN TO SAVE**:
-    - When you identify a specific room (e.g., "I am now in the Kitchen").
-    - When you see a key object/landmark (e.g., "There is a blue sofa on the left").
-    - When you discover a connection (e.g., "The hallway leads to the Bedroom").
-- **AVOID DUPLICATES**: Check the "MEMORIES" section in your context. If "Kitchen is north" is already there, do not save it again.
-- **FORMAT**: Save short, descriptive sentences. E.g., "Kitchen is to the North.", "Corridor is blocked by box."
-- **DO NOT ASK PERMISSION**: You are autonomous. If you see it and it's important, SAVE IT.
-
 NAVIGATION RULES:
 1. LOOK AT THE IMAGE before every move. What do you actually see?
 2. If there is a wall in the view, TURN AWAY first.
@@ -122,9 +109,8 @@ BACKWARD MOVEMENT SAFETY:
         # QR Scanner
         self.qr_scanner = QRScanner()
         self.qr_context = [] 
-        
-        # Oscillation Detector
-        self.oscillation_detector = OscillationDetector()
+        # User said "not spammed... and only once". 
+        # So we will inject it into the prompt ONCE when discovered.
 
     def set_task(self, task: str):
         """Set a new task for the agent."""
@@ -186,48 +172,6 @@ BACKWARD MOVEMENT SAFETY:
             return "FORCE_TURN_AROUND"
             
         return None
-
-    def _prune_history(self):
-        """
-        Optimize message history to save tokens while preserving context.
-        Strategy:
-        1. Keep System Message (index 0).
-        2. Keep last 6 messages (approx 3 turns) FULLY (images + text).
-        3. For older messages, STRIP images (convert to [Image Removed]) but keep text.
-        4. Hard limit total history length (e.g. 30 messages) to prevent infinite growth.
-        """
-        # 1. Hard Limit: Truncate very old messages (skip system msg)
-        MAX_HISTORY = 30
-        if len(self.message_history) > MAX_HISTORY:
-            # Keep System (0) + trim oldest after that
-            # e.g. [Sys, A, B, C... Z] -> [Sys, F... Z]
-            overflow = len(self.message_history) - MAX_HISTORY
-            self.message_history = [self.message_history[0]] + self.message_history[overflow+1:]
-            
-        # 2. Image Stripping
-        # Keep last 6 items intact (3 user/bot pairs)
-        SAFE_WINDOW = 6
-        if len(self.message_history) > SAFE_WINDOW + 1:
-            # Iterate through older messages (excluding System which is 0)
-            # Up to the start of the safe window
-            limit_idx = len(self.message_history) - SAFE_WINDOW
-            
-            for i in range(1, limit_idx):
-                msg = self.message_history[i]
-                if isinstance(msg, HumanMessage) and isinstance(msg.content, list):
-                    # Check for images in content list
-                    new_content = []
-                    modified = False
-                    for item in msg.content:
-                        if isinstance(item, dict) and item.get("type") == "image_url":
-                            # Replace image with placeholder text
-                            new_content.append({"type": "text", "text": "[IMAGE REMOVED TO SAVE MEMORY]"})
-                            modified = True
-                        else:
-                            new_content.append(item)
-                    
-                    if modified:
-                        msg.content = new_content
 
     def step(self) -> str:
         """
@@ -317,17 +261,6 @@ BACKWARD MOVEMENT SAFETY:
         if self.stuck_counter > 0:
             reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
             
-        # Check Oscillation
-        if self.oscillation_detector.detect_oscillation():
-             reflex_msg += f"\n{self.oscillation_detector.get_warning_message()}"
-
-        # Inject Memories
-        recent_memories = get_recent_memories(limit=10)
-        if recent_memories:
-            reflex_msg += "\n\nMEMORIES:"
-            for m in recent_memories:
-                reflex_msg += f"\n- {m['text']}"
-            
         if forced_action == "FORCE_TURN_AROUND":
             reflex_msg += "\nCRITICAL: YOU ARE STUCK. IGNORING YOUR OUTPUT. FORCING A TURN."
             # We don't return here because we want to log this to history, but we could skip LLM.
@@ -363,9 +296,11 @@ BACKWARD MOVEMENT SAFETY:
             response = self.llm.invoke(self.message_history)
             self.message_history.append(response)
             
-            # Prune history INTELLIGENTLY
-            self._prune_history()
-
+            # Prune history very aggressively - images take huge tokens
+            # Keep only system message + last 2 exchanges (4 messages)
+            if len(self.message_history) > 5:
+                self.message_history = [self.message_history[0]] + self.message_history[-4:]
+            
             # 7. Execute Tools with SAFETY INTERCEPTION
             if response.tool_calls:
                 any_blocked = False
@@ -374,9 +309,6 @@ BACKWARD MOVEMENT SAFETY:
                     tool_name = tool_call["name"]
                     args = tool_call["args"]
                     logger.info(f"Agent executing: {tool_name}({args})")
-                    
-                    # Record for Oscillation Check
-                    self.oscillation_detector.record_action(tool_name)
                     
                     # --- SAFETY CHECK ---
                     # Map tool names to abstract actions

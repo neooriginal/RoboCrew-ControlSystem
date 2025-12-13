@@ -29,13 +29,7 @@ The system includes a lightweight monocular SLAM (Simultaneous Localization and 
 - **Occupancy Map**: Projects vision-detected obstacles onto a 2D top-down grid map.
     - **Input**: Video frames (640x480).
     - **Output**: 800x800 pixel grid map (5cm/pixel resolution) with the robot centered.
-
     - **Update**: As the robot moves, new obstacle observations are drawn onto the map, and the robot's pose path is traced.
-
-### 5. Loop & Oscillation Detection
-The system monitors recent actions to detect if the robot is stuck in a repetitive loop (e.g., Forward -> Back -> Forward).
-- **Warning**: If a pattern repeats, the AI receives a system warning.
-- **Intervention**: If the loop persists, the system forces a turn to break the deadlock.
 
 ## Usage
 
