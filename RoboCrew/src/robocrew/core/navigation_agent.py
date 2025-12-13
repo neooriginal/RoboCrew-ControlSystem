@@ -16,7 +16,7 @@ from state import state
 from qr_scanner import QRScanner
 from robocrew.core.robot_system import RobotSystem # Added missing import for RobotSystem
 from robocrew.core.oscillation_detector import OscillationDetector
-from robocrew.core.memory_db import get_recent_memories
+from memory_db import get_recent_memories
 
 logger = logging.getLogger(__name__)
 

@@ -20,9 +20,8 @@ from config import WEB_PORT
 from state import state
 from movement import movement_loop, stop_movement
 from routes import bp
-from robocrew.core.memory_db import init_db
+from memory_db import init_db
 
-# Initialize DB on import/start
 init_db()
 
 from robocrew.core.robot_system import RobotSystem

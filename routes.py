@@ -300,7 +300,7 @@ def ai_status():
 
 @bp.route('/memories')
 def get_memories():
-    from robocrew.core.memory_db import get_recent_memories
+    from memory_db import get_recent_memories
     try:
         limit = int(request.args.get('limit', 50))
         mems = get_recent_memories(limit)

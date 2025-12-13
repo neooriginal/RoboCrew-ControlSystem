@@ -44,8 +44,7 @@ def create_disable_precision_mode():
 
 
 def create_remember_fact():
-    # Import inside function to avoid circular imports if tools are imported early
-    from robocrew.core.memory_db import add_memory
+    from memory_db import add_memory
     
     @tool
     def remember_fact(fact: str) -> str:
