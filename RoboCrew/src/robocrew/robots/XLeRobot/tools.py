@@ -43,6 +43,20 @@ def create_disable_precision_mode():
     return disable_precision_mode
 
 
+def create_save_note():
+    @tool
+    def save_note(category: str, content: str) -> str:
+        """Save a note to persistent memory about the environment. Use this to remember important layout details, landmarks, or observations. Categories: 'layout', 'landmark', 'obstacle', 'path', 'other'."""
+        from robocrew.core.memory_store import memory_store
+        from state import state as robot_state
+        
+        location = robot_state.pose.copy() if robot_state.pose else None
+        note_id = memory_store.save_note(category, content, location)
+        print(f"[TOOL] save_note({category}, {content[:50]}...) -> id={note_id}")
+        return f"Note saved: [{category}] {content}"
+    return save_note
+
+
 def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_safety: bool = False, movement_type: str = None):
     """
     Sleep that can be interrupted by emergency stop or SAFETY REFLEX.

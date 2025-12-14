@@ -13,9 +13,10 @@ from langchain.chat_models import init_chat_model
 load_dotenv()
 
 from robocrew.core.utils import capture_image
+from robocrew.core.memory_store import memory_store
 from state import state
 from qr_scanner import QRScanner
-from robocrew.core.robot_system import RobotSystem # Added missing import for RobotSystem
+from robocrew.core.robot_system import RobotSystem
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,12 @@ MEMORY CONTEXT:
 - ✓ means successful, ✗ means blocked.
 - If you see a pattern warning, it means you are repeating the same actions. STOP doing that immediately.
 - Use the location history (from QR codes) to understand where you've been.
+
+PERSISTENT NOTES:
+- Use `save_note` to remember important observations about the environment (room layouts, landmarks, dead-ends).
+- Categories: 'layout', 'landmark', 'obstacle', 'path', 'other'
+- Your saved notes persist across sessions and will be shown to you as PERSISTENT MEMORY.
+- Example: save_note("layout", "Living room has couch on left, TV on right")
 """
         self.system_prompt = system_prompt or base_prompt
         self.message_history = [SystemMessage(content=self.system_prompt)]
@@ -232,6 +239,10 @@ MEMORY CONTEXT:
                 lines.append(f"⚠️ LOOP DETECTED: {pattern}. MUST try completely different approach!")
             else:
                 lines.append(f"⚠️ Pattern: {pattern}. Consider a different strategy.")
+        
+        persistent = memory_store.generate_context_summary(max_notes=10)
+        if persistent:
+            lines.append(persistent)
         
         return '\n'.join(lines)
 

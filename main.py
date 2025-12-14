@@ -31,7 +31,8 @@ from robocrew.robots.XLeRobot.tools import (
     create_look_around,
     create_end_task,
     create_enable_precision_mode,
-    create_disable_precision_mode
+    create_disable_precision_mode,
+    create_save_note
 )
 
 # Configure logging - reduce verbosity
@@ -92,10 +93,11 @@ def main():
             create_move_backward(robot.controller),
             create_turn_left(robot.controller),
             create_turn_right(robot.controller),
-            create_look_around(robot.controller, robot.camera),  # Emergency only
+            create_look_around(robot.controller, robot.camera),
             create_end_task(),
             create_enable_precision_mode(),
-            create_disable_precision_mode()
+            create_disable_precision_mode(),
+            create_save_note()
         ]
 
         model_name = os.getenv("AI_MODEL", "openai/gpt-5.2") 
