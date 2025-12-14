@@ -5,6 +5,7 @@ import logging
 import time
 import os
 from typing import List, Optional, Dict, Any
+from collections import deque
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain.chat_models import init_chat_model
@@ -95,6 +96,12 @@ BACKWARD MOVEMENT SAFETY:
 - Only go backward to unstick yourself from a wall.
 - NEVER go backward twice in a row. It is unsafe.
 - If you back up, your next move MUST be a turn or forward.
+
+MEMORY CONTEXT:
+- A compressed memory of your recent actions is provided (e.g., "FWD✓, TL✓, FWD✗").
+- ✓ means successful, ✗ means blocked.
+- If you see a pattern warning, it means you are repeating the same actions. STOP doing that immediately.
+- Use the location history (from QR codes) to understand where you've been.
 """
         self.system_prompt = system_prompt or base_prompt
         self.message_history = [SystemMessage(content=self.system_prompt)]
@@ -106,11 +113,14 @@ BACKWARD MOVEMENT SAFETY:
         self.last_action = None
         self.latest_rotation_hint = None
         
+        # Action History for pattern detection
+        self.action_history = deque(maxlen=15)
+        self.location_history = deque(maxlen=10)
+        self.pattern_warning_level = 0
+        
         # QR Scanner
         self.qr_scanner = QRScanner()
-        self.qr_context = [] 
-        # User said "not spammed... and only once". 
-        # So we will inject it into the prompt ONCE when discovered.
+        self.qr_context = []
 
     def set_task(self, task: str):
         """Set a new task for the agent."""
@@ -153,24 +163,102 @@ BACKWARD MOVEMENT SAFETY:
         self.stuck_counter = 0
         self.last_action = None
         self.current_task = "Idle"
+        self.action_history.clear()
+        self.location_history.clear()
+        self.pattern_warning_level = 0
         logger.info("Agent reset.")
 
-    def _check_stuck_condition(self) -> Optional[str]:
-        """
-        Check if the agent is stuck and return a forced action or warning if needed.
-        """
-        stuck_threshold = 3
+    def _record_action(self, action_name: str, was_blocked: bool = False):
+        """Record an action to the history buffer."""
+        self.action_history.append({
+            'action': action_name,
+            'time': time.time(),
+            'blocked': was_blocked,
+            'pose': state.pose.copy() if state.pose else None
+        })
+
+    def _detect_repeating_pattern(self) -> Optional[str]:
+        """Detect if recent actions form a repeating pattern."""
+        if len(self.action_history) < 4:
+            return None
         
-        if self.stuck_counter >= stuck_threshold:
-            logger.warning(f"Agent is stuck (counter={self.stuck_counter}). Forcing intervention.")
+        actions = [h['action'] for h in self.action_history]
+        
+        for pattern_len in [2, 3, 4]:
+            if len(actions) < pattern_len * 2:
+                continue
             
-            # Reset stuck counter partially to give it a chance after intervention
-            self.stuck_counter = 0 
+            pattern = actions[-pattern_len:]
+            prev_pattern = actions[-(pattern_len * 2):-pattern_len]
             
-            # Force a turn to break the loop
-            # If we were stuck going forward, turn around.
+            if pattern == prev_pattern:
+                if len(actions) >= pattern_len * 3:
+                    prev_prev = actions[-(pattern_len * 3):-(pattern_len * 2)]
+                    if prev_prev == pattern:
+                        return f"SEVERE: [{' → '.join(pattern)}] repeated 3x"
+                return f"[{' → '.join(pattern)}] repeated"
+        
+        blocked_count = sum(1 for h in list(self.action_history)[-6:] if h.get('blocked'))
+        if blocked_count >= 4:
+            return f"{blocked_count} blocked attempts in last 6 actions"
+        
+        return None
+
+    def _generate_memory_context(self) -> str:
+        """Generate compressed text summary of recent actions and context."""
+        lines = []
+        
+        if self.action_history:
+            recent = list(self.action_history)[-8:]
+            action_strs = []
+            for h in recent:
+                name = h['action'].replace('move_', '').replace('turn_', 'T').upper()[:3]
+                suffix = '✗' if h.get('blocked') else '✓'
+                action_strs.append(f"{name}{suffix}")
+            lines.append(f"MEMORY: Recent actions: {', '.join(action_strs)}")
+        
+        if self.location_history:
+            locs = list(self.location_history)[-3:]
+            loc_strs = [f"{l['name']}" for l in locs]
+            lines.append(f"MEMORY: Locations: {' → '.join(loc_strs)}")
+        
+        blocked_recent = sum(1 for h in list(self.action_history)[-5:] if h.get('blocked'))
+        if blocked_recent >= 2:
+            lines.append(f"MEMORY: Streak: {blocked_recent} blocked in last 5 attempts")
+        
+        pattern = self._detect_repeating_pattern()
+        if pattern:
+            if "SEVERE" in pattern:
+                lines.append(f"⚠️ LOOP DETECTED: {pattern}. MUST try completely different approach!")
+            else:
+                lines.append(f"⚠️ Pattern: {pattern}. Consider a different strategy.")
+        
+        return '\n'.join(lines)
+
+    def _check_stuck_condition(self) -> Optional[str]:
+        """Check if the agent is stuck using pattern analysis."""
+        pattern = self._detect_repeating_pattern()
+        
+        if pattern and "SEVERE" in pattern:
+            logger.warning(f"Severe loop detected: {pattern}. Forcing intervention.")
+            self.pattern_warning_level = 0
+            self.action_history.clear()
             return "FORCE_TURN_AROUND"
-            
+        
+        if self.stuck_counter >= 3:
+            logger.warning(f"Stuck counter={self.stuck_counter}. Forcing intervention.")
+            self.stuck_counter = 0
+            return "FORCE_TURN_AROUND"
+        
+        if pattern:
+            self.pattern_warning_level += 1
+            if self.pattern_warning_level >= 2:
+                logger.warning(f"Pattern persists: {pattern}. Forcing intervention.")
+                self.pattern_warning_level = 0
+                return "FORCE_TURN_AROUND"
+        else:
+            self.pattern_warning_level = max(0, self.pattern_warning_level - 1)
+        
         return None
 
     def step(self) -> str:
@@ -193,6 +281,8 @@ BACKWARD MOVEMENT SAFETY:
         if qr_new_data:
             loc_str = f"x={state.pose.get('x', 0):.1f}, y={state.pose.get('y', 0):.1f}"
             qr_alert = f"CONTEXT UPDATE: Visual System detected meaningful marker: '{qr_new_data}' at estimated location ({loc_str})."
+            title = qr_new_data.split(':', 1)[0].strip()
+            self.location_history.append({'name': title, 'time': time.time()})
 
         # 2. Safety Check & Processing
         safe_actions, overlay, guidance, metrics = self._check_safety(frame)
@@ -235,6 +325,10 @@ BACKWARD MOVEMENT SAFETY:
         
         # Inject Allowed Actions & Warnings
         reflex_msg = f"REFLEX SYSTEM: Allowed actions are {safe_actions}. Green Marked Paths are SAFE. Red Marked Areas are BLOCKED."
+        
+        memory_context = self._generate_memory_context()
+        if memory_context:
+            reflex_msg = memory_context + "\n" + reflex_msg
         
         c_fwd = metrics.get('c_fwd', 0)
         
@@ -341,6 +435,7 @@ BACKWARD MOVEMENT SAFETY:
                     if blocked:
                         any_blocked = True
                         self.stuck_counter += 1
+                        self._record_action(tool_name, was_blocked=True)
                         logger.warning(f"Action blocked. Stuck counter: {self.stuck_counter}")
                     
                     if not blocked:
@@ -349,8 +444,8 @@ BACKWARD MOVEMENT SAFETY:
                             try:
                                 result = tool.invoke(args)
                                 self.last_action = tool_name
+                                self._record_action(tool_name, was_blocked=False)
                                 
-                                # Successful move resets stuck counter
                                 if tool_name in ["move_forward", "turn_left", "turn_right"]:
                                      self.stuck_counter = 0
                                      
