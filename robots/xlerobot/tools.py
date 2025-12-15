@@ -134,7 +134,11 @@ def create_move_forward(servo_controller):
         """Drives the robot forward for a specific distance."""
         distance = float(distance_meters)
         duration = abs(distance) / 0.15
-        print(f"[TOOL] move_forward({distance}) for {duration:.1f}s")
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+            
+        print(f"[TOOL] move_forward({distance}) for {duration:.1f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': True, 'backward': False, 'left': False, 'right': False}
         # Enable Continuous Safety Monitoring for forward movement
@@ -153,7 +157,11 @@ def create_move_backward(servo_controller):
         """Drives the robot backward for a specific distance."""
         distance = float(distance_meters)
         duration = abs(distance) / 0.15
-        print(f"[TOOL] move_backward({distance}) for {duration:.1f}s")
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+            
+        print(f"[TOOL] move_backward({distance}) for {duration:.1f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': True, 'left': False, 'right': False}
         completed = _interruptible_sleep(duration)
@@ -176,7 +184,10 @@ def create_turn_right(servo_controller):
         calculated_duration = abs(angle) / 60
         duration = max(calculated_duration, MIN_DURATION)
         
-        print(f"[TOOL] turn_right({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] turn_right({angle}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': True}
         completed = _interruptible_sleep(duration)
@@ -199,7 +210,10 @@ def create_turn_left(servo_controller):
         calculated_duration = abs(angle) / 60
         duration = max(calculated_duration, MIN_DURATION)
         
-        print(f"[TOOL] turn_left({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] turn_left({angle}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': True, 'right': False}
         completed = _interruptible_sleep(duration)
