@@ -31,7 +31,8 @@ class TTSEngine:
     
     def _find_audio_player(self):
         """Find an available audio player on the system."""
-        players = ['mpg123', 'ffplay', 'mpg321', 'play']
+        # aplay is more reliable on headless Linux systems
+        players = ['aplay', 'mpg123', 'ffplay', 'mpg321', 'play']
         
         for player in players:
             try:
@@ -80,23 +81,37 @@ class TTSEngine:
             sys.stdout.flush()
             
             # Play audio based on which player we found
-            if self.audio_player == 'mpg123':
-                cmd = ['mpg123', '-q', temp_file]
+            if self.audio_player == 'aplay':
+                # aplay needs the file converted from mp3 first, or use mpg123 to decode
+                # Let's use mpg123 to decode to wav and pipe to aplay
+                cmd = f'mpg123 -w - "{temp_file}" | aplay -q'
+                use_shell = True
+            elif self.audio_player == 'mpg123':
+                # Try with explicit ALSA output and default device
+                cmd = ['mpg123', '-q', '-o', 'alsa', '-a', 'default', temp_file]
+                use_shell = False
             elif self.audio_player == 'ffplay':
                 cmd = ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', temp_file]
+                use_shell = False
             elif self.audio_player == 'mpg321':
                 cmd = ['mpg321', '-q', temp_file]
+                use_shell = False
             else:  # play (sox)
                 cmd = ['play', '-q', temp_file]
+                use_shell = False
             
             # Play the audio
-            print(f"[TTS] Playing with: {' '.join(cmd)}")
+            if use_shell:
+                print(f"[TTS] Playing with: {cmd}")
+            else:
+                print(f"[TTS] Playing with: {' '.join(cmd)}")
             sys.stdout.flush()
             
             result = subprocess.run(cmd, 
                          stdout=subprocess.PIPE, 
                          stderr=subprocess.PIPE,
                          timeout=10,
+                         shell=use_shell,
                          check=False)  # Don't raise exception, we'll check manually
             
             if result.returncode == 0:
