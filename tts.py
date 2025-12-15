@@ -6,7 +6,7 @@ import tempfile
 import os
 import subprocess
 from gtts import gTTS
-from config import TTS_ENABLED, TTS_AUDIO_DEVICE, TTS_TLD, TTS_VOLUME_BOOST
+from config import TTS_ENABLED, TTS_AUDIO_DEVICE, TTS_TLD
 
 try:
     from langdetect import detect
@@ -20,7 +20,6 @@ class TTSEngine:
         self.enabled = TTS_ENABLED
         self.audio_device = TTS_AUDIO_DEVICE
         self.tld = TTS_TLD
-        self.volume_boost = TTS_VOLUME_BOOST
         self.speech_queue = queue.Queue()
         self.worker_thread = None
         
@@ -80,7 +79,6 @@ class TTSEngine:
         import sys
         temp_mp3 = None
         temp_wav = None
-        temp_wav_boosted = None
         
         try:
             lang = self._detect_language(text)
@@ -96,7 +94,6 @@ class TTSEngine:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as fp:
                 temp_wav = fp.name
             
-            # Decode MP3 to WAV
             result = subprocess.run(['mpg123', '-w', temp_wav, temp_mp3], 
                          stdout=subprocess.DEVNULL, 
                          stderr=subprocess.DEVNULL,
@@ -107,17 +104,8 @@ class TTSEngine:
                 sys.stdout.flush()
                 return
             
-            # Amplify audio using sox (2x volume boost)
-            with tempfile.NamedTemporaryFile(delete=False, suffix='_boost.wav') as fp:
-                temp_wav_boosted = fp.name
-            
-            subprocess.run(['sox', temp_wav, temp_wav_boosted, 'gain', str(self.volume_boost)], 
-                         stdout=subprocess.DEVNULL, 
-                         stderr=subprocess.DEVNULL,
-                         timeout=2)
-            
-            # Play amplified audio
-            subprocess.run(['aplay', '-D', self.audio_device, temp_wav_boosted], 
+            # Play at max volume on HDMI
+            subprocess.run(['aplay', '-D', self.audio_device, temp_wav], 
                          stdout=subprocess.DEVNULL, 
                          stderr=subprocess.DEVNULL,
                          timeout=10)
@@ -140,11 +128,6 @@ class TTSEngine:
             if temp_wav:
                 try:
                     os.unlink(temp_wav)
-                except:
-                    pass
-            if temp_wav_boosted:
-                try:
-                    os.unlink(temp_wav_boosted)
                 except:
                     pass
     
