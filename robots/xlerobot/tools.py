@@ -23,6 +23,13 @@ def create_end_task():
         robot_state.ai_status = f"Task completed: {reason}"
         robot_state.add_ai_log(f"TASK COMPLETED: {reason}")
         return f"Task ended. Reason: {reason}. AI has been paused."
+
+        # Ensure Approach Mode is disabled
+        robot_state.approach_mode = False
+        if robot_state.robot_system and robot_state.robot_system.servo_controller:
+             robot_state.robot_system.servo_controller.set_speed(10000)
+             
+        return f"Task ended. Reason: {reason}. AI has been paused."
     return end_task
 
 
@@ -123,20 +130,6 @@ def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_saf
             except Exception as e:
                 print(f"[SAFETY] Error during check: {e}")
 
-        # --- STALL DETECTION (Approach Mode Safety) ---
-        # Prevent wheel grinding if pressing against an object
-        if robot_state.approach_mode and robot_state.robot_system and robot_state.robot_system.servo_controller:
-            try:
-                loads = robot_state.robot_system.servo_controller.get_wheel_loads()
-                # Threshold for stall (Feetech 0-1000 scale, >200 usually implies heavy resistance)
-                STALL_THRESHOLD = 300 
-                if any(abs(load) > STALL_THRESHOLD for load in loads.values()):
-                    print(f"[SAFETY] STALL DETECTED! Loads: {loads}. Stopping.")
-                    robot_state.add_ai_log("SAFETY REFLEX: STALL DETECTED (Touching object)")
-                    robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': False}
-                    return False
-            except Exception as e:
-                pass # Don't crash on read error
                 
         time.sleep(min(check_interval, duration - elapsed))
         elapsed += check_interval
@@ -162,6 +155,25 @@ def create_move_forward(servo_controller):
         
         if not completed:
             return "EMERGENCY STOP - Movement cancelled."
+            
+        # Check for Auto-Disable on Arrival (Approach Mode only)
+        if robot_state.approach_mode and robot_state.robot_system:
+             try:
+                 frame = robot_state.robot_system.get_frame()
+                 if frame is not None:
+                     detector = robot_state.get_detector()
+                     if detector:
+                         _, _, metrics = detector.process(frame)
+                         c_fwd = metrics.get('c_fwd', 0)
+                         # If visibly close (blind or > 420)
+                         if c_fwd > 420:
+                             robot_state.approach_mode = False
+                             if robot_state.robot_system.servo_controller:
+                                 robot_state.robot_system.servo_controller.set_speed(10000)
+                             return f"Moved forward {distance:.2f} meters. TARGET REACHED. Approach Mode Auto-Disabled."
+             except Exception:
+                 pass
+                 
         return f"Moved forward {distance:.2f} meters."
 
     return move_forward

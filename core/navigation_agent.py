@@ -107,7 +107,7 @@ NAVIGATION RULES:
 1. LOOK AT THE IMAGE before every move. What do you actually see?
 2. **ALIGNMENT RULE**: Before approaching any surface (counter, table), you MUST be PERPENDICULAR (facing it directly). If the edge is slanted, TURN to align first. DO NOT approach at an angle.
 3. Start with small moves (0.3m). If clear, you can go further (up to 1.0m).
-4. **APPROACH RULE**: In Approach Mode, you move VERY slowly (10% speed). You CAN use larger steps (0.4m - 1m) to save time/tokens. Only use tiny steps (0.1m) for the final few centimeters.
+4. **APPROACH RULE**: In Approach Mode, you move VERY slowly (10% speed). You CAN use larger steps (0.4m - 1m) to save time. If you are certain ernough that you are as close as you can get, the approach is finished.
 5. The safety system will STOP you if you miss an obstacle. Trust it.
 6. Prefer open spaces. Avoid narrow passages.
 
