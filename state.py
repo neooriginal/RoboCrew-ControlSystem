@@ -44,6 +44,9 @@ class RobotState:
         # Precision Mode (for alignment visualization)
         self.precision_mode = False
         
+        # Approach Mode (for close interaction)
+        self.approach_mode = False
+        
         # AI State
         self.ai_enabled = False
         self.ai_status = "Idle"

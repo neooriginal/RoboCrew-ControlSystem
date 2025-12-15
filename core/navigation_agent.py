@@ -86,6 +86,17 @@ PRECISION MODE PROTOCOL:
     - If you can still see the door frame or walls on your side, KEEP IT ENABLED.
     - Only disable when the space opens up significantly.
 
+APPROACH MODE (MANIPULATION):
+- Use `enable_approach_mode` ONLY when you need to get within touching distance of a surface (counter, table, button).
+- Standard safety stops prevents this, so Approach Mode relaxes them.
+- **DANGER**: You can crash in this mode. Move SLOWLY (small steps).
+- **PROTOCOL**:
+  1. Align with the target from a distance.
+  2. Enable Approach Mode.
+  3. Move Forward in small increments (0.2m maximum).
+  4. STOP when the target fills the bottom of your view.
+  5. Disable Approach Mode immediately after interaction or backing away.
+
 QR CODE CONTEXT:
 - You may occasionally see QR codes in the environment. These contain context about the location or objects (e.g., "Room: Kitchen", "Object: Generator").
 - **DO NOT EXPECT THEM everywhere**. They are sparse.

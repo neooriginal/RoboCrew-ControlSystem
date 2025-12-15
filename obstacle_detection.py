@@ -160,6 +160,10 @@ class ObstacleDetector:
         threshold = self.obstacle_threshold_y
         if state.precision_mode:
              threshold += 30
+        
+        # In Approach Mode, we allow obstacles to come VERY close (bottom of screen)
+        if state.approach_mode:
+             threshold = 470 # Almost 480 (bottom)
              
         side_threshold = threshold + 50
         

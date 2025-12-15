@@ -57,6 +57,26 @@ def create_save_note():
     return save_note
 
 
+def create_enable_approach_mode():
+    @tool
+    def enable_approach_mode() -> str:
+        """Enable Approach Mode. Use this ONLY when you need to drive very close to a surface (counter, table) for manipulation. Disables standard safety stops."""
+        from state import state as robot_state
+        robot_state.approach_mode = True
+        robot_state.precision_mode = False # Mutually exclusive usually
+        return "Approach Mode ENABLED. Safety thresholds relaxed. Proceed with caution."
+    return enable_approach_mode
+
+def create_disable_approach_mode():
+    @tool
+    def disable_approach_mode() -> str:
+        """Disable Approach Mode. Re-enables standard safety stops."""
+        from state import state as robot_state
+        robot_state.approach_mode = False
+        return "Approach Mode DISABLED. Safety systems active."
+    return disable_approach_mode
+
+
 def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_safety: bool = False, movement_type: str = None):
     """
     Sleep that can be interrupted by emergency stop or SAFETY REFLEX.
