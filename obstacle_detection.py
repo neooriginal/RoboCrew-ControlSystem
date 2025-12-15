@@ -178,6 +178,12 @@ class ObstacleDetector:
                          rotation_hint = "ROTATE LEFT to align"
                      elif c_right < c_left:
                          rotation_hint = "ROTATE RIGHT to align"
+            
+            elif state.approach_mode:
+                # APPROACH MODE: DISABLE FORWARD SAFETY
+                # We want to touch objects. Only check sides.
+                pass 
+                
             else:
                  if c_fwd > threshold:
                      blocked.add("FORWARD")

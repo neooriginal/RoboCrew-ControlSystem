@@ -382,6 +382,9 @@ PERSISTENT NOTES:
         # Close range warning (independent of mode, but useful context)
         if c_fwd > 380:
              reflex_msg += "\n(WARNING: You are very close to an obstacle. Visual indicators might be distorted. Back up if unsure.)"
+             
+             if not state.approach_mode and not state.precision_mode:
+                 reflex_msg += "\n(HINT: If you are trying to interact with this object, ENABLE APPROACH MODE now.)"
         
         # We use the NEW data as immediate context, but we could also use the raw string if we want:
         if qr_new_data:
