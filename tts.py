@@ -40,18 +40,11 @@ class TTSEngine:
                 print(f"[TTS] Error: {e}")
     
     def _speak_blocking(self, text):
-        """Use espeak directly with correct audio device."""
-        import os
-        
+        """Use espeak directly."""
         try:
-            # Set ALSA audio device via environment
-            env = os.environ.copy()
-            env['AUDIODEV'] = self.device
-            
             # Use espeak with male voice (-v en-us or -v en+m3 for male)
             subprocess.run(
                 ['espeak', '-v', 'en-us+m3', '-s', '150', text],
-                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=5
@@ -59,11 +52,8 @@ class TTSEngine:
         except Exception as e:
             # Fallback without voice specification
             try:
-                env = os.environ.copy()
-                env['AUDIODEV'] = self.device
                 subprocess.run(
                     ['espeak', '-s', '150', text],
-                    env=env,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     timeout=5
