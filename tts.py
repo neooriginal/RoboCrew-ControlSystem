@@ -2,8 +2,6 @@
 
 import threading
 import queue
-import subprocess
-import os
 from config import TTS_ENABLED, TTS_DEVICE
 
 class TTSEngine:
@@ -12,10 +10,24 @@ class TTSEngine:
         self.device = TTS_DEVICE
         self.speech_queue = queue.Queue()
         self.worker_thread = None
+        self.engine = None
         
         if self.enabled:
-            self.worker_thread = threading.Thread(target=self._worker, daemon=True)
-            self.worker_thread.start()
+            try:
+                import pyttsx3
+                self.engine = pyttsx3.init()
+                # Try to set properties
+                try:
+                    self.engine.setProperty('rate', 150)  # Speed
+                    self.engine.setProperty('volume', 1.0)  # Volume
+                except:
+                    pass  # Ignore property errors
+                
+                self.worker_thread = threading.Thread(target=self._worker, daemon=True)
+                self.worker_thread.start()
+            except Exception as e:
+                print(f"[TTS] Init failed: {e}")
+                self.enabled = False
     
     def _worker(self):
         """Background worker that processes speech queue."""
@@ -31,21 +43,13 @@ class TTSEngine:
                 print(f"[TTS] Error: {e}")
     
     def _speak_blocking(self, text):
-        """Use espeak to generate speech with specified ALSA device."""
-        try:
-            # Use espeak with ALSA device
-            env = os.environ.copy()
-            env['AUDIODEV'] = self.device
-            
-            subprocess.run(
-                ['espeak', text],
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5
-            )
-        except Exception as e:
-            print(f"[TTS] Speak failed: {e}")
+        """Use pyttsx3 to generate speech."""
+        if self.engine:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                print(f"[TTS] Speak failed: {e}")
     
     def speak(self, text):
         """Queue text for asynchronous speech."""

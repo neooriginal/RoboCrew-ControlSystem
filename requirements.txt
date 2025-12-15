@@ -27,5 +27,8 @@ grpcio==1.67.1
 grpcio-tools==1.67.1
 protobuf>=5.27.2,<6.0
 
-# Text-to-Speech (optional)
+# Text-to-Speech
 pyttsx3>=2.90
+
+# QR Code
+qrcode[pil]
