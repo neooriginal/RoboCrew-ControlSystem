@@ -174,11 +174,6 @@ class ServoControler:
 
     def _wheels_write(self, action: str) -> Dict[int, int]:
         from state import state
-        # Enforce Approach Mode Speed Limit (10%)
-        effective_speed = 1000 if state.approach_mode else self.speed
-        
-    def _wheels_write(self, action: str) -> Dict[int, int]:
-        from state import state
         # Enforce Approach Mode Speed Limit (10%) ONLY for AI
         effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
         
@@ -238,10 +233,6 @@ class ServoControler:
             # Scale by effective speed
             payload[wid] = int(effective_speed * combined_factor)
             
-            # Scale by effective speed
-            payload[wid] = int(effective_speed * combined_factor)
-            
-        print(f"[DEBUG] set_velocity_vector: Mode={state.approach_mode}, AI={state.ai_enabled}, EffectiveSpeed={effective_speed}, Payload={payload}")
         self.wheel_bus.sync_write("Goal_Velocity", payload)
         return payload
 
