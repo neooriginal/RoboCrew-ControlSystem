@@ -81,14 +81,9 @@ class TTSEngine:
             sys.stdout.flush()
             
             # Play audio based on which player we found
-            if self.audio_player == 'aplay':
-                # aplay needs the file converted from mp3 first, or use mpg123 to decode
-                # Let's use mpg123 to decode to wav and pipe to aplay
-                # plughw:1,0 = Card 1 (HDMI 0) with automatic sample rate conversion
-                cmd = f'mpg123 -w - "{temp_file}" | aplay -D plughw:1,0'
-                use_shell = True
-            elif self.audio_player == 'mpg123':
-                # Try with explicit ALSA output and HDMI card 1
+            # Use mpg123 directly with ALSA - much more reliable than piping
+            if self.audio_player == 'aplay' or self.audio_player == 'mpg123':
+                # mpg123 with explicit ALSA output to HDMI
                 cmd = ['mpg123', '-o', 'alsa', '-a', 'plughw:1,0', temp_file]
                 use_shell = False
             elif self.audio_player == 'ffplay':
@@ -102,18 +97,14 @@ class TTSEngine:
                 use_shell = False
             
             # Play the audio
-            if use_shell:
-                print(f"[TTS] Playing with: {cmd}")
-            else:
-                print(f"[TTS] Playing with: {' '.join(cmd)}")
+            print(f"[TTS] Playing with: {' '.join(cmd)}")
             sys.stdout.flush()
             
             result = subprocess.run(cmd, 
                          stdout=subprocess.PIPE, 
                          stderr=subprocess.PIPE,
                          timeout=10,
-                         shell=use_shell,
-                         check=False)  # Don't raise exception, we'll check manually
+                         check=False)
             
             if result.returncode == 0:
                 print(f"[TTS] Played successfully")
