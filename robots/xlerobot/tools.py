@@ -17,17 +17,21 @@ def create_end_task():
     @tool
     def end_task(reason: str) -> str:
         """Call this when you have completed your assigned task or mission. Provide a reason explaining what was accomplished."""
+        import tts
+        
         print(f"[TOOL] end_task - reason: {reason}")
         robot_state.ai_enabled = False
         robot_state.precision_mode = False
         robot_state.ai_status = f"Task completed: {reason}"
         robot_state.add_ai_log(f"TASK COMPLETED: {reason}")
-        return f"Task ended. Reason: {reason}. AI has been paused."
-
+        
         # Ensure Approach Mode is disabled
         robot_state.approach_mode = False
         if robot_state.robot_system and robot_state.robot_system.servo_controller:
              robot_state.robot_system.servo_controller.set_speed(10000)
+        
+        # TTS Announcement
+        tts.speak("Task complete")
              
         return f"Task ended. Reason: {reason}. AI has been paused."
     return end_task
@@ -68,15 +72,16 @@ def create_enable_approach_mode():
     @tool
     def enable_approach_mode() -> str:
         """Enable Approach Mode. Use this ONLY when you need to drive very close to a surface (counter, table) for manipulation. Disables standard safety stops."""
+        import tts
+        
         from state import state as robot_state
         robot_state.approach_mode = True
-        robot_state.precision_mode = False # Mutually exclusive usually
+        robot_state.precision_mode = False
         
-        # Hardware Speed Limit (25%)
-        if robot_state.robot_system and robot_state.robot_system.servo_controller:
-             robot_state.robot_system.servo_controller.set_speed(2500)
+        # TTS Announcement
+        tts.speak("Safety disabled")
              
-        return "Approach Mode ENABLED. Safety thresholds relaxed. Speed limited to 25%."
+        return "Approach Mode ENABLED. Safety thresholds relaxed. Speed limited to 10%."
     return enable_approach_mode
 
 def create_disable_approach_mode():

@@ -12,10 +12,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask
-from config import WEB_PORT
+
 from state import state
 from movement import movement_loop, stop_movement
-from routes import bp
+import routes
+import tts
+from config import WEB_PORT
 
 from core.robot_system import RobotSystem
 from core.navigation_agent import NavigationAgent
@@ -42,7 +44,7 @@ logger.setLevel(logging.INFO)
 
 def create_app():
     app = Flask(__name__)
-    app.register_blueprint(bp)
+    app.register_blueprint(routes.bp)
     return app
 
 def agent_loop():
@@ -82,9 +84,12 @@ def main():
     robot = RobotSystem()
     state.robot_system = robot
     
+    # Initialize TTS
+    tts.init()
+    
     # Initialize AI Agent
     if robot.controller:
-        print("🧠 Initializing AI Agent...")
+        print("💡 Initializing AI Agent...")
         # Minimal tools - no individual camera controls to avoid confusion
         tools = [
             create_move_forward(robot.controller),
@@ -120,6 +125,8 @@ def main():
     # AI Agent thread
     threading.Thread(target=agent_loop, daemon=True).start()
     
+    # TTS Startup Announcement
+    tts.speak("System ready")
     
     # Start Web Server
     app = create_app()
