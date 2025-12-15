@@ -6,7 +6,7 @@ from lerobot.async_inference.robot_client import RobotClient
 from lerobot.async_inference.configs import RobotClientConfig
 from lerobot.robots.so101_follower.config_so101_follower import SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
-from robocrew.core.utils import capture_image
+from core.utils import capture_image
 import time
 import threading
 
@@ -47,7 +47,7 @@ def create_save_note():
     @tool
     def save_note(category: str, content: str) -> str:
         """Save a note to persistent memory about the environment. Use this to remember important layout details, landmarks, or observations. Categories: 'layout', 'landmark', 'obstacle', 'path', 'other'."""
-        from robocrew.core.memory_store import memory_store
+        from core.memory_store import memory_store
         from state import state as robot_state
         
         location = robot_state.pose.copy() if robot_state.pose else None

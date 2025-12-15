@@ -11,19 +11,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Add local RoboCrew source to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'RoboCrew', 'src'))
-
-from flask import Flask
-
-from config import WEB_PORT
-from state import state
-from movement import movement_loop, stop_movement
-from routes import bp
-
-from robocrew.core.robot_system import RobotSystem
-from robocrew.core.navigation_agent import NavigationAgent
-from robocrew.robots.XLeRobot.tools import (
+from core.robot_system import RobotSystem
+from core.navigation_agent import NavigationAgent
+from robots.xlerobot.tools import (
     create_move_forward, 
     create_move_backward, 
     create_turn_left, 

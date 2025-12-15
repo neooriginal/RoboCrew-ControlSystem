@@ -12,11 +12,17 @@ from langchain.chat_models import init_chat_model
 
 load_dotenv()
 
-from robocrew.core.utils import capture_image
-from robocrew.core.memory_store import memory_store
+from core.utils import capture_image
+# Try relative import as fallback or test
+try:
+    from core.memory_store import memory_store
+except ImportError:
+    print("DEBUG: Absolute import failed, trying relative...")
+    from .memory_store import memory_store
+
 from state import state
 from qr_scanner import QRScanner
-from robocrew.core.robot_system import RobotSystem
+from core.robot_system import RobotSystem
 
 logger = logging.getLogger(__name__)
 

@@ -140,3 +140,6 @@ dist
 /RoboCrew/src/__pycache__
 /robocrew/src/robocrew/__pycache__
 robocrew_memory.db
+/core/__pycache__
+/robots/xlerobot/__pycache__
+/robots/__pycache__

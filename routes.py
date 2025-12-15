@@ -400,14 +400,14 @@ def memory_page():
 
 @bp.route('/api/memory', methods=['GET'])
 def get_memories():
-    from robocrew.core.memory_store import memory_store
+    from core.memory_store import memory_store
     notes = memory_store.get_notes(limit=50)
     return jsonify({'notes': notes})
 
 
 @bp.route('/api/memory', methods=['POST'])
 def add_memory():
-    from robocrew.core.memory_store import memory_store
+    from core.memory_store import memory_store
     data = request.json
     category = data.get('category', 'other')
     content = data.get('content', '')
@@ -419,7 +419,7 @@ def add_memory():
 
 @bp.route('/api/memory/<int:note_id>', methods=['DELETE'])
 def delete_memory(note_id):
-    from robocrew.core.memory_store import memory_store
+    from core.memory_store import memory_store
     with memory_store._db_lock:
         cursor = memory_store.conn.cursor()
         cursor.execute('DELETE FROM notes WHERE id = ?', (note_id,))
@@ -432,7 +432,7 @@ def delete_memory(note_id):
 
 @bp.route('/api/memory/<int:note_id>', methods=['PUT'])
 def update_memory(note_id):
-    from robocrew.core.memory_store import memory_store
+    from core.memory_store import memory_store
     data = request.json
     category = data.get('category')
     content = data.get('content')
@@ -455,6 +455,6 @@ def update_memory(note_id):
 
 @bp.route('/api/memory/clear', methods=['POST'])
 def clear_memories():
-    from robocrew.core.memory_store import memory_store
+    from core.memory_store import memory_store
     memory_store.clear_all()
     return jsonify({'status': 'ok'})

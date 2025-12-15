@@ -10,7 +10,7 @@ import os
 from typing import List, Dict
 from collections import deque
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'robocrew_memory.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'robocrew_memory.db')
 
 class MemoryStore:
     _instance = None
