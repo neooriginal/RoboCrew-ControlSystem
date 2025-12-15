@@ -28,7 +28,8 @@ grpcio-tools==1.67.1
 protobuf>=5.27.2,<6.0
 
 # Text-to-Speech
-# NOTE: Requires espeak on Linux. Install with: sudo apt-get install espeak
+gtts>=2.3.0
+pygame>=2.5.0
 
 # QR Code
 qrcode[pil]

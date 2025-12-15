@@ -1,30 +1,34 @@
-"""Text-to-Speech module for robot audio feedback."""
+"""Text-to-Speech module for robot audio feedback using gTTS."""
 
 import threading
 import queue
-import subprocess
+import tempfile
+import os
+from gtts import gTTS
 from config import TTS_ENABLED, TTS_DEVICE
+
+# Try to import pygame for audio playback
+try:
+    import pygame
+    pygame.mixer.init()
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
+    print("[TTS] Warning: pygame not available, TTS will be disabled")
 
 class TTSEngine:
     def __init__(self):
-        self.enabled = TTS_ENABLED
+        self.enabled = TTS_ENABLED and PYGAME_AVAILABLE
         self.device = TTS_DEVICE
         self.speech_queue = queue.Queue()
         self.worker_thread = None
         
         if self.enabled:
-            # Test if espeak is available
-            try:
-                subprocess.run(['espeak', '--version'], 
-                             stdout=subprocess.DEVNULL, 
-                             stderr=subprocess.DEVNULL, 
-                             timeout=1)
-                self.worker_thread = threading.Thread(target=self._worker, daemon=True)
-                self.worker_thread.start()
-                print("[TTS] Initialized (using espeak)")
-            except Exception as e:
-                print(f"[TTS] espeak not found, TTS disabled")
-                self.enabled = False
+            self.worker_thread = threading.Thread(target=self._worker, daemon=True)
+            self.worker_thread.start()
+            print("[TTS] Initialized (using gTTS with Google voices)")
+        else:
+            print("[TTS] Disabled (pygame or gTTS not available)")
     
     def _worker(self):
         """Background worker that processes speech queue."""
@@ -40,26 +44,32 @@ class TTSEngine:
                 print(f"[TTS] Error: {e}")
     
     def _speak_blocking(self, text):
-        """Use espeak directly."""
+        """Generate speech using gTTS and play it."""
         try:
-            # Use espeak with male voice and max volume (-a 200)
-            subprocess.run(
-                ['espeak', '-v', 'en-us+m3', '-s', '150', '-a', '200', text],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5
-            )
-        except Exception as e:
-            # Fallback without voice specification
+            # Create temporary file for audio
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
+                temp_file = fp.name
+            
+            # Generate speech with gTTS
+            tts = gTTS(text=text, lang='en', slow=False)
+            tts.save(temp_file)
+            
+            # Play the audio file
+            pygame.mixer.music.load(temp_file)
+            pygame.mixer.music.play()
+            
+            # Wait for playback to finish
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
+            
+            # Clean up temp file
             try:
-                subprocess.run(
-                    ['espeak', '-s', '150', '-a', '200', text],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5
-                )
+                os.unlink(temp_file)
             except:
                 pass
+                
+        except Exception as e:
+            print(f"[TTS] Speech error: {e}")
     
     def speak(self, text):
         """Queue text for asynchronous speech."""
