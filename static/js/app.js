@@ -495,6 +495,15 @@ wheelSpeedSlider.addEventListener('input', async (e) => {
     const speed = parseInt(e.target.value);
     wheelSpeedValue.textContent = speed;
 
+    // Change color if exceeding safety limit (13000)
+    if (speed > 13000) {
+        wheelSpeedValue.style.color = '#ff4444';  // Red
+        wheelSpeedSlider.style.accentColor = '#ff4444';
+    } else {
+        wheelSpeedValue.style.color = '#aaa';  // Default gray
+        wheelSpeedSlider.style.accentColor = '#FF9800';  // Orange
+    }
+
     try {
         await fetch('/wheels/speed', {
             method: 'POST',
@@ -514,6 +523,15 @@ async function loadWheelSpeed() {
         if (data.speed) {
             wheelSpeedSlider.value = data.speed;
             wheelSpeedValue.textContent = data.speed;
+
+            // Set appropriate color based on speed
+            if (data.speed > 13000) {
+                wheelSpeedValue.style.color = '#ff4444';
+                wheelSpeedSlider.style.accentColor = '#ff4444';
+            } else {
+                wheelSpeedValue.style.color = '#aaa';
+                wheelSpeedSlider.style.accentColor = '#FF9800';
+            }
         }
     } catch (e) {
         console.log('Wheel speed load error:', e.message);

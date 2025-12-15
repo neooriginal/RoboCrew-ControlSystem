@@ -61,6 +61,7 @@ class RobotState:
         # Wheel speed control
         self.default_wheel_speed = 10000  # Default speed from servo_controls.py
         self.manual_wheel_speed = None  # When None, use controller's default
+        self.safety_warning_triggered = False  # Track if safety warning was given
         
         # Shared Obstacle Detector
         self.detector = None
@@ -139,8 +140,19 @@ class RobotState:
     def set_wheel_speed(self, speed):
         """Set manual wheel speed."""
         with self.lock:
-            # Clamp speed between 1000 and 15000
-            self.manual_wheel_speed = max(1000, min(15000, int(speed)))
+            # Clamp speed between 1000 and 20000
+            self.manual_wheel_speed = max(1000, min(20000, int(speed)))
+            
+            # Trigger safety warning if exceeding 13000
+            if self.manual_wheel_speed > 13000 and not self.safety_warning_triggered:
+                self.safety_warning_triggered = True
+                # Import here to avoid circular dependency
+                import tts
+                tts.speak("Safety limiters off")
+            elif self.manual_wheel_speed <= 13000 and self.safety_warning_triggered:
+                # Reset warning flag when back in safe range
+                self.safety_warning_triggered = False
+            
             if self.controller and hasattr(self.controller, 'set_speed'):
                 self.controller.set_speed(self.manual_wheel_speed)
     
@@ -155,6 +167,7 @@ class RobotState:
         """Reset wheel speed to default."""
         with self.lock:
             self.manual_wheel_speed = None
+            self.safety_warning_triggered = False  # Reset warning flag
             if self.controller and hasattr(self.controller, 'set_speed'):
                 self.controller.set_speed(self.default_wheel_speed)
 
