@@ -60,6 +60,8 @@ class TTSEngine:
         """Generate speech using gTTS and play it."""
         temp_file = None
         try:
+            print(f"[TTS] Generating speech: '{text}'")
+            
             # Create temporary file for audio
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
                 temp_file = fp.name
@@ -67,25 +69,31 @@ class TTSEngine:
             # Generate speech with gTTS
             tts = gTTS(text=text, lang='en', slow=False)
             tts.save(temp_file)
+            print(f"[TTS] Audio saved to: {temp_file}")
             
             # Try to play with pygame first
             if self.mixer_initialized:
                 try:
+                    print("[TTS] Using pygame for playback")
                     pygame.mixer.music.load(temp_file)
                     pygame.mixer.music.play()
                     
                     # Wait for playback to finish
                     while pygame.mixer.music.get_busy():
                         pygame.time.Clock().tick(10)
+                    print("[TTS] Pygame playback finished")
                 except Exception as e:
                     print(f"[TTS] Pygame playback failed: {e}, trying system command")
                     self._play_with_system_command(temp_file)
             else:
                 # Fallback to system command
+                print("[TTS] Using system command for playback")
                 self._play_with_system_command(temp_file)
                 
         except Exception as e:
             print(f"[TTS] Speech error: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             # Clean up temp file
             if temp_file:
@@ -108,16 +116,27 @@ class TTSEngine:
         
         for player_cmd in players:
             try:
-                subprocess.run(player_cmd, 
+                print(f"[TTS] Trying audio player: {player_cmd[0]}")
+                result = subprocess.run(player_cmd, 
                              stdout=subprocess.DEVNULL, 
-                             stderr=subprocess.DEVNULL,
+                             stderr=subprocess.PIPE,
                              timeout=10,
                              check=True)
+                print(f"[TTS] Successfully played audio with {player_cmd[0]}")
                 return  # Success
-            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            except FileNotFoundError:
+                print(f"[TTS] {player_cmd[0]} not found")
                 continue  # Try next player
+            except subprocess.TimeoutExpired:
+                print(f"[TTS] {player_cmd[0]} timed out")
+                continue
+            except subprocess.CalledProcessError as e:
+                print(f"[TTS] {player_cmd[0]} failed with exit code {e.returncode}")
+                if e.stderr:
+                    print(f"[TTS] Error: {e.stderr.decode()}")
+                continue
         
-        print("[TTS] Warning: No audio player found. Install mpg123, ffplay, or mpg321")
+        print("[TTS] ERROR: No audio player worked. Install mpg123, ffplay, or mpg321")
     
     def speak(self, text):
         """Queue text for asynchronous speech."""
