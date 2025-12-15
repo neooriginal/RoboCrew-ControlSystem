@@ -61,44 +61,50 @@ class TTSEngine:
     def _speak_blocking(self, text):
         """Generate speech using gTTS and play it."""
         import sys
-        temp_file = None
+        temp_mp3 = None
+        temp_wav = None
         try:
             print(f"[TTS] Generating: '{text}'")
             sys.stdout.flush()
             
-            # Create temporary file for audio
+            # Create temporary file for MP3
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
-                temp_file = fp.name
+                temp_mp3 = fp.name
             
             # Generate speech with gTTS (this requires internet)
             print(f"[TTS] Connecting to Google TTS API...")
             sys.stdout.flush()
             
             tts = gTTS(text=text, lang='en', slow=False, timeout=5)
-            tts.save(temp_file)
+            tts.save(temp_mp3)
             
-            print(f"[TTS] Audio file created: {temp_file}")
+            print(f"[TTS] MP3 created: {temp_mp3}")
             sys.stdout.flush()
             
-            # Play audio based on which player we found
-            # Use mpg123 directly with ALSA - much more reliable than piping
-            if self.audio_player == 'aplay' or self.audio_player == 'mpg123':
-                # mpg123 with explicit ALSA output to HDMI
-                cmd = ['mpg123', '-o', 'alsa', '-a', 'plughw:1,0', temp_file]
-                use_shell = False
-            elif self.audio_player == 'ffplay':
-                cmd = ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet', temp_file]
-                use_shell = False
-            elif self.audio_player == 'mpg321':
-                cmd = ['mpg321', temp_file]
-                use_shell = False
-            else:  # play (sox)
-                cmd = ['play', temp_file]
-                use_shell = False
+            # Convert MP3 to WAV using mpg123
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as fp:
+                temp_wav = fp.name
             
-            # Play the audio
-            print(f"[TTS] Playing with: {' '.join(cmd)}")
+            print(f"[TTS] Converting to WAV...")
             sys.stdout.flush()
+            
+            # Decode MP3 to WAV
+            result = subprocess.run(['mpg123', '-w', temp_wav, temp_mp3], 
+                         stdout=subprocess.PIPE, 
+                         stderr=subprocess.PIPE,
+                         timeout=5,
+                         check=False)
+            
+            if result.returncode != 0:
+                print(f"[TTS] MP3 decode failed: {result.stderr.decode()}")
+                sys.stdout.flush()
+                return
+            
+            print(f"[TTS] WAV created, playing...")
+            sys.stdout.flush()
+            
+            # Play WAV with aplay on HDMI
+            cmd = ['aplay', '-D', 'plughw:1,0', temp_wav]
             
             result = subprocess.run(cmd, 
                          stdout=subprocess.PIPE, 
@@ -109,16 +115,10 @@ class TTSEngine:
             if result.returncode == 0:
                 print(f"[TTS] Played successfully")
             else:
-                print(f"[TTS] Player exited with code {result.returncode}")
-                if result.stdout:
-                    print(f"[TTS] stdout: {result.stdout.decode()}")
+                print(f"[TTS] aplay exited with code {result.returncode}")
                 if result.stderr:
                     print(f"[TTS] stderr: {result.stderr.decode()}")
             sys.stdout.flush()
-            
-            # Small delay to ensure audio playback completes before file deletion
-            import time
-            time.sleep(0.1)
                 
         except subprocess.TimeoutExpired:
             print(f"[TTS] Playback timed out")
@@ -129,10 +129,15 @@ class TTSEngine:
             import traceback
             traceback.print_exc()
         finally:
-            # Clean up temp file
-            if temp_file:
+            # Clean up temp files
+            if temp_mp3:
                 try:
-                    os.unlink(temp_file)
+                    os.unlink(temp_mp3)
+                except:
+                    pass
+            if temp_wav:
+                try:
+                    os.unlink(temp_wav)
                 except:
                     pass
     
