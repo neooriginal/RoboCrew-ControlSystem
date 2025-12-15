@@ -70,6 +70,7 @@ class TTSEngine:
             # Generate speech with gTTS
             tts = gTTS(text=text, lang='en', slow=False)
             tts.save(temp_file)
+            print(f"[TTS] Audio file created: {temp_file}")
             
             # Play audio based on which player we found
             if self.audio_player == 'mpg123':
@@ -82,19 +83,28 @@ class TTSEngine:
                 cmd = ['play', '-q', temp_file]
             
             # Play the audio
-            subprocess.run(cmd, 
-                         stdout=subprocess.DEVNULL, 
-                         stderr=subprocess.DEVNULL,
+            print(f"[TTS] Playing with: {' '.join(cmd)}")
+            result = subprocess.run(cmd, 
+                         stdout=subprocess.PIPE, 
+                         stderr=subprocess.PIPE,
                          timeout=10,
-                         check=True)
-            print(f"[TTS] Played successfully")
+                         check=False)  # Don't raise exception, we'll check manually
+            
+            if result.returncode == 0:
+                print(f"[TTS] Played successfully")
+            else:
+                print(f"[TTS] Player exited with code {result.returncode}")
+                if result.stdout:
+                    print(f"[TTS] stdout: {result.stdout.decode()}")
+                if result.stderr:
+                    print(f"[TTS] stderr: {result.stderr.decode()}")
                 
         except subprocess.TimeoutExpired:
             print(f"[TTS] Playback timed out")
-        except subprocess.CalledProcessError as e:
-            print(f"[TTS] Playback failed: exit code {e.returncode}")
         except Exception as e:
             print(f"[TTS] Error: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             # Clean up temp file
             if temp_file:
