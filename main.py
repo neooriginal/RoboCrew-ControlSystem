@@ -11,6 +11,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from flask import Flask
+from config import WEB_PORT
+from state import state
+from movement import movement_loop, stop_movement
+from routes import bp
+
 from core.robot_system import RobotSystem
 from core.navigation_agent import NavigationAgent
 from robots.xlerobot.tools import (
