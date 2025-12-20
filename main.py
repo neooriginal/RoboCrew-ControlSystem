@@ -11,19 +11,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Add local RoboCrew source to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'RoboCrew', 'src'))
-
 from flask import Flask
 
-from config import WEB_PORT
 from state import state
 from movement import movement_loop, stop_movement
-from routes import bp
+import routes
+import tts
+from config import WEB_PORT
 
-from robocrew.core.robot_system import RobotSystem
-from robocrew.core.navigation_agent import NavigationAgent
-from robocrew.robots.XLeRobot.tools import (
+from core.robot_system import RobotSystem
+from core.navigation_agent import NavigationAgent
+from robots.xlerobot.tools import (
     create_move_forward, 
     create_move_backward, 
     create_turn_left, 
@@ -31,7 +29,11 @@ from robocrew.robots.XLeRobot.tools import (
     create_look_around,
     create_end_task,
     create_enable_precision_mode,
-    create_disable_precision_mode
+    create_disable_precision_mode,
+    create_save_note,
+    create_enable_approach_mode,
+    create_disable_approach_mode,
+    create_speak
 )
 
 # Configure logging - reduce verbosity
@@ -43,7 +45,7 @@ logger.setLevel(logging.INFO)
 
 def create_app():
     app = Flask(__name__)
-    app.register_blueprint(bp)
+    app.register_blueprint(routes.bp)
     return app
 
 def agent_loop():
@@ -83,19 +85,26 @@ def main():
     robot = RobotSystem()
     state.robot_system = robot
     
+    # Initialize TTS
+    tts.init()
+    
     # Initialize AI Agent
     if robot.controller:
-        print("🧠 Initializing AI Agent...")
+        print("💡 Initializing AI Agent...")
         # Minimal tools - no individual camera controls to avoid confusion
         tools = [
             create_move_forward(robot.controller),
             create_move_backward(robot.controller),
             create_turn_left(robot.controller),
             create_turn_right(robot.controller),
-            create_look_around(robot.controller, robot.camera),  # Emergency only
+            create_look_around(robot.controller, robot.camera),
             create_end_task(),
             create_enable_precision_mode(),
-            create_disable_precision_mode()
+            create_disable_precision_mode(),
+            create_save_note(),
+            create_enable_approach_mode(),
+            create_disable_approach_mode(),
+            create_speak()
         ]
 
         model_name = os.getenv("AI_MODEL", "openai/gpt-5.2") 
@@ -118,6 +127,8 @@ def main():
     # AI Agent thread
     threading.Thread(target=agent_loop, daemon=True).start()
     
+    # TTS Startup Announcement
+    tts.speak("System ready")
     
     # Start Web Server
     app = create_app()

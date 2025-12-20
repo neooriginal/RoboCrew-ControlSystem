@@ -78,7 +78,7 @@ class ObstacleDetector:
         # 3. Analyze Obstacle Distances
         # Divide view into chunks: Left, Center, Right
         # Center is narrower to focus on immediate path.
-        center_width = len(edge_points) // 6
+        center_width = len(edge_points) // 5
         side_width = (len(edge_points) - center_width) // 2
         
         c_left = self._get_chunk_average(edge_points[:side_width])
@@ -102,6 +102,19 @@ class ObstacleDetector:
         cv2.addWeighted(shapes, alpha, overlay, 1 - alpha, 0, overlay)
         if guidance:
             cv2.putText(overlay, guidance, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+
+        # Draw Mode Status
+        mode_text = "MODE: STANDARD"
+        mode_color = (0, 255, 0) # Green
+        
+        if state.approach_mode:
+            mode_text = "MODE: APPROACH (SAFETY OFF)"
+            mode_color = (0, 0, 255) # Red
+        elif state.precision_mode:
+            mode_text = "MODE: PRECISION"
+            mode_color = (255, 255, 0) # Cyan
+            
+        cv2.putText(overlay, mode_text, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, mode_color, 2)
 
         return safe_actions, overlay, {
             'c_left': c_left, 
@@ -138,7 +151,7 @@ class ObstacleDetector:
             if y > 0:
                 cv2.circle(overlay, (x, y), 2, (0, 0, 255), -1)
 
-    def _get_chunk_average(self, chunk, top_n=2):
+    def _get_chunk_average(self, chunk, top_n=10):
         """
         Calculate average Y-position of the closest points in a chunk.
         Robust against single-pixel noise.
@@ -161,6 +174,10 @@ class ObstacleDetector:
         threshold = self.obstacle_threshold_y
         if state.precision_mode:
              threshold += 30
+        
+        # In Approach Mode, we allow obstacles to come VERY close (bottom of screen)
+        if state.approach_mode:
+             threshold = 470 # Almost 480 (bottom)
              
         side_threshold = threshold + 50
         
@@ -175,6 +192,12 @@ class ObstacleDetector:
                          rotation_hint = "ROTATE LEFT to align"
                      elif c_right < c_left:
                          rotation_hint = "ROTATE RIGHT to align"
+            
+            elif state.approach_mode:
+                # APPROACH MODE: DISABLE FORWARD SAFETY
+                # We want to touch objects. Only check sides.
+                pass 
+                
             else:
                  if c_fwd > threshold:
                      blocked.add("FORWARD")

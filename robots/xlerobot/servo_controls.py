@@ -165,11 +165,20 @@ class ServoControler:
     def arm_enabled(self) -> bool:
         return self._arm_enabled
 
+    def set_speed(self, speed: int) -> None:
+        """Set the global speed for wheel motors."""
+        self.speed = speed
+        print(f"[CONTROLLER] Speed set to {self.speed}")
+
     # Wheel control
 
     def _wheels_write(self, action: str) -> Dict[int, int]:
+        from state import state
+        # Enforce Approach Mode Speed Limit (10%) ONLY for AI
+        effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
+        
         multipliers = self.action_map[action.lower()]
-        payload = {wid: self.speed * factor for wid, factor in multipliers.items()}
+        payload = {wid: effective_speed * factor for wid, factor in multipliers.items()}
         self.wheel_bus.sync_write("Goal_Velocity", payload)
         return payload
 
@@ -209,6 +218,10 @@ class ServoControler:
         up_vec = self.action_map['up']
         left_vec = self.action_map['left']
         
+        from state import state
+        # Enforce Approach Mode Speed Limit (10%) ONLY for AI
+        effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
+
         payload = {}
         for wid in self._wheel_ids:
             # Calculate combined motor factor
@@ -217,8 +230,8 @@ class ServoControler:
             
             combined_factor = (forward * u_val) + (lateral * l_val)
             
-            # Scale by base speed
-            payload[wid] = int(self.speed * combined_factor)
+            # Scale by effective speed
+            payload[wid] = int(effective_speed * combined_factor)
             
         self.wheel_bus.sync_write("Goal_Velocity", payload)
         return payload
@@ -227,6 +240,15 @@ class ServoControler:
         for wid in self._wheel_ids:
             self.wheel_bus.write("Operating_Mode", wid, OperatingMode.VELOCITY.value)
         self.wheel_bus.enable_torque()
+
+    def get_wheel_loads(self) -> Dict[int, int]:
+        """Read the current load (0-1000) from wheel motors."""
+        if not self.wheel_bus:
+            return {}
+        try:
+            return self.wheel_bus.sync_read("Present_Load", list(self._wheel_ids))
+        except Exception:
+            return {}
 
     # Head control
 

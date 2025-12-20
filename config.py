@@ -28,3 +28,7 @@ ARM_WRIST_FLEX_STEP = 2.0
 # Safety
 REMOTE_TIMEOUT = 0.5
 
+# Text-to-Speech
+TTS_ENABLED = True
+TTS_AUDIO_DEVICE = "plughw:1,0"  # ALSA device (plughw:1,0 = HDMI 1)
+TTS_TLD = "com"  # Google TLD for voice variant (com, co.uk, com.au, etc.)

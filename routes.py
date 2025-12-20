@@ -10,6 +10,7 @@ from state import state
 from camera import generate_frames
 from movement import execute_movement
 from arm import arm_controller
+import tts
 
 bp = Blueprint('robot', __name__)
 
@@ -263,6 +264,9 @@ def ai_start():
     if current_task:
         state.agent.set_task(current_task)
     
+    # Reset wheel speed to default when AI starts
+    state.reset_wheel_speed()
+    
     state.ai_enabled = True
     state.add_ai_log("AI Started")
     return jsonify({'status': 'ok'})
@@ -270,6 +274,7 @@ def ai_start():
 @bp.route('/ai/stop', methods=['POST'])
 def ai_stop():
     state.ai_enabled = False
+    state.precision_mode = False
     
     # Clear context on stop as well
     if state.agent:
@@ -300,6 +305,7 @@ def ai_status():
 @bp.route('/emergency_stop', methods=['POST'])
 def emergency_stop():
     state.ai_enabled = False
+    state.precision_mode = False
     state.stop_all_movement()
     if state.robot_system:
         state.robot_system.emergency_stop()
@@ -309,6 +315,35 @@ def emergency_stop():
 @bp.route('/ai')
 def ai_page():
     return render_template('ai_control.html')
+
+
+# TTS Routes
+
+@bp.route('/tts/speak', methods=['POST'])
+def tts_speak():
+    data = request.json
+    text = data.get('text', '')
+    if text:
+        tts.speak(text)
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': 'No text provided'}), 400
+
+
+# Wheel Speed Routes
+
+@bp.route('/wheels/speed', methods=['POST'])
+def set_wheel_speed():
+    data = request.json
+    speed = data.get('speed', 10000)
+    try:
+        state.set_wheel_speed(speed)
+        return jsonify({'status': 'ok', 'speed': state.get_wheel_speed()})
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 400
+
+@bp.route('/wheels/speed', methods=['GET'])
+def get_wheel_speed():
+    return jsonify({'speed': state.get_wheel_speed()})
 
 
 @bp.route('/display')
@@ -391,3 +426,68 @@ def ai_video_feed():
     return Response(generate_cv_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@bp.route('/memory')
+def memory_page():
+    return render_template('memory.html')
+
+
+@bp.route('/api/memory', methods=['GET'])
+def get_memories():
+    from core.memory_store import memory_store
+    notes = memory_store.get_notes(limit=50)
+    return jsonify({'notes': notes})
+
+
+@bp.route('/api/memory', methods=['POST'])
+def add_memory():
+    from core.memory_store import memory_store
+    data = request.json
+    category = data.get('category', 'other')
+    content = data.get('content', '')
+    if not content:
+        return jsonify({'status': 'error', 'error': 'Content required'}), 400
+    note_id = memory_store.save_note(category, content)
+    return jsonify({'status': 'ok', 'id': note_id})
+
+
+@bp.route('/api/memory/<int:note_id>', methods=['DELETE'])
+def delete_memory(note_id):
+    from core.memory_store import memory_store
+    with memory_store._db_lock:
+        cursor = memory_store.conn.cursor()
+        cursor.execute('DELETE FROM notes WHERE id = ?', (note_id,))
+        memory_store.conn.commit()
+        deleted = cursor.rowcount > 0
+    if deleted:
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': 'Note not found'}), 404
+
+
+@bp.route('/api/memory/<int:note_id>', methods=['PUT'])
+def update_memory(note_id):
+    from core.memory_store import memory_store
+    data = request.json
+    category = data.get('category')
+    content = data.get('content')
+    
+    with memory_store._db_lock:
+        cursor = memory_store.conn.cursor()
+        if category and content:
+            cursor.execute('UPDATE notes SET category = ?, content = ? WHERE id = ?', (category, content, note_id))
+        elif content:
+            cursor.execute('UPDATE notes SET content = ? WHERE id = ?', (content, note_id))
+        elif category:
+            cursor.execute('UPDATE notes SET category = ? WHERE id = ?', (category, note_id))
+        memory_store.conn.commit()
+        updated = cursor.rowcount > 0
+    
+    if updated:
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': 'Note not found'}), 404
+
+
+@bp.route('/api/memory/clear', methods=['POST'])
+def clear_memories():
+    from core.memory_store import memory_store
+    memory_store.clear_all()
+    return jsonify({'status': 'ok'})

@@ -6,15 +6,24 @@ import time
 import os
 import sys
 from typing import List, Optional, Dict, Any
+from collections import deque
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain.chat_models import init_chat_model
 
 load_dotenv()
 
-from robocrew.core.robot_system import RobotSystem
-from robocrew.core.utils import capture_image
+from core.utils import capture_image
+# Try relative import as fallback or test
+try:
+    from core.memory_store import memory_store
+except ImportError:
+    print("DEBUG: Absolute import failed, trying relative...")
+    from .memory_store import memory_store
+
 from state import state
+from qr_scanner import QRScanner
+from core.robot_system import RobotSystem
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +55,13 @@ CRITICAL: USE YOUR OWN VISUAL JUDGMENT
 - YOU must look at the actual image and decide if the path is safe.
 - If you see ANY wall or obstacle in front of you, DO NOT MOVE FORWARD.
 
+MISSION OBJECTIVES:
+1. EXECUTE TASK: Your Main Mission is defined by the user (Current Task). Focus on completing it efficiently.
+2. BE SAFE: Avoid collisions.
+3. BACKGROUND OBSERVATION: While executing your main mission, passively observe the environment.
+   - If you pass a distinct landmark or enter a new room, quicky use `save_note` to record it.
+   - Do NOT deviate from your main path just to explore, unless the task requires it.
+
 ROBOT CHARACTERISTICS:
 - You are approximately 30cm wide.
 - Your camera shows what is directly ahead - walls on the sides WILL hit you if you move forward.
@@ -71,12 +87,30 @@ PRECISION MODE PROTOCOL:
     - If you can still see the door frame or walls on your side, KEEP IT ENABLED.
     - Only disable when the space opens up significantly.
 
+APPROACH MODE (MANIPULATION):
+- Use `enable_approach_mode` ONLY when you need to get within touching distance of a surface (counter, table, button).
+- Standard safety stops prevents this, so Approach Mode relaxes them.
+- **DANGER**: You can crash in this mode. Move SLOWLY (small steps).
+- **PROTOCOL**:
+  1. Align with the target from a distance.
+  2. Enable Approach Mode.
+  3. Move Forward in small increments.
+  4. STOP when the target fills the bottom of your view.
+  5. Disable Approach Mode immediately after interaction or backing away.
+
+QR CODE CONTEXT:
+- You may occasionally see QR codes in the environment. These contain context about the location or objects (e.g., "Room: Kitchen", "Object: Generator").
+- **DO NOT EXPECT THEM everywhere**. They are sparse.
+- If the system explicitly tells you a QR code was detected ("CONTEXT: Visible QR Code says..."), use that information to orient yourself or confirm you are in the right place.
+- Do not ask for QR codes or refuse to move because you don't see one. Rely on your vision and obstacles first.
+
 NAVIGATION RULES:
 1. LOOK AT THE IMAGE before every move. What do you actually see?
-2. If there is a wall in the view, TURN AWAY first.
+2. **ALIGNMENT RULE**: Before approaching any surface (counter, table), you MUST be PERPENDICULAR (facing it directly). If the edge is slanted, TURN to align first. DO NOT approach at an angle.
 3. Start with small moves (0.3m). If clear, you can go further (up to 1.0m).
-4. The safety system will STOP you if you miss an obstacle. Trust it.
-5. Prefer open spaces. Avoid narrow passages.
+4. **APPROACH RULE**: In Approach Mode, you move VERY slowly (10% speed). You CAN use larger steps (0.4m - 1m) to save time. If you are certain ernough that you are as close as you can get, the approach is finished.
+5. The safety system will STOP you if you miss an obstacle. Trust it.
+6. Prefer open spaces. Avoid narrow passages.
 
 WHEN YOU SEE A WALL:
 - STOP immediately
@@ -89,6 +123,18 @@ BACKWARD MOVEMENT SAFETY:
 - Only go backward to unstick yourself from a wall.
 - NEVER go backward twice in a row. It is unsafe.
 - If you back up, your next move MUST be a turn or forward.
+
+MEMORY CONTEXT:
+- A compressed memory of your recent actions is provided (e.g., "FWD✓, TL✓, FWD✗").
+- ✓ means successful, ✗ means blocked.
+- If you see a pattern warning, it means you are repeating the same actions. STOP doing that immediately.
+- Use the location history (from QR codes) to understand where you've been.
+
+PERSISTENT NOTES:
+- Use `save_note` to remember important observations about the environment (room layouts, landmarks, dead-ends).
+- Categories: 'layout', 'landmark', 'obstacle', 'path', 'other'
+- Your saved notes persist across sessions and will be shown to you as PERSISTENT MEMORY.
+- Example: save_note("layout", "Living room has couch on left, TV on right")
 """
         self.system_prompt = system_prompt or base_prompt
         self.message_history = [SystemMessage(content=self.system_prompt)]
@@ -99,6 +145,15 @@ BACKWARD MOVEMENT SAFETY:
         self.stuck_counter = 0
         self.last_action = None
         self.latest_rotation_hint = None
+        
+        # Action History for pattern detection
+        self.action_history = deque(maxlen=15)
+        self.location_history = deque(maxlen=10)
+        self.pattern_warning_level = 0
+        
+        # QR Scanner
+        self.qr_scanner = QRScanner()
+        self.qr_context = []
 
     def set_task(self, task: str):
         """Set a new task for the agent."""
@@ -140,24 +195,106 @@ BACKWARD MOVEMENT SAFETY:
         self.stuck_counter = 0
         self.last_action = None
         self.current_task = "Idle"
+        self.action_history.clear()
+        self.location_history.clear()
+        self.pattern_warning_level = 0
         logger.info("Agent reset.")
 
-    def _check_stuck_condition(self) -> Optional[str]:
-        """
-        Check if the agent is stuck and return a forced action or warning if needed.
-        """
-        stuck_threshold = 3
+    def _record_action(self, action_name: str, was_blocked: bool = False):
+        """Record an action to the history buffer."""
+        self.action_history.append({
+            'action': action_name,
+            'time': time.time(),
+            'blocked': was_blocked,
+            'pose': state.pose.copy() if state.pose else None
+        })
+
+    def _detect_repeating_pattern(self) -> Optional[str]:
+        """Detect if recent actions form a repeating pattern."""
+        if len(self.action_history) < 4:
+            return None
         
-        if self.stuck_counter >= stuck_threshold:
-            logger.warning(f"Agent is stuck (counter={self.stuck_counter}). Forcing intervention.")
+        actions = [h['action'] for h in self.action_history]
+        
+        for pattern_len in [2, 3, 4]:
+            if len(actions) < pattern_len * 2:
+                continue
             
-            # Reset stuck counter partially to give it a chance after intervention
-            self.stuck_counter = 0 
+            pattern = actions[-pattern_len:]
+            prev_pattern = actions[-(pattern_len * 2):-pattern_len]
             
-            # Force a turn to break the loop
-            # If we were stuck going forward, turn around.
+            if pattern == prev_pattern:
+                if len(actions) >= pattern_len * 3:
+                    prev_prev = actions[-(pattern_len * 3):-(pattern_len * 2)]
+                    if prev_prev == pattern:
+                        return f"SEVERE: [{' → '.join(pattern)}] repeated 3x"
+                return f"[{' → '.join(pattern)}] repeated"
+        
+        blocked_count = sum(1 for h in list(self.action_history)[-6:] if h.get('blocked'))
+        if blocked_count >= 4:
+            return f"{blocked_count} blocked attempts in last 6 actions"
+        
+        return None
+
+    def _generate_memory_context(self) -> str:
+        """Generate compressed text summary of recent actions and context."""
+        lines = []
+        
+        if self.action_history:
+            recent = list(self.action_history)[-8:]
+            action_strs = []
+            for h in recent:
+                name = h['action'].replace('move_', '').replace('turn_', 'T').upper()[:3]
+                suffix = '✗' if h.get('blocked') else '✓'
+                action_strs.append(f"{name}{suffix}")
+            lines.append(f"MEMORY: Recent actions: {', '.join(action_strs)}")
+        
+        if self.location_history:
+            locs = list(self.location_history)[-3:]
+            loc_strs = [f"{l['name']}" for l in locs]
+            lines.append(f"MEMORY: Locations: {' → '.join(loc_strs)}")
+        
+        blocked_recent = sum(1 for h in list(self.action_history)[-5:] if h.get('blocked'))
+        if blocked_recent >= 2:
+            lines.append(f"MEMORY: Streak: {blocked_recent} blocked in last 5 attempts")
+        
+        pattern = self._detect_repeating_pattern()
+        if pattern:
+            if "SEVERE" in pattern:
+                lines.append(f"⚠️ LOOP DETECTED: {pattern}. MUST try completely different approach!")
+            else:
+                lines.append(f"⚠️ Pattern: {pattern}. Consider a different strategy.")
+        
+        persistent = memory_store.generate_context_summary(max_notes=10)
+        if persistent:
+            lines.append(persistent)
+        
+        return '\n'.join(lines)
+
+    def _check_stuck_condition(self) -> Optional[str]:
+        """Check if the agent is stuck using pattern analysis."""
+        pattern = self._detect_repeating_pattern()
+        
+        if pattern and "SEVERE" in pattern:
+            logger.warning(f"Severe loop detected: {pattern}. Forcing intervention.")
+            self.pattern_warning_level = 0
+            self.action_history.clear()
             return "FORCE_TURN_AROUND"
-            
+        
+        if self.stuck_counter >= 3:
+            logger.warning(f"Stuck counter={self.stuck_counter}. Forcing intervention.")
+            self.stuck_counter = 0
+            return "FORCE_TURN_AROUND"
+        
+        if pattern:
+            self.pattern_warning_level += 1
+            if self.pattern_warning_level >= 2:
+                logger.warning(f"Pattern persists: {pattern}. Forcing intervention.")
+                self.pattern_warning_level = 0
+                return "FORCE_TURN_AROUND"
+        else:
+            self.pattern_warning_level = max(0, self.pattern_warning_level - 1)
+        
         return None
 
     def step(self) -> str:
@@ -173,9 +310,39 @@ BACKWARD MOVEMENT SAFETY:
         if frame is None:
             return "Camera error"
             
+        # --- QR SCAN ---
+        qr_title, qr_points, qr_new_data = self.qr_scanner.scan(frame, state.pose)
+        qr_alert = ""
+        
+        if qr_new_data:
+            loc_str = f"x={state.pose.get('x', 0):.1f}, y={state.pose.get('y', 0):.1f}"
+            qr_alert = f"CONTEXT UPDATE: Visual System detected meaningful marker: '{qr_new_data}' at estimated location ({loc_str})."
+            title = qr_new_data.split(':', 1)[0].strip()
+            self.location_history.append({'name': title, 'time': time.time()})
+
         # 2. Safety Check & Processing
         safe_actions, overlay, guidance, metrics = self._check_safety(frame)
         self.latest_rotation_hint = metrics.get('rotation_hint')
+        
+        # Draw QR Visuals on Overlay (if overlay exists)
+        if overlay is not None and qr_points is not None:
+             try:
+                 points = qr_points
+                 if points.ndim == 3 and points.shape[0] == 1:
+                    points = points[0]
+                 
+                 points = points.astype(int)
+                 
+                 for i in range(len(points)):
+                     pt1 = tuple(points[i])
+                     pt2 = tuple(points[(i+1) % len(points)])
+                     cv2.line(overlay, pt1, pt2, (0, 255, 0), 3)
+                 
+                 if qr_title:
+                     x, y = points[0]
+                     cv2.putText(overlay, qr_title, (int(x), int(y) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+             except Exception as e:
+                 logger.warning(f"Failed to draw QR visuals: {e}")
         
         # Use overlay if available, otherwise raw frame
         display_frame = overlay if overlay is not None else frame
@@ -195,6 +362,10 @@ BACKWARD MOVEMENT SAFETY:
         # Inject Allowed Actions & Warnings
         reflex_msg = f"REFLEX SYSTEM: Allowed actions are {safe_actions}. Green Marked Paths are SAFE. Red Marked Areas are BLOCKED."
         
+        memory_context = self._generate_memory_context()
+        if memory_context:
+            reflex_msg = memory_context + "\n" + reflex_msg
+        
         c_fwd = metrics.get('c_fwd', 0)
         
         if state.precision_mode:
@@ -209,12 +380,15 @@ BACKWARD MOVEMENT SAFETY:
             if "FORWARD" not in safe_actions:
                  reflex_msg += " (HINT: If you are trying to pass a narrow door/gap, ENABLE PRECISION MODE to allow closer approach.)"
         
-        # Close range warning (independent of mode, but useful context)
-        if c_fwd > 380:
-             reflex_msg += "\n(WARNING: You are very close to an obstacle. Visual indicators might be distorted. Back up if unsure.)"
-        
+        # We use the NEW data as immediate context, but we could also use the raw string if we want:
+        if qr_new_data:
+             reflex_msg += f"\nCONTEXT: Visible QR Code says: '{qr_new_data}'. Use this info if relevant."
+
         if self.stuck_counter > 0:
             reflex_msg += f"\nWARNING: You have been blocked {self.stuck_counter} times recently. You are likely STUCK. Do NOT try the same action again. Turn around or find a new path."
+        
+        # Memory Reminder
+        reflex_msg += "\nREMINDER: If you see something new (room, landmark, object), USE `save_note` to record it now."
             
         if forced_action == "FORCE_TURN_AROUND":
             reflex_msg += "\nCRITICAL: YOU ARE STUCK. IGNORING YOUR OUTPUT. FORCING A TURN."
@@ -225,6 +399,12 @@ BACKWARD MOVEMENT SAFETY:
              "type": "text", 
              "text": reflex_msg
         })
+        
+        if qr_alert:
+            content.append({
+                "type": "text", 
+                "text": qr_alert
+            })
             
         self.message_history.append(HumanMessage(content=content))
 
@@ -237,7 +417,7 @@ BACKWARD MOVEMENT SAFETY:
              elif "turn_right" in self.tool_map:
                  self.tool_map["turn_right"].invoke({"angle_degrees": 90})
                  
-             self.message_history.append(ToolMessage(content="System forced 90 degree turn to unstuck robot.", tool_call_id="system_forced_turn"))
+             self.message_history.append(SystemMessage(content="System Notification: Forced 90 degree turn executed to unstuck robot."))
              return "Stuck Detected - Forced Turn Executed"
         
         # 6. LLM Inference
@@ -290,6 +470,7 @@ BACKWARD MOVEMENT SAFETY:
                     if blocked:
                         any_blocked = True
                         self.stuck_counter += 1
+                        self._record_action(tool_name, was_blocked=True)
                         logger.warning(f"Action blocked. Stuck counter: {self.stuck_counter}")
                     
                     if not blocked:
@@ -298,8 +479,9 @@ BACKWARD MOVEMENT SAFETY:
                             try:
                                 result = tool.invoke(args)
                                 self.last_action = tool_name
+                                self._record_action(tool_name, was_blocked=False)
                                 
-                                # Successful move resets stuck counter
+
                                 if tool_name in ["move_forward", "turn_left", "turn_right"]:
                                      self.stuck_counter = 0
                                      

@@ -6,7 +6,7 @@ from lerobot.async_inference.robot_client import RobotClient
 from lerobot.async_inference.configs import RobotClientConfig
 from lerobot.robots.so101_follower.config_so101_follower import SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
-from robocrew.core.utils import capture_image
+from core.utils import capture_image
 import time
 import threading
 
@@ -17,10 +17,22 @@ def create_end_task():
     @tool
     def end_task(reason: str) -> str:
         """Call this when you have completed your assigned task or mission. Provide a reason explaining what was accomplished."""
+        import tts
+        
         print(f"[TOOL] end_task - reason: {reason}")
         robot_state.ai_enabled = False
+        robot_state.precision_mode = False
         robot_state.ai_status = f"Task completed: {reason}"
         robot_state.add_ai_log(f"TASK COMPLETED: {reason}")
+        
+        # Ensure Approach Mode is disabled
+        robot_state.approach_mode = False
+        if robot_state.robot_system and robot_state.robot_system.servo_controller:
+             robot_state.robot_system.servo_controller.set_speed(10000)
+        
+        # TTS Announcement
+        tts.speak("Task complete")
+             
         return f"Task ended. Reason: {reason}. AI has been paused."
     return end_task
 
@@ -40,6 +52,62 @@ def create_disable_precision_mode():
         robot_state.precision_mode = False
         return "Precision Mode DISABLED. Alignment guidance hidden."
     return disable_precision_mode
+
+
+def create_save_note():
+    @tool
+    def save_note(category: str, content: str) -> str:
+        """Save a note to persistent memory about the environment. Use this to remember important layout details, landmarks, or observations. Categories: 'layout', 'landmark', 'obstacle', 'path', 'other'."""
+        from core.memory_store import memory_store
+        from state import state as robot_state
+        
+        location = robot_state.pose.copy() if robot_state.pose else None
+        note_id = memory_store.save_note(category, content, location)
+        print(f"[TOOL] save_note({category}, {content[:50]}...) -> id={note_id}")
+        return f"Note saved: [{category}] {content}"
+    return save_note
+
+
+def create_enable_approach_mode():
+    @tool
+    def enable_approach_mode() -> str:
+        """Enable Approach Mode. Use this ONLY when you need to drive very close to a surface (counter, table) for manipulation. Disables standard safety stops."""
+        import tts
+        
+        from state import state as robot_state
+        robot_state.approach_mode = True
+        robot_state.precision_mode = False
+        
+        # TTS Announcement
+        tts.speak("Safety disabled")
+             
+        return "Approach Mode ENABLED. Safety thresholds relaxed. Speed limited to 10%."
+    return enable_approach_mode
+
+def create_disable_approach_mode():
+    @tool
+    def disable_approach_mode() -> str:
+        """Disable Approach Mode. Re-enables standard safety stops."""
+        from state import state as robot_state
+        robot_state.approach_mode = False
+        
+        # Restore Speed (100%)
+        if robot_state.robot_system and robot_state.robot_system.servo_controller:
+             robot_state.robot_system.servo_controller.set_speed(10000)
+             
+        return "Approach Mode DISABLED. Safety systems active. Speed restored."
+    return disable_approach_mode
+
+
+def create_speak():
+    @tool
+    def speak(message: str) -> str:
+        """Speak a message out loud via TTS. Use ONLY when necessary to communicate important information (task complete, warnings, errors). Do NOT use for routine status updates."""
+        import tts
+        print(f"[TOOL] speak: {message}")
+        tts.speak(message)
+        return f"Spoke: {message}"
+    return speak
 
 
 def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_safety: bool = False, movement_type: str = None):
@@ -78,6 +146,7 @@ def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_saf
             except Exception as e:
                 print(f"[SAFETY] Error during check: {e}")
 
+                
         time.sleep(min(check_interval, duration - elapsed))
         elapsed += check_interval
     return True
@@ -89,7 +158,11 @@ def create_move_forward(servo_controller):
         """Drives the robot forward for a specific distance."""
         distance = float(distance_meters)
         duration = abs(distance) / 0.15
-        print(f"[TOOL] move_forward({distance}) for {duration:.1f}s")
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+            
+        print(f"[TOOL] move_forward({distance}) for {duration:.1f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': True, 'backward': False, 'left': False, 'right': False}
         # Enable Continuous Safety Monitoring for forward movement
@@ -98,6 +171,30 @@ def create_move_forward(servo_controller):
         
         if not completed:
             return "EMERGENCY STOP - Movement cancelled."
+            
+        # Check for Auto-Disable on Arrival (Approach Mode only)
+        if robot_state.approach_mode and robot_state.robot_system:
+             try:
+                 frame = robot_state.robot_system.get_frame()
+                 if frame is not None:
+                     detector = robot_state.get_detector()
+                     if detector:
+                         _, _, metrics = detector.process(frame)
+                         c_fwd = metrics.get('c_fwd', 0)
+                         
+                         # If extremely close (> 380), auto-disable
+                         if c_fwd > 380:
+                             robot_state.approach_mode = False
+                             if robot_state.robot_system.servo_controller:
+                                 robot_state.robot_system.servo_controller.set_speed(10000)
+                             return f"Moved forward {distance:.2f} meters. ✓ TARGET REACHED (c_fwd={c_fwd}). Approach Mode Auto-Disabled. You are now touching/very close to the object."
+                         
+                         # If getting close (> 300), warn
+                         elif c_fwd > 300:
+                             return f"Moved forward {distance:.2f} meters. PROXIMITY WARNING: Very close (c_fwd={c_fwd}). One more small step should reach target."
+             except Exception:
+                 pass
+                 
         return f"Moved forward {distance:.2f} meters."
 
     return move_forward
@@ -108,7 +205,11 @@ def create_move_backward(servo_controller):
         """Drives the robot backward for a specific distance."""
         distance = float(distance_meters)
         duration = abs(distance) / 0.15
-        print(f"[TOOL] move_backward({distance}) for {duration:.1f}s")
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+            
+        print(f"[TOOL] move_backward({distance}) for {duration:.1f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': True, 'left': False, 'right': False}
         completed = _interruptible_sleep(duration)
@@ -131,7 +232,10 @@ def create_turn_right(servo_controller):
         calculated_duration = abs(angle) / 60
         duration = max(calculated_duration, MIN_DURATION)
         
-        print(f"[TOOL] turn_right({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] turn_right({angle}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': True}
         completed = _interruptible_sleep(duration)
@@ -154,7 +258,10 @@ def create_turn_left(servo_controller):
         calculated_duration = abs(angle) / 60
         duration = max(calculated_duration, MIN_DURATION)
         
-        print(f"[TOOL] turn_left({angle}) -> dur={duration:.2f}s (calc={calculated_duration:.2f}s)")
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] turn_left({angle}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
         
         robot_state.movement = {'forward': False, 'backward': False, 'left': True, 'right': False}
         completed = _interruptible_sleep(duration)

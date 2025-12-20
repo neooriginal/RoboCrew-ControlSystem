@@ -44,6 +44,9 @@ class RobotState:
         # Precision Mode (for alignment visualization)
         self.precision_mode = False
         
+        # Approach Mode (for close interaction)
+        self.approach_mode = False
+        
         # AI State
         self.ai_enabled = False
         self.ai_status = "Idle"
@@ -54,6 +57,11 @@ class RobotState:
         # Remote control tracking
         self.last_remote_activity = 0  # timestamp of last remote input
         self.last_movement_activity = 0 # timestamp of last movement command
+        
+        # Wheel speed control
+        self.default_wheel_speed = 10000  # Default speed from servo_controls.py
+        self.manual_wheel_speed = None  # When None, use controller's default
+        self.safety_warning_triggered = False  # Track if safety warning was given
         
         # Shared Obstacle Detector
         self.detector = None
@@ -128,6 +136,40 @@ class RobotState:
                     print(f"Error creating detector: {e}")
                     return None
             return self.detector
+    
+    def set_wheel_speed(self, speed):
+        """Set manual wheel speed."""
+        with self.lock:
+            # Clamp speed between 1000 and 20000
+            self.manual_wheel_speed = max(1000, min(20000, int(speed)))
+            
+            # Trigger safety warning if exceeding 13000
+            if self.manual_wheel_speed > 13000 and not self.safety_warning_triggered:
+                self.safety_warning_triggered = True
+                # Import here to avoid circular dependency
+                import tts
+                tts.speak("Safety limiters off")
+            elif self.manual_wheel_speed <= 13000 and self.safety_warning_triggered:
+                # Reset warning flag when back in safe range
+                self.safety_warning_triggered = False
+            
+            if self.controller and hasattr(self.controller, 'set_speed'):
+                self.controller.set_speed(self.manual_wheel_speed)
+    
+    def get_wheel_speed(self):
+        """Get current wheel speed."""
+        with self.lock:
+            if self.manual_wheel_speed is not None:
+                return self.manual_wheel_speed
+            return self.default_wheel_speed
+    
+    def reset_wheel_speed(self):
+        """Reset wheel speed to default."""
+        with self.lock:
+            self.manual_wheel_speed = None
+            self.safety_warning_triggered = False  # Reset warning flag
+            if self.controller and hasattr(self.controller, 'set_speed'):
+                self.controller.set_speed(self.default_wheel_speed)
 
     def add_ai_log(self, message: str):
         """Add a log message to AI logs."""

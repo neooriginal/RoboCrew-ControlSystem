@@ -1,0 +1,4 @@
+- refuse AI navigation if too dark
+- stall detection of motors
+- AI head movement
+- head calibration

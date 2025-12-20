@@ -20,6 +20,14 @@ const armReachDisplay = document.getElementById('arm-reach');
 const armWristDisplay = document.getElementById('arm-wrist-val');
 const armGripper = document.getElementById('arm-gripper');
 
+// TTS elements
+const ttsTextInput = document.getElementById('tts-text');
+const ttsSpeakBtn = document.getElementById('tts-speak-btn');
+
+// Wheel speed elements
+const wheelSpeedSlider = document.getElementById('wheel-speed');
+const wheelSpeedValue = document.getElementById('wheel-speed-value');
+
 // State
 let currentMode = 'none'; // 'none', 'drive', 'arm'
 let driveLocked = false;
@@ -453,3 +461,81 @@ setInterval(() => {
         sendMovement();
     }
 }, 200);
+
+// ============== TTS Controls ==============
+
+// TTS speak button
+ttsSpeakBtn.addEventListener('click', async () => {
+    const text = ttsTextInput.value.trim();
+    if (!text) return;
+
+    try {
+        await fetch('/tts/speak', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+    } catch (e) {
+        console.log('TTS speak error:', e.message);
+    }
+});
+
+// TTS text input - speak on Enter key
+ttsTextInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        ttsSpeakBtn.click();
+    }
+});
+
+// ============== Wheel Speed Controls ==============
+
+// Wheel speed slider
+wheelSpeedSlider.addEventListener('input', async (e) => {
+    const speed = parseInt(e.target.value);
+    wheelSpeedValue.textContent = speed;
+
+    // Change color if exceeding safety limit (13000)
+    if (speed > 13000) {
+        wheelSpeedValue.style.color = '#ff4444';  // Red
+        wheelSpeedSlider.style.accentColor = '#ff4444';
+    } else {
+        wheelSpeedValue.style.color = '#aaa';  // Default gray
+        wheelSpeedSlider.style.accentColor = '#FF9800';  // Orange
+    }
+
+    try {
+        await fetch('/wheels/speed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ speed })
+        });
+    } catch (e) {
+        console.log('Wheel speed error:', e.message);
+    }
+});
+
+// Load current wheel speed on page load
+async function loadWheelSpeed() {
+    try {
+        const res = await fetch('/wheels/speed');
+        const data = await res.json();
+        if (data.speed) {
+            wheelSpeedSlider.value = data.speed;
+            wheelSpeedValue.textContent = data.speed;
+
+            // Set appropriate color based on speed
+            if (data.speed > 13000) {
+                wheelSpeedValue.style.color = '#ff4444';
+                wheelSpeedSlider.style.accentColor = '#ff4444';
+            } else {
+                wheelSpeedValue.style.color = '#aaa';
+                wheelSpeedSlider.style.accentColor = '#FF9800';
+            }
+        }
+    } catch (e) {
+        console.log('Wheel speed load error:', e.message);
+    }
+}
+
+loadWheelSpeed();
