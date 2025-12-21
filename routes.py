@@ -426,33 +426,6 @@ def ai_video_feed():
     return Response(generate_cv_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-@bp.route('/api/map')
-def get_map():
-    if state.slam_system is None:
-         return jsonify({'status': 'error', 'error': 'SLAM not initialized'})
-    
-    # We return the trajectory and a downsampled pointcloud for speed
-    trajectory = [list(pt) for pt in state.slam_system.slam_map.trajectory]
-    
-    # Simple point cloud flattening
-    points = []
-    if state.slam_system.slam_map.point_cloud:
-         # point_cloud is a list of (3, N) arrays. We need to flatten.
-         # For visualization, we just take a subset (every 5th point) to safe bandwidth
-         try:
-             all_points = np.hstack(state.slam_system.slam_map.point_cloud)
-             points = all_points.T[::5].tolist() # Transpose to (N,3) and slice
-         except:
-             pass
-             
-    return jsonify({
-        'status': 'ok',
-        'trajectory': trajectory,
-        'points': points,
-        'pose': state.slam_system.slam_map.camera_pose.tolist()
-    })
-    
-    
 @bp.route('/memory')
 def memory_page():
     return render_template('memory.html')
@@ -512,6 +485,42 @@ def update_memory(note_id):
         return jsonify({'status': 'ok'})
     return jsonify({'status': 'error', 'error': 'Note not found'}), 404
 
+
+
+@bp.route('/api/slam_map')
+def get_slam_map():
+    """Return current SLAM map and trajectory."""
+    if state.slam_system is None:
+         return jsonify({'trajectory': [], 'points': []})
+    
+    # Extract data securely
+    try:
+        # Convert numpy arrays to lists for JSON serialization
+        traj = [t.tolist() for t in state.slam_system.slam_map.trajectory]
+        
+        # Point cloud is a list of arrays, flatten it for simpler frontend handling
+        # Or just send recent points to save bandwidth? For now, send all.
+        points = []
+        if state.slam_system.slam_map.point_cloud:
+             # points are 3x1 arrays in a list, or chunks
+             # The system adds (3, N) chunks.
+             # Let's flatten to a simple list of [x, y, z] dicts or lists
+             accumulated_points = np.hstack(state.slam_system.slam_map.point_cloud)
+             # Shape is (3, TotalPoints)
+             # Transpose to (TotalPoints, 3)
+             points = accumulated_points.T.tolist()
+             
+             # Optimization: Limit points if too many?
+             if len(points) > 2000:
+                  points = points[-2000:]
+
+        return jsonify({
+            'trajectory': traj,
+            'points': points,
+            'scale': 1.0 # Placeholder
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @bp.route('/api/memory/clear', methods=['POST'])
 def clear_memories():

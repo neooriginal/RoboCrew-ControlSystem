@@ -630,36 +630,3 @@ body {
     font-family: 'Segoe UI', system-ui, sans-serif;
     mix-blend-mode: overlay;
 }
-
-
-/* SLAM Map Visualization */
-.slam-map-container {
-    position: absolute;
-    bottom: 25px;
-    left: 25px;
-    width: 250px;
-    height: 200px;
-    background: rgba(10, 10, 30, 0.6);
-    backdrop-filter: blur(15px);
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-    z-index: 60;
-}
-
-#slam-map-canvas {
-    width: 100%;
-    height: 100%;
-    opacity: 0.8;
-}
-
-.map-label {
-    position: absolute;
-    top: 10px;
-    left: 15px;
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 1px;
-    font-weight: 700;
-}
