@@ -4,6 +4,7 @@ import numpy as np
 import logging
 import time
 import os
+import sys
 from typing import List, Optional, Dict, Any
 from collections import deque
 from dotenv import load_dotenv
@@ -173,7 +174,6 @@ PERSISTENT NOTES:
             
         try:
             # Use import inside method to avoid circular imports layout issues
-            import sys
             if os.getcwd() not in sys.path:
                 sys.path.append(os.getcwd())
             from obstacle_detection import ObstacleDetector
@@ -493,6 +493,7 @@ PERSISTENT NOTES:
                                 self.last_action = tool_name
                                 self._record_action(tool_name, was_blocked=False)
                                 
+
                                 if tool_name in ["move_forward", "turn_left", "turn_right"]:
                                      self.stuck_counter = 0
                                      

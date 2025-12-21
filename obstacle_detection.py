@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import threading
 from collections import deque
+import time
 from state import state
 
 logger = logging.getLogger(__name__)
@@ -327,7 +328,6 @@ class ObstacleDetector:
         raw_gap_center = (best_cluster[0] + best_cluster[-1]) // 2
         
         # Time-based smoothing: only update position every 5 seconds
-        import time
         current_time = time.time()
         
         if self.last_gap_center is None:
