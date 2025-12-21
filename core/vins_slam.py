@@ -36,6 +36,7 @@ class VinsSlam:
         
         self.camera_pose = np.eye(4)
         self.trajectory = deque(maxlen=max_trajectory_points)
+        self.trajectory.append(self.camera_pose[:3, 3].copy())  # Initialize with start point
         self.point_cloud = deque(maxlen=max_cloud_chunks)
         
         self.keyframe_indices = []
@@ -58,6 +59,7 @@ class VinsSlam:
         with self.lock:
             self.camera_pose = np.eye(4)
             self.trajectory.clear()
+            self.trajectory.append(self.camera_pose[:3, 3].copy())  # Initialize with start point
             self.point_cloud.clear()
             self.keyframe_indices = []
             self.keyframe_images = []
@@ -262,14 +264,14 @@ class VinsSlam:
         current_dist = np.linalg.norm(t_flat - median_t)
         median_dist = np.median(np.linalg.norm(buffer_array - median_t, axis=1))
         
-        if current_dist > median_dist * 3 + 0.01:
+        if current_dist > median_dist * 5 + 0.05:  # Relaxed outlier rejection
             return False
         
         alpha = 0.3
         self.smoothed_translation = alpha * t_flat + (1 - alpha) * self.smoothed_translation
         
         t_mag = np.linalg.norm(self.smoothed_translation)
-        if t_mag < 0.002:
+        if t_mag < 0.0001:  # Relaxed from 0.002 to capture small movements
             return False
             
         with self.lock:
