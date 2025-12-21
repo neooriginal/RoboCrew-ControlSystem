@@ -51,6 +51,9 @@ class VinsSlam:
         self.total_points = 0
         self.loop_closures = 0
         
+        self.translation_buffer = deque(maxlen=5)
+        self.smoothed_translation = np.zeros(3)
+        
     def reset(self):
         with self.lock:
             self.camera_pose = np.eye(4)
@@ -66,6 +69,8 @@ class VinsSlam:
             self.imu_sim_time = 0.0
             self.total_points = 0
             self.loop_closures = 0
+            self.translation_buffer.clear()
+            self.smoothed_translation = np.zeros(3)
     
     def process_frame(self, frame):
         if frame is None:
@@ -131,8 +136,14 @@ class VinsSlam:
                     self.keyframe_images.pop(0)
                     self.keyframe_indices.pop(0)
         
+        mean_flow = np.mean(np.linalg.norm(good_new - good_prev, axis=1))
+        if mean_flow < 0.5 or mean_flow > 50:
+            self.prev_frame = gray
+            self.prev_keypoints = good_new.reshape(-1, 1, 2)
+            return False
+        
         E, mask_E = cv2.findEssentialMat(
-            good_new, good_prev, K, method=cv2.RANSAC, prob=0.999, threshold=1.0
+            good_new, good_prev, K, method=cv2.RANSAC, prob=0.999, threshold=0.5
         )
         
         if E is None:
@@ -142,11 +153,25 @@ class VinsSlam:
         
         _, R, t, mask_pose = cv2.recoverPose(E, good_new, good_prev, K, mask=mask_E)
         
-        imu_data = self._generate_imu_reading(dt)
-        R_global = self.camera_pose[:3, :3]
-        R_fused, t_fused = self._fuse_visual_inertial(R, t, imu_data, dt, R_global)
+        inlier_count = np.sum(mask_pose)
+        if inlier_count < 30:
+            self.prev_frame = gray
+            self.prev_keypoints = good_new.reshape(-1, 1, 2)
+            return False
         
-        self._update_pose(R_fused, t_fused)
+        rotation_angle = np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1))
+        if rotation_angle > 0.15:
+            self.prev_frame = gray
+            self.prev_keypoints = good_new.reshape(-1, 1, 2)
+            return False
+        
+        R_global = self.camera_pose[:3, :3]
+        R_fused, t_fused = self._fuse_visual_inertial(R, t, None, dt, R_global)
+        
+        if not self._update_pose(R_fused, t_fused):
+            self.prev_frame = gray
+            self.prev_keypoints = good_new.reshape(-1, 1, 2)
+            return False
         
         mask_good = mask_E.ravel() == 1
         good_new_filtered = good_new[mask_good]
@@ -225,17 +250,38 @@ class VinsSlam:
         return R_vo, t_scaled
     
     def _update_pose(self, R_delta, t_delta):
-        t_mag = np.linalg.norm(t_delta)
-        if t_mag < 0.001:
-            return
+        t_flat = t_delta.flatten()
+        self.translation_buffer.append(t_flat)
+        
+        if len(self.translation_buffer) < 3:
+            return False
+        
+        buffer_array = np.array(list(self.translation_buffer))
+        median_t = np.median(buffer_array, axis=0)
+        
+        current_dist = np.linalg.norm(t_flat - median_t)
+        median_dist = np.median(np.linalg.norm(buffer_array - median_t, axis=1))
+        
+        if current_dist > median_dist * 3 + 0.01:
+            return False
+        
+        alpha = 0.3
+        self.smoothed_translation = alpha * t_flat + (1 - alpha) * self.smoothed_translation
+        
+        t_mag = np.linalg.norm(self.smoothed_translation)
+        if t_mag < 0.002:
+            return False
             
         with self.lock:
             T_delta = np.eye(4)
             T_delta[:3, :3] = R_delta
-            T_delta[:3, 3] = t_delta.flatten()
+            T_delta[:3, 3] = self.smoothed_translation
             
             self.camera_pose = self.camera_pose @ T_delta
             self.trajectory.append(self.camera_pose[:3, 3].copy())
+        
+        return True
+    
     
     def _triangulate_points(self, good_prev, good_new, R, t):
         P1 = K @ np.hstack((np.eye(3), np.zeros((3, 1))))
