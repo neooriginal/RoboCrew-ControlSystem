@@ -80,6 +80,11 @@ class RobotSystem:
 
     def get_frame(self):
         """Thread-safe frame capture."""
+        # Prefer shared frame from background thread
+        if state.current_frame is not None:
+             return state.current_frame
+             
+        # Fallback if background thread not running
         if not self.camera:
             return None
         with self.camera_lock:

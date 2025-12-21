@@ -426,6 +426,33 @@ def ai_video_feed():
     return Response(generate_cv_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@bp.route('/api/map')
+def get_map():
+    if state.slam_system is None:
+         return jsonify({'status': 'error', 'error': 'SLAM not initialized'})
+    
+    # We return the trajectory and a downsampled pointcloud for speed
+    trajectory = [list(pt) for pt in state.slam_system.slam_map.trajectory]
+    
+    # Simple point cloud flattening
+    points = []
+    if state.slam_system.slam_map.point_cloud:
+         # point_cloud is a list of (3, N) arrays. We need to flatten.
+         # For visualization, we just take a subset (every 5th point) to safe bandwidth
+         try:
+             all_points = np.hstack(state.slam_system.slam_map.point_cloud)
+             points = all_points.T[::5].tolist() # Transpose to (N,3) and slice
+         except:
+             pass
+             
+    return jsonify({
+        'status': 'ok',
+        'trajectory': trajectory,
+        'points': points,
+        'pose': state.slam_system.slam_map.camera_pose.tolist()
+    })
+    
+    
 @bp.route('/memory')
 def memory_page():
     return render_template('memory.html')

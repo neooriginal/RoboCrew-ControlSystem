@@ -124,6 +124,32 @@ def main():
     # Movement thread (manual control)
     threading.Thread(target=movement_loop, daemon=True).start()
     
+    # Camera Capture thread
+    import camera
+    threading.Thread(target=camera.start_camera_capture, daemon=True).start()
+
+    # SLAM thread
+    import vins_slam
+    def slam_loop():
+        """Background thread for VINS-SLAM."""
+        print("🗺️ SLAM System started")
+        slam = vins_slam.VinsSlamSystem()
+        state.slam_system = slam
+        
+        while state.running:
+            if state.current_frame is not None:
+                try:
+                    slam.process_frame(state.current_frame)
+                    # Update global pose state (X=Left/Right, Y=Depth/Forward)
+                    pose = slam.slam_map.camera_pose
+                    state.pose['x'] = float(pose[0, 3])
+                    state.pose['y'] = float(pose[1, 3])
+                except Exception as e:
+                    logger.error(f"SLAM error: {e}")
+            time.sleep(0.05)
+            
+    threading.Thread(target=slam_loop, daemon=True).start()
+    
     # AI Agent thread
     threading.Thread(target=agent_loop, daemon=True).start()
     
