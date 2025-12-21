@@ -290,20 +290,38 @@ class ServoControler:
 
     # Arm control
 
+    def _write_with_retry(self, bus, command: str, motor_id: int, value: int, retries: int = 3) -> bool:
+        """Write to a servo with retries."""
+        for attempt in range(retries):
+            try:
+                bus.write(command, motor_id, value)
+                return True
+            except Exception as e:
+                if attempt == retries - 1:
+                    print(f"Error writing {command} to ID {motor_id}: {e}")
+                    return False
+                time.sleep(0.05)
+        return False
+
     def _apply_arm_modes(self) -> None:
         # Disable torque before changing modes
         for motor_id in self._arm_ids:
-            self.wheel_bus.write("Torque_Enable", motor_id, 0)
+            self._write_with_retry(self.wheel_bus, "Torque_Enable", motor_id, 0)
         # Set arm to position mode
         for motor_id in self._arm_ids:
-            self.wheel_bus.write("Operating_Mode", motor_id, OperatingMode.POSITION.value)
+            self._write_with_retry(self.wheel_bus, "Operating_Mode", motor_id, OperatingMode.POSITION.value)
         # Re-enable torque for all motors on the bus
         self.wheel_bus.enable_torque()
 
     def get_arm_position(self) -> Dict[str, float]:
         if not self._arm_enabled:
             return {}
-        raw = self.wheel_bus.sync_read("Present_Position", list(self._arm_ids))
+        try:
+            raw = self.wheel_bus.sync_read("Present_Position", list(self._arm_ids))
+        except Exception:
+            # Return empty on read failure to avoid crashing loop
+            return {}
+            
         result = {}
         for joint_name, motor_id in ARM_SERVO_MAP.items():
             result[joint_name] = raw.get(motor_id, 0.0)
@@ -323,7 +341,11 @@ class ServoControler:
                 self._arm_positions[joint_name] = clamped
         
         if payload:
-            self.wheel_bus.sync_write("Goal_Position", payload)
+            try:
+                self.wheel_bus.sync_write("Goal_Position", payload)
+            except Exception as e:
+                print(f"Failed to write arm positions: {e}")
+                
         return self._arm_positions.copy()
 
     def set_arm_joint(self, joint_name: str, angle: float) -> float:
@@ -370,10 +392,7 @@ class ServoControler:
         for mid, load in head_loads.items():
             if abs(load) > threshold:
                 warnings.append(f"Head Motor {mid} stalled (Load: {load})")
-                try:
-                    self.head_bus.write("Torque_Enable", mid, 0)
-                except:
-                    pass
+                self._write_with_retry(self.head_bus, "Torque_Enable", mid, 0)
 
         # Check Arm
         if self._arm_enabled:
@@ -381,10 +400,7 @@ class ServoControler:
             for mid, load in arm_loads.items():
                 if abs(load) > threshold:
                     warnings.append(f"Arm Motor {mid} stalled (Load: {load})")
-                    try:
-                        self.wheel_bus.write("Torque_Enable", mid, 0)
-                    except:
-                        pass
+                    self._write_with_retry(self.wheel_bus, "Torque_Enable", mid, 0)
         
         if warnings:
             return "; ".join(warnings)
