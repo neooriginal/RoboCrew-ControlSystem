@@ -433,8 +433,6 @@ document.addEventListener('keydown', (e) => {
         // Arm keyboard controls
         if (['q', 'e', 'r', 'f', 't', 'g'].includes(key)) {
             sendArmKey(key);
-        } else if (key === 'h') {
-            armHome();
         }
     }
 });
