@@ -36,7 +36,7 @@ let armLocked = false;
 // Drive state
 let currentYaw = null;
 let currentPitch = null;
-let keysPressed = { w: false, a: false, s: false, d: false };
+let keysPressed = { w: false, a: false, s: false, d: false, q: false, e: false };
 let baselineYaw = 0;
 
 // Arm state
@@ -269,7 +269,9 @@ async function sendMovement() {
                 forward: keysPressed.w,
                 backward: keysPressed.s,
                 left: keysPressed.a,
-                right: keysPressed.d
+                right: keysPressed.d,
+                slide_left: keysPressed.q,
+                slide_right: keysPressed.e
             })
         });
     } catch (e) {
@@ -422,8 +424,8 @@ document.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
 
     if (currentMode === 'drive') {
-        // WASD movement
-        if (['w', 'a', 's', 'd'].includes(key) && !keysPressed[key]) {
+        // WASD movement + QE sliding
+        if (['w', 'a', 's', 'd', 'q', 'e'].includes(key) && !keysPressed[key]) {
             keysPressed[key] = true;
             sendMovement();
         }
@@ -440,7 +442,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
 
-    if (['w', 'a', 's', 'd'].includes(key)) {
+    if (['w', 'a', 's', 'd', 'q', 'e'].includes(key)) {
         keysPressed[key] = false;
         if (currentMode === 'drive') {
             sendMovement();
@@ -450,7 +452,7 @@ document.addEventListener('keyup', (e) => {
 
 // Stop movement on window blur
 window.addEventListener('blur', () => {
-    keysPressed = { w: false, a: false, s: false, d: false };
+    keysPressed = { w: false, a: false, s: false, d: false, q: false, e: false };
     sendMovement();
     setGripper(false);
 });

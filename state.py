@@ -17,7 +17,9 @@ class RobotState:
             'forward': False,
             'backward': False,
             'left': False,
-            'right': False
+            'right': False,
+            'slide_left': False,
+            'slide_right': False
         }
         self.lock = threading.Lock()
         self.last_error = None
@@ -79,7 +81,9 @@ class RobotState:
                 'forward': bool(data.get('forward')),
                 'backward': bool(data.get('backward')),
                 'left': bool(data.get('left')),
-                'right': bool(data.get('right'))
+                'right': bool(data.get('right')),
+                'slide_left': bool(data.get('slide_left')),
+                'slide_right': bool(data.get('slide_right'))
             }
     
     def get_movement(self):
@@ -94,7 +98,9 @@ class RobotState:
                 'forward': False,
                 'backward': False,
                 'left': False,
-                'right': False
+                'right': False,
+                'slide_left': False,
+                'slide_right': False
             }
     
     def set_control_mode(self, mode):

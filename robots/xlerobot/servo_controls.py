@@ -20,6 +20,8 @@ ACTION_MAP = {
     "down": {7: -1, 8: 0, 9: 1},
     "left": {7: 1, 8: 1, 9: 1},
     "right": {7: -1, 8: -1, 9: -1},
+    "slide_left": {7: 1, 8: -2, 9: 1},
+    "slide_right": {7: -1, 8: 2, 9: -1},
 }
 
 HEAD_SERVO_MAP = {"yaw": 7, "pitch": 8}
@@ -207,16 +209,24 @@ class ServoControler:
     def turn_right(self, degrees: float) -> Dict[int, int]:
         return self._wheels_run("right", float(degrees) / ANGULAR_DPS)
 
-    def set_velocity_vector(self, forward: float, lateral: float) -> Dict[int, int]:
+    def slide_left(self, meters: float) -> Dict[int, int]:
+        return self._wheels_run("slide_left", float(meters) / LINEAR_MPS)
+
+    def slide_right(self, meters: float) -> Dict[int, int]:
+        return self._wheels_run("slide_right", float(meters) / LINEAR_MPS)
+
+    def set_velocity_vector(self, forward: float, lateral: float, rotation: float = 0.0) -> Dict[int, int]:
         """
-        Set wheel velocities based on forward and lateral components using vector addition.
+        Set wheel velocities based on forward, lateral, and rotation components.
         
         Args:
             forward: Forward component (-1.0 to 1.0)
-            lateral: Lateral/Left component (-1.0 to 1.0)
+            lateral: Lateral/Slide component (-1.0 to 1.0, + is Left)
+            rotation: Rotation component (-1.0 to 1.0, + is Left)
         """
         up_vec = self.action_map['up']
-        left_vec = self.action_map['left']
+        slide_vec = self.action_map['slide_left']
+        rot_vec = self.action_map['left']
         
         from state import state
         # Enforce Approach Mode Speed Limit (10%) ONLY for AI
@@ -226,9 +236,10 @@ class ServoControler:
         for wid in self._wheel_ids:
             # Calculate combined motor factor
             u_val = up_vec.get(wid, 0)
-            l_val = left_vec.get(wid, 0)
+            s_val = slide_vec.get(wid, 0)
+            r_val = rot_vec.get(wid, 0)
             
-            combined_factor = (forward * u_val) + (lateral * l_val)
+            combined_factor = (forward * u_val) + (lateral * s_val) + (rotation * r_val)
             
             # Scale by effective speed
             payload[wid] = int(effective_speed * combined_factor)

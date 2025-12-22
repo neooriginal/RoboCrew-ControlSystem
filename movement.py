@@ -22,19 +22,25 @@ def execute_movement(movement):
         if movement.get('forward'): fwd += 1.0
         if movement.get('backward'): fwd -= 1.0
         
+        rot = 0.0
+        if movement.get('left'): rot += 1.0
+        if movement.get('right'): rot -= 1.0
+        
         lat = 0.0
-        if movement.get('left'): lat += 1.0
-        if movement.get('right'): lat -= 1.0
+        if movement.get('slide_left'): lat += 1.0
+        if movement.get('slide_right'): lat -= 1.0
         
         # Use vector control if available
         if hasattr(state.controller, 'set_velocity_vector'):
-            state.controller.set_velocity_vector(fwd, lat)
+            state.controller.set_velocity_vector(fwd, lat, rot)
         else:
             # Fallback to single direction
             if fwd > 0: state.controller._wheels_write('up')
             elif fwd < 0: state.controller._wheels_write('down')
-            elif lat > 0: state.controller._wheels_write('left')
-            elif lat < 0: state.controller._wheels_write('right')
+            elif rot > 0: state.controller._wheels_write('left')
+            elif rot < 0: state.controller._wheels_write('right')
+            elif lat > 0: state.controller._wheels_write('slide_left')
+            elif lat < 0: state.controller._wheels_write('slide_right')
             else: state.controller._wheels_stop()
         return True
     except Exception as e:

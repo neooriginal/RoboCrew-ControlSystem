@@ -272,6 +272,50 @@ def create_turn_left(servo_controller):
         return f"Turned left by {angle} degrees."
 
     return turn_left
+    
+def create_slide_left(servo_controller):
+    @tool
+    def slide_left(distance_meters: float) -> str:
+        """Slides the robot sideways to the left for a specific distance (Holonomic movement). Useful for aligning with objects without turning."""
+        distance = float(distance_meters)
+        duration = abs(distance) / 0.15
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] slide_left({distance}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
+        
+        robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': False, 'slide_left': True, 'slide_right': False}
+        completed = _interruptible_sleep(duration)
+        robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': False, 'slide_left': False, 'slide_right': False}
+        
+        if not completed:
+            return "EMERGENCY STOP - Movement cancelled."
+        return f"Slid left by {distance:.2f} meters."
+
+    return slide_left
+
+def create_slide_right(servo_controller):
+    @tool
+    def slide_right(distance_meters: float) -> str:
+        """Slides the robot sideways to the right for a specific distance (Holonomic movement). Useful for aligning with objects without turning."""
+        distance = float(distance_meters)
+        duration = abs(distance) / 0.15
+        
+        if robot_state.approach_mode:
+            duration *= 10.0 # Slow speed compensation
+        
+        print(f"[TOOL] slide_right({distance}) -> dur={duration:.2f}s (Approach={robot_state.approach_mode})")
+        
+        robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': False, 'slide_left': False, 'slide_right': True}
+        completed = _interruptible_sleep(duration)
+        robot_state.movement = {'forward': False, 'backward': False, 'left': False, 'right': False, 'slide_left': False, 'slide_right': False}
+        
+        if not completed:
+            return "EMERGENCY STOP - Movement cancelled."
+        return f"Slid right by {distance:.2f} meters."
+
+    return slide_right
 
 def create_look_around(servo_controller, main_camera):
     @tool
