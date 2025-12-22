@@ -13,15 +13,15 @@ from lerobot.motors.feetech import FeetechMotorsBus, OperatingMode
 DEFAULT_BAUDRATE = 1_000_000
 DEFAULT_SPEED = 10_000
 LINEAR_MPS = 0.25
-ANGULAR_DPS = 100.0
+ANGULAR_DPS = 90.0
 
 ACTION_MAP = {
-    "up": {7: 1, 8: 0, 9: -1},
-    "down": {7: -1, 8: 0, 9: 1},
-    "left": {7: 1, 8: 1, 9: 1},
-    "right": {7: -1, 8: -1, 9: -1},
-    "slide_left": {7: 1, 8: -2, 9: 1},
-    "slide_right": {7: -1, 8: 2, 9: -1},
+    "up": {7: 1.0, 8: 0.0, 9: -1.0},
+    "down": {7: -1.0, 8: 0.0, 9: 1.0},
+    "left": {7: 1.0, 8: 1.0, 9: 1.0},
+    "right": {7: -1.0, 8: -1.0, 9: -1.0},
+    "slide_left": {7: -0.15, 8: 1.0, 9: -0.15},
+    "slide_right": {7: 0.15, 8: -1.0, 9: 0.15},
 }
 
 HEAD_SERVO_MAP = {"yaw": 7, "pitch": 8}
@@ -180,7 +180,7 @@ class ServoControler:
         effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
         
         multipliers = self.action_map[action.lower()]
-        payload = {wid: effective_speed * factor for wid, factor in multipliers.items()}
+        payload = {wid: int(effective_speed * factor) for wid, factor in multipliers.items()}
         self.wheel_bus.sync_write("Goal_Velocity", payload)
         return payload
 
