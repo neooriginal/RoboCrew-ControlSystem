@@ -11,10 +11,11 @@ A robust control framework for ARCS. Feature-rich, safe, and ready for autonomy.
 Full guides available in [`docs/`](docs/):
 
 - **[🚀 Setup Guide](docs/setup.md)**: Install & Calibrate.
-- **[🧭 Navigation](docs/navigation.md)**: Obstacle Detection & Precision Mode.
-- **[🛡️ Safety Architecture](docs/safety.md)**: How it protects itself.
-- **[👁️ Visual Intelligence](docs/visual_intelligence.md)**: How it sees.
+- **[🧭 Navigation](docs/navigation.md)**: Obstacle Detection, Precision Mode, & Holonomic Control.
+- **[🛡️ Safety Architecture](docs/safety.md)**: Active perception & reflex systems.
+- **[👁️ Visual Intelligence](docs/visual_intelligence.md)**: Computer Vision & Semantic Memory.
 - **[🔐 Security](docs/security.md)**: Network & Privacy.
+
 
 ## ⚡ Quick Start
 

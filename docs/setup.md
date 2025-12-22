@@ -27,6 +27,13 @@
     pip install -r requirements.txt
     ```
 
+4.  **Audio Setup (for TTS)**
+    The system uses `mpg123` and `ALSA` for audio output.
+    ```bash
+    # Debian/Ubuntu/Raspberry Pi OS
+    sudo apt-get install mpg123
+    ```
+
 ## ⚙️ Configuration
 
 1.  **Environment Setup**
@@ -40,11 +47,11 @@
     OPENAI_API_KEY=sk-your_actual_api_key_here
     ```
 
-3. Optional: Enable Text-to-Speech
-    Set preferred speaker as default speaker in your system settings.
-    ```ini
-    TTS_ENABLED=True
-    ```
+3.  **Basic Config (`config.py`)**
+    You can adjust core settings in `config.py`:
+    - **TTS**: Set `TTS_ENABLED = True` and configure `TTS_AUDIO_DEVICE` (default `plughw:1,0` for HDMI).
+    - **Safety**: Adjust `STALL_LOAD_THRESHOLD` (default 600) or `AI_MIN_BRIGHTNESS`.
+    - **Camera**: Change `CAMERA_PORT` if not using `/dev/video0`.
 
 ## 🔧 Calibration
 

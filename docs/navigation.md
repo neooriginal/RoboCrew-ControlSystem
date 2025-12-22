@@ -31,13 +31,34 @@ The system includes a lightweight monocular SLAM (Simultaneous Localization and 
     - **Output**: 800x800 pixel grid map (5cm/pixel resolution) with the robot centered.
     - **Update**: As the robot moves, new obstacle observations are drawn onto the map, and the robot's pose path is traced.
 
-## Usage
+## Usage & Features
+ 
+### 1. Holonomic Movement (Mecanum)
+The robot is equipped with Mecanum wheels allowing for 3DoF movement:
+- **Forward/Backward**
+- **Rotate Left/Right**
+- **Slide (Strafe) Left/Right**: Crucial for fine alignment without rotation.
 
-### Operating Precision Mode
+### 2. Precision Mode (Doorways)
 Precision mode is essential for navigating doors.
-1. **Enable**: call explicit tool or toggle via API.
-2. **Align**: Rotate the robot until the yellow "TARGET" line turns green and the status reads "PERFECT".
-3. **Drive**: Move forward through the gap. The safety reflex remains active but with adjusted sensitivity.
+1. **Enable**: The AI requests `enable_precision_mode()` or user toggles via API.
+2. **Align**: Rotate until the yellow "TARGET" line turns green ("PERFECT").
+3. **Drive**: The safety reflex automatically adjusts bounds to allow passing through gaps > 35cm.
+
+### 3. Approach Mode (Manipulation)
+Used when the robot must interact with an object (touching distance).
+- **Behavior**: 
+    - 🛑 Speed is capped at **10%** for safety.
+    - 🛡️ "Stop distance" safety checks are relaxed to allow contact.
+- **Protocol**:
+    1. Align from a distance using Holonomic slide.
+    2. Enable Approach Mode.
+    3. Move forward in small increments until interaction.
+
+### 4. Semantic Memory
+The AI maintains a persistent mental map of the environment:
+- **QR Context**: Passive scanning injects location data (e.g., "KITCHEN") into the AI's context.
+- **Persistent Notes**: The AI uses `save_note()` to record observations (e.g., "The hallway ends in a dead end"). These notes are retrieved in future sessions when relevant.
 
 ### Calibration
 Key parameters in `obstacle_detection.py`:

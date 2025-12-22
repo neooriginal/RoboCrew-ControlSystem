@@ -16,9 +16,14 @@ Ensures the Web UI and AI Agent share the same "reality."
 Prevents sensor noise from confusing the AI.
 - **Temporal Memory**: If an area is detected as blocked, it remains "blocked" in memory for ~0.5s even if the signal flickers. This creates a stable worldview.
 
-## 4. Emergency Brake
+## 4. Emergency Brake & Health Config
 - **Continuous Monitoring**: During long moves (e.g., "Forward 1m"), the camera is checked **10 times per second**.
 - **Reaction**: Sudden obstacles trigger an immediate hardware stop.
+- **Darkness Prevention**: The AI measures scene brightness before every move. If `brightness < AI_MIN_BRIGHTNESS` (default 40), navigation is aborted to prevent hallucination.
 
-## 5. Movement Constraints
+## 5. Hardware Protection
+- **Stall Detection**: Monitors motor loads in real-time. If a load exceeds `STALL_LOAD_THRESHOLD` (default 600), the affected motor group is disabled to prevent burnout.
+- **Connection Safety**: A "Dead Man's Switch" monitors the control link. If no command is received for `REMOTE_TIMEOUT` (0.5s) while moving, the robot brakes automatically.
+
+## 6. Movement Constraints
 - **No Double Backing**: The AI cannot reverse twice in a row, preventing blind backing into unknown areas.

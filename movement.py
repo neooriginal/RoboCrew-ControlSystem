@@ -4,7 +4,7 @@ Handles wheel movement commands and the continuous movement loop.
 """
 
 import time
-from config import MOVEMENT_LOOP_INTERVAL, REMOTE_TIMEOUT
+from config import MOVEMENT_LOOP_INTERVAL, REMOTE_TIMEOUT, STALL_CHECK_INTERVAL, STALL_LOAD_THRESHOLD
 from state import state
 
 
@@ -53,6 +53,8 @@ def movement_loop():
     Continuous movement control thread.
     Keeps wheels moving while key is held.
     """
+    last_stall_check = 0
+    
     while state.running:
         if state.controller is None:
             time.sleep(0.1)
@@ -65,7 +67,17 @@ def movement_loop():
             state.stop_all_movement()
             movement = state.get_movement()  # Reset local movement to stop immediately
 
-
+        # Safety: Stall Detection
+        if time.time() - last_stall_check > STALL_CHECK_INTERVAL:
+            try:
+                msg = state.controller.check_stall(STALL_LOAD_THRESHOLD)
+                if msg:
+                     state.last_error = f"SAFETY STOP: {msg}"
+                     state.stop_all_movement()
+                     print(f"!!! {msg} !!!")
+            except Exception as e:
+                pass # Don't crash loop on read error
+            last_stall_check = time.time()
         
         try:
             execute_movement(movement)
