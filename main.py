@@ -200,8 +200,16 @@ def main():
                     print("⚠ Could not auto-open display (no browser found)")
         threading.Thread(target=open_display, daemon=True).start()
     
+    # WebXR requires HTTPS (Secure Context)
+    # Use 'adhoc' SSL context if USE_SSL is true
+    ssl_context = 'adhoc' if os.getenv('USE_SSL', 'false').lower() == 'true' else None
+    
     try:
-        app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, use_reloader=False, debug=False)
+        if ssl_context:
+            print(f"🔒 Running with {ssl_context} SSL context for WebXR support")
+            app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, use_reloader=False, debug=False, ssl_context=ssl_context)
+        else:
+            app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, use_reloader=False, debug=False)
     except KeyboardInterrupt:
         cleanup()
 

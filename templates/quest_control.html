@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoboCrew VR Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            color: #4CAF50;
+        }
+
+        #vr-button {
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #vr-button:hover {
+            background-color: #1976D2;
+        }
+
+        #vr-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 2rem;
+            font-size: 1.2rem;
+        }
+
+        .instructions {
+            margin-top: 3rem;
+            max-width: 600px;
+            text-align: left;
+            background: #2d2d2d;
+            padding: 2rem;
+            border-radius: 10px;
+        }
+
+        .mapping {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🤖 RoboCrew VR Control</h1>
+
+    <button id="vr-button" disabled>XR Not Found</button>
+
+    <div id="status">Checking for WebXR...</div>
+
+    <div class="instructions">
+        <h3>Controls</h3>
+        <div class="mapping">
+            <div>
+                <strong>Left Controller</strong><br>
+                🕹️ Joystick: Drive Robot<br>
+            </div>
+            <div>
+                <strong>Right Controller</strong><br>
+                🖐️ Motion: Control Arm (Puppeteering)<br>
+                👆 Trigger: Gripper<br>
+                🕹️ Joystick: Head Control
+            </div>
+        </div>
+        <p style="margin-top: 1rem; font-size: 0.9em; color: #aaa;">
+            Note: Ensure you are connected via HTTPS to enable WebXR.
+        </p>
+    </div>
+
+    <!-- WebXR Polyfill (optional, but good for compatibility) -->
+    <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.js"></script>
+    <script src="{{ url_for('static', filename='js/webxr_robot.js') }}"></script>
+</body>
+
+</html>
