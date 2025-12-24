@@ -90,11 +90,13 @@
             let cosAlpha = (ARM_L1 * ARM_L1 + d * d - ARM_L2 * ARM_L2) / (2 * ARM_L1 * d);
             cosAlpha = Math.max(-1, Math.min(1, cosAlpha));
             const alphaRad = Math.acos(cosAlpha);
-            const shoulderRad = beta + alphaRad;
+            const shoulderRad = beta - alphaRad;  // CHANGED: was beta + alphaRad
 
-            // Convert to degrees matching robot conventions
-            const shoulderLift = THREE.MathUtils.radToDeg(shoulderRad) - 90;
-            const elbowFlex = -(180 - THREE.MathUtils.radToDeg(elbowRad));
+            // Convert to degrees
+            // When arm is horizontal (x>0, y=0): shoulderRad = 0 -> shoulderLift should be 0
+            const shoulderLift = THREE.MathUtils.radToDeg(shoulderRad);
+            // Elbow: 0 = straight, negative = bent inward
+            const elbowFlex = THREE.MathUtils.radToDeg(elbowRad) - 180;
 
             return [shoulderLift, elbowFlex];
         }
@@ -238,10 +240,11 @@
                 deltaY = Math.max(-DELTA_LIMIT, Math.min(DELTA_LIMIT, deltaY));
                 deltaZ = Math.max(-DELTA_LIMIT, Math.min(DELTA_LIMIT, deltaZ));
 
-                // Update IK workspace position (from example)
-                // VR Z maps to robot X (reach), VR Y maps to robot Y (height)
-                this.currentX += -deltaZ;  // VR Z -> robot reach
-                this.currentY += deltaY;   // VR Y -> robot height
+                // Update IK workspace position
+                // VR Z forward (negative) -> increase reach
+                // VR Y up -> increase height
+                this.currentX += deltaZ;  // CHANGED: was -deltaZ. Now: forward = extend
+                this.currentY += deltaY;
 
                 // Clamp to workspace
                 this.currentX = Math.max(0.05, Math.min(0.25, this.currentX));
