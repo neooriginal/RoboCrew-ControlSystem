@@ -354,6 +354,28 @@ def create_look_around(servo_controller, main_camera):
     return look_around
 
 
+def create_control_head(servo_controller):
+    @tool
+    def control_head(yaw: Optional[float] = None, pitch: Optional[float] = None) -> str:
+        """
+        Move the robot's head to a specific position.
+        Args:
+            yaw: Horizontal angle in degrees (-90 to 90). 0 is center. positive is Left? No, typically positive is Left.
+            pitch: Vertical angle in degrees (-45 to 45). 0 is straight? No, usually slightly down.
+        """
+        actions = []
+        if yaw is not None:
+            servo_controller.turn_head_yaw(yaw)
+            actions.append(f"yaw={yaw}")
+        if pitch is not None:
+            servo_controller.turn_head_pitch(pitch)
+            actions.append(f"pitch={pitch}")
+            
+        time.sleep(0.5) # Allow movement
+        return f"Head moved: {', '.join(actions)}"
+    return control_head
+
+
 
 
 def create_vla_single_arm_manipulation(

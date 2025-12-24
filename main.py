@@ -36,7 +36,8 @@ from robots.xlerobot.tools import (
     create_save_note,
     create_enable_approach_mode,
     create_disable_approach_mode,
-    create_speak
+    create_speak,
+    create_control_head
 )
 
 # Configure logging - reduce verbosity
@@ -125,6 +126,7 @@ def main():
             create_slide_left(robot.controller),
             create_slide_right(robot.controller),
             create_look_around(robot.controller, robot.camera),
+            create_control_head(robot.controller),
             create_end_task(),
             create_enable_precision_mode(),
             create_disable_precision_mode(),

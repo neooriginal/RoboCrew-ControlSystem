@@ -316,10 +316,12 @@ class ServoControler:
     def turn_head_to_vla_position(self, pitch_deg=45) -> str:
         self.turn_head_pitch(pitch_deg)
         self.turn_head_yaw(0)
+        time.sleep(0.9)
 
     def reset_head_position(self) -> str:
-        self.turn_head_pitch(35)
+        self.turn_head_pitch(22)
         self.turn_head_yaw(0)
+        time.sleep(0.9)
 
     # Arm control
 
