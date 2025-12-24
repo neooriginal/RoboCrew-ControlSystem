@@ -30,7 +30,7 @@
     <div id="overlay">
         <h2>🤖 RoboCrew VR</h2>
         <p>Enter VR to see the camera feed and control the robot.</p>
-        <p><strong>Left Stick:</strong> Drive | <strong>Right Hand:</strong> Arm | <strong>Right Trigger:</strong>
+        <p><strong>Left Stick:</strong> Drive | <strong>Right Hand:</strong> Arm | <strong>Right Trigger/Grip:</strong>
             Gripper</p>
     </div>
 
@@ -101,12 +101,15 @@
             }
         });
 
-        // 2. Arm Controller (Right Hand) - WITH SMOOTHING & SAFETY
+        // 2. Arm Controller (Right Hand) - WITH SMOOTHING, SAFETY & RACE CONDITION FIX
         AFRAME.registerComponent('robot-arm-controller', {
             init: function () {
                 this.lastUpdate = 0;
                 this.gripperState = false;
                 this.lastGripperCheck = 0;
+
+                // Flag to ensure we don't start calibration/moving until we have data
+                this.dataLoaded = false;
 
                 // Smoothing / Safety State
                 this.currentArmState = {
@@ -128,12 +131,18 @@
                         if (data.positions) {
                             console.log("Initial Robot Arm State:", data.positions);
                             Object.assign(this.currentArmState, data.positions);
+                            this.dataLoaded = true; // ENABLE LOOP
+                        } else {
+                            console.error("No positions in response:", data);
                         }
                     })
                     .catch(e => console.error("Failed to fetch initial arm state:", e));
             },
 
             tick: function (time, timeDelta) {
+                // WAITING FOR DATA (Fixes Race Condition)
+                if (!this.dataLoaded) return;
+
                 const now = Date.now();
 
                 // Get Pose
@@ -163,7 +172,7 @@
 
                 if (now - this.lastUpdate > UPDATE_INTERVAL) {
 
-                    // --- Heuristic Kinematics Calculation (INVERTED as requested) ---
+                    // --- Heuristic Kinematics Calculation (INVERTED) ---
 
                     // Reference Frame:
                     // Origin (0,0,0) is usually user's feet (local-floor).
@@ -184,7 +193,7 @@
                     const reach = -position.z;
                     let raw_elbow = (reach - 0.6) * 180;
 
-                    // 4. Wrist Roll (Inverted Check: NO Negation based on previous fix)
+                    // 4. Wrist Roll (No Negation based on previous fix)
                     let raw_roll = THREE.MathUtils.radToDeg(rotation.z);
 
                     // 5. Wrist Flex (Inverted: Negated)
