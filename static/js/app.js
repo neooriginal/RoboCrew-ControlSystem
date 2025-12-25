@@ -60,22 +60,24 @@ const PITCH_MIN = -180, PITCH_MAX = 180;
 // ============== Utilities ==============
 
 function showDebug(msg) {
-    debugPanel.textContent = msg;
-    debugPanel.classList.add('show');
+    if (debugPanel) {
+        debugPanel.textContent = msg;
+        debugPanel.classList.add('show');
+    }
     console.log('[DEBUG]', msg);
 }
 
 function hideDebug() {
-    debugPanel.classList.remove('show');
+    if (debugPanel) debugPanel.classList.remove('show');
 }
 
 function updateStatus(text, state) {
-    statusText.textContent = text;
-    statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+    if (statusText) statusText.textContent = text;
+    if (statusDot) statusDot.className = 'status-dot' + (state ? ' ' + state : '');
 }
 
 function updateCompass() {
-    if (currentYaw === null) return;
+    if (currentYaw === null || !compassArrow) return;
     const relativeYaw = currentYaw - baselineYaw;
     compassArrow.style.transform = `translate(-50%, -100%) rotate(${-relativeYaw}deg)`;
 }
@@ -118,14 +120,14 @@ async function init() {
             updateArmDisplay();
         }
 
-        connectionDot.classList.remove('error');
+        if (connectionDot) connectionDot.classList.remove('error');
         updateStatus('Ready', 'active');
 
         console.log('Initialized:', { headYaw: currentYaw, armConnected });
 
     } catch (e) {
         showDebug('Connection error: ' + e.message);
-        connectionDot.classList.add('error');
+        if (connectionDot) connectionDot.classList.add('error');
         updateStatus('Offline', 'error');
     }
 }
@@ -141,16 +143,16 @@ function setMode(mode) {
     if (currentMode === 'drive') {
         document.exitPointerLock();
         driveLocked = false;
-        videoContainer.classList.remove('locked');
+        if (videoContainer) videoContainer.classList.remove('locked');
     } else if (currentMode === 'arm') {
         document.exitPointerLock();
         armLocked = false;
-        armContainer.classList.remove('locked');
+        if (armContainer) armContainer.classList.remove('locked');
     }
 
     // Update panel states
-    drivePanel.classList.toggle('active', mode === 'drive');
-    armPanel.classList.toggle('active', mode === 'arm');
+    if (drivePanel) drivePanel.classList.toggle('active', mode === 'drive');
+    if (armPanel) armPanel.classList.toggle('active', mode === 'arm');
 
     currentMode = mode;
 
@@ -165,46 +167,50 @@ function setMode(mode) {
 }
 
 // Click handlers for panels
-videoContainer.addEventListener('click', () => {
-    if (currentMode !== 'drive') {
-        setMode('drive');
-    }
-    if (!driveLocked) {
-        videoContainer.requestPointerLock();
-    }
-});
+if (videoContainer) {
+    videoContainer.addEventListener('click', () => {
+        if (currentMode !== 'drive') {
+            setMode('drive');
+        }
+        if (!driveLocked) {
+            videoContainer.requestPointerLock();
+        }
+    });
+}
 
-armContainer.addEventListener('click', () => {
-    if (!armConnected) {
-        showDebug('Arm not connected');
-        setTimeout(hideDebug, 2000);
-        return;
-    }
-    if (currentMode !== 'arm') {
-        setMode('arm');
-    }
-    if (!armLocked) {
-        armContainer.requestPointerLock();
-    }
-});
+if (armContainer) {
+    armContainer.addEventListener('click', () => {
+        if (!armConnected) {
+            showDebug('Arm not connected');
+            setTimeout(hideDebug, 2000);
+            return;
+        }
+        if (currentMode !== 'arm') {
+            setMode('arm');
+        }
+        if (!armLocked) {
+            armContainer.requestPointerLock();
+        }
+    });
+}
 
 // Pointer lock change
 document.addEventListener('pointerlockchange', () => {
     const lockedElement = document.pointerLockElement;
 
-    if (lockedElement === videoContainer) {
+    if (lockedElement === videoContainer && videoContainer) {
         driveLocked = true;
         videoContainer.classList.add('locked');
         updateStatus('Driving', 'active');
-    } else if (lockedElement === armContainer) {
+    } else if (lockedElement === armContainer && armContainer) {
         armLocked = true;
         armContainer.classList.add('locked');
         updateStatus('Arm Control', 'active');
     } else {
         driveLocked = false;
         armLocked = false;
-        videoContainer.classList.remove('locked');
-        armContainer.classList.remove('locked');
+        if (videoContainer) videoContainer.classList.remove('locked');
+        if (armContainer) armContainer.classList.remove('locked');
         updateStatus('Ready', 'active');
     }
 });
@@ -465,55 +471,63 @@ setInterval(() => {
 // ============== TTS Controls ==============
 
 // TTS speak button
-ttsSpeakBtn.addEventListener('click', async () => {
-    const text = ttsTextInput.value.trim();
-    if (!text) return;
+if (ttsSpeakBtn) {
+    ttsSpeakBtn.addEventListener('click', async () => {
+        const text = ttsTextInput.value.trim();
+        if (!text) return;
 
-    try {
-        await fetch('/tts/speak', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        });
-    } catch (e) {
-        console.log('TTS speak error:', e.message);
-    }
-});
+        try {
+            await fetch('/tts/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+        } catch (e) {
+            console.log('TTS speak error:', e.message);
+        }
+    });
+}
 
 // TTS text input - speak on Enter key
-ttsTextInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        ttsSpeakBtn.click();
-    }
-});
+if (ttsTextInput) {
+    ttsTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (ttsSpeakBtn) ttsSpeakBtn.click();
+        }
+    });
+}
 
 // ============== Wheel Speed Controls ==============
 
 // Wheel speed slider
-wheelSpeedSlider.addEventListener('input', async (e) => {
-    const speed = parseInt(e.target.value);
-    wheelSpeedValue.textContent = speed;
+if (wheelSpeedSlider) {
+    wheelSpeedSlider.addEventListener('input', async (e) => {
+        const speed = parseInt(e.target.value);
+        if (wheelSpeedValue) wheelSpeedValue.textContent = speed;
 
-    // Change color if exceeding safety limit (13000)
-    if (speed > 13000) {
-        wheelSpeedValue.style.color = '#ff4444';  // Red
-        wheelSpeedSlider.style.accentColor = '#ff4444';
-    } else {
-        wheelSpeedValue.style.color = '#aaa';  // Default gray
-        wheelSpeedSlider.style.accentColor = '#FF9800';  // Orange
-    }
+        // Change color if exceeding safety limit (13000)
+        if (wheelSpeedValue && wheelSpeedSlider) {
+            if (speed > 13000) {
+                wheelSpeedValue.style.color = '#ff4444';  // Red
+                wheelSpeedSlider.style.accentColor = '#ff4444';
+            } else {
+                wheelSpeedValue.style.color = '#aaa';  // Default gray
+                wheelSpeedSlider.style.accentColor = '#FF9800';  // Orange
+            }
+        }
 
-    try {
-        await fetch('/wheels/speed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ speed })
-        });
-    } catch (e) {
-        console.log('Wheel speed error:', e.message);
-    }
-});
+        try {
+            await fetch('/wheels/speed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ speed })
+            });
+        } catch (e) {
+            console.log('Wheel speed error:', e.message);
+        }
+    });
+}
 
 // Load current wheel speed on page load
 async function loadWheelSpeed() {
@@ -521,16 +535,18 @@ async function loadWheelSpeed() {
         const res = await fetch('/wheels/speed');
         const data = await res.json();
         if (data.speed) {
-            wheelSpeedSlider.value = data.speed;
-            wheelSpeedValue.textContent = data.speed;
+            if (wheelSpeedSlider) wheelSpeedSlider.value = data.speed;
+            if (wheelSpeedValue) wheelSpeedValue.textContent = data.speed;
 
-            // Set appropriate color based on speed
-            if (data.speed > 13000) {
-                wheelSpeedValue.style.color = '#ff4444';
-                wheelSpeedSlider.style.accentColor = '#ff4444';
-            } else {
-                wheelSpeedValue.style.color = '#aaa';
-                wheelSpeedSlider.style.accentColor = '#FF9800';
+            if (wheelSpeedValue && wheelSpeedSlider) {
+                // Set appropriate color based on speed
+                if (data.speed > 13000) {
+                    wheelSpeedValue.style.color = '#ff4444';
+                    wheelSpeedSlider.style.accentColor = '#ff4444';
+                } else {
+                    wheelSpeedValue.style.color = '#aaa';
+                    wheelSpeedSlider.style.accentColor = '#FF9800';
+                }
             }
         }
     } catch (e) {

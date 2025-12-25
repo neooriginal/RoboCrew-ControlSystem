@@ -1,41 +1,45 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-    <meta charset="utf-8">
-    <title>RoboCrew VR Control</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-    <link rel="stylesheet" href="/static/css/vr_styles.css">
-</head>
+{% block title %}VR Control{% endblock %}
 
-<body>
-    <div id="statusPanel" class="status-panel">
-        <h2>🤖 RoboCrew VR Control</h2>
-        <div class="status-grid">
-            <div class="status-item">
-                <div class="status-indicator" id="wsStatus"></div>
-                <span>Connection</span>
+{% block head %}
+<script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<!-- We keep specific VR styles but override body background handled by base -->
+<link rel="stylesheet" href="/static/css/vr_styles.css">
+{% endblock %}
+
+{% block content %}
+<div style="position: relative; height: 100%; border-radius: 12px; overflow: hidden; background: #000;">
+
+    <!-- Status Overlay adapted for Dashboard -->
+    <div id="statusPanel" class="status-panel"
+        style="position: absolute; top: 20px; left: 20px; z-index: 1000; background: rgba(0,0,0,0.8); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
+        <h2 style="margin: 0 0 15px 0; color: var(--primary);">🤖 RoboCrew VR</h2>
+        <div class="status-grid" style="display: grid; gap: 10px; margin-bottom: 20px;">
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px;">
+                <div class="status-indicator" id="wsStatus"
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #555;"></div>
+                <span style="color: var(--text-secondary);">Connection</span>
             </div>
-            <div class="status-item">
-                <div class="status-indicator" id="armStatus"></div>
-                <span>Arm Control</span>
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px;">
+                <div class="status-indicator" id="armStatus"
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #555;"></div>
+                <span style="color: var(--text-secondary);">Arm Control</span>
             </div>
         </div>
         <div class="instructions">
-            <h3>🎮 Controls</h3>
-            <div class="instruction-item grip"><strong>Grip:</strong> Hold to move arm</div>
-            <div class="instruction-item trigger"><strong>Trigger:</strong> Close gripper</div>
-            <div class="instruction-item joystick"><strong>Thumbstick:</strong> Move robot</div>
+            <h3 style="color: #fff; font-size: 0.9rem; margin-bottom: 10px;">🎮 Controls</h3>
+            <div style="color: #aaa; font-size: 0.8rem; line-height: 1.5;">
+                <div><strong>Grip:</strong> Hold to move arm</div>
+                <div><strong>Trigger:</strong> Close gripper</div>
+                <div><strong>Thumbstick:</strong> Move robot</div>
+            </div>
         </div>
     </div>
 
-    <div id="cameraOverlay" class="camera-overlay">
-        <img id="cameraFeed" src="/video_feed" alt="Camera" onerror="this.style.display='none'">
-    </div>
-
-    <a-scene vr-mode-ui="enabled: false;">
+    <!-- The Scene -->
+    <a-scene vr-mode-ui="enabled: false;" embedded style="width: 100%; height: 100%;">
         <a-entity webxr-passthrough="referenceSpaceType: local-floor"></a-entity>
 
         <a-entity id="cameraPanel" position="0 1.5 -0.8">
@@ -62,66 +66,82 @@
         </a-assets>
     </a-scene>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const cameraImg = document.getElementById('cameraTexture');
-            const cameraPlane = document.getElementById('cameraPlane');
-            cameraImg.src = '/video_feed';
+</div>
+{% endblock %}
 
-            setInterval(() => {
-                if (cameraPlane && cameraPlane.getObject3D('mesh')) {
-                    const mat = cameraPlane.getObject3D('mesh').material;
-                    if (mat.map) mat.map.needsUpdate = true;
-                }
-            }, 100);
-        });
-    </script>
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const cameraImg = document.getElementById('cameraTexture');
+        const cameraPlane = document.getElementById('cameraPlane');
+        // We use /video_feed on the dashboard generally, but VR needs it as a texture
+        // The texture loader in A-Frame handles it.
+        cameraImg.src = '/video_feed';
 
-    <script src="/static/js/vr_app.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const scene = document.querySelector('a-scene');
-            if (scene) {
-                const init = () => scene.setAttribute('vr-controller-updater', '');
-                scene.hasLoaded ? init() : scene.addEventListener('loaded', init);
+        setInterval(() => {
+            if (cameraPlane && cameraPlane.getObject3D('mesh')) {
+                const mat = cameraPlane.getObject3D('mesh').material;
+                if (mat.map) mat.map.needsUpdate = true;
             }
+        }, 100);
+    });
+</script>
 
-            if (!navigator.xr) return;
+<script src="/static/js/vr_app.js"></script>
 
-            Promise.all([
-                navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
-                navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
-            ]).then(([ar, vr]) => {
-                if (!ar && !vr) return;
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Since we embedded the scene, we might need to adjust some startup logic
+        const scene = document.querySelector('a-scene');
 
-                const btn = document.createElement('button');
-                btn.className = 'start-vr-btn';
-                btn.textContent = '🥽 Start VR';
-                btn.onclick = async () => {
-                    btn.textContent = 'Starting...';
-                    btn.disabled = true;
-                    try {
-                        await document.querySelector('a-scene').enterVR(true);
-                    } catch (e) {
-                        btn.textContent = '🥽 Start VR';
-                        btn.disabled = false;
-                    }
-                };
-                document.body.appendChild(btn);
+        // Re-style the user provided VR button (created by our script) if needed,
+        // or just use our own button.
+        // The original logic created a button on the body. We should probably create it inside the block.
 
-                const scene = document.querySelector('a-scene');
-                scene.addEventListener('enter-vr', () => {
-                    btn.style.display = 'none';
-                    document.getElementById('statusPanel').style.display = 'none';
-                });
-                scene.addEventListener('exit-vr', () => {
-                    btn.style.display = 'block';
-                    document.getElementById('statusPanel').style.display = 'block';
-                });
+        if (!navigator.xr) return;
+
+        Promise.all([
+            navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
+            navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
+        ]).then(([ar, vr]) => {
+            if (!ar && !vr) return;
+
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.style.position = 'absolute';
+            btn.style.bottom = '30px';
+            btn.style.left = '50%';
+            btn.style.transform = 'translateX(-50%)';
+            btn.style.zIndex = '2000';
+            btn.style.fontSize = '1.2rem';
+            btn.style.padding = '15px 30px';
+
+            btn.textContent = '🥽 Enter VR';
+            btn.onclick = async () => {
+                btn.textContent = 'Starting...';
+                btn.disabled = true;
+                try {
+                    await document.querySelector('a-scene').enterVR(true);
+                } catch (e) {
+                    btn.textContent = '🥽 Enter VR';
+                    btn.disabled = false;
+                    alert('VR Entry Failed: ' + e);
+                }
+            };
+
+            // Append to the content wrapper relative container for better positioning
+            document.querySelector('.content-wrapper > div').appendChild(btn);
+
+            scene.addEventListener('enter-vr', () => {
+                btn.style.display = 'none';
+                document.getElementById('statusPanel').style.display = 'none';
+                // Hide dashboard sidebar/header via CSS if needed, but A-Frame fullscreen usually handles it.
+            });
+            scene.addEventListener('exit-vr', () => {
+                btn.style.display = 'block';
+                document.getElementById('statusPanel').style.display = 'block';
             });
         });
-    </script>
-</body>
-
-</html>
+    });
+</script>
+{% endblock %}

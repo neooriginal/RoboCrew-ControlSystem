@@ -17,7 +17,11 @@ bp = Blueprint('robot', __name__)
 
 @bp.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('dashboard.html')
+
+@bp.route('/remote')
+def remote():
+    return render_template('remote.html')
 
 @bp.route('/status')
 def get_status():

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARCS Control Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🤖</span>
+                    <span class="logo-text">ARCS</span>
+                </div>
+            </div>
+
+            <!-- Robot Selector -->
+            <div class="robot-selector">
+                <label>Select Robot</label>
+                <div class="select-box">
+                    <span class="status-dot active"></span>
+                    <span class="robot-name">Local (RoboCrew)</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item {{ 'active' if request.path == '/' else '' }}">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/remote" class="nav-item {{ 'active' if request.path == '/remote' else '' }}">
+                    <span class="nav-icon">🎮</span>
+                    <span class="nav-text">Remote Control</span>
+                </a>
+                <a href="/ai" class="nav-item {{ 'active' if request.path == '/ai' else '' }}">
+                    <span class="nav-icon">🧠</span>
+                    <span class="nav-text">AI Agent</span>
+                </a>
+                <a href="/vr" class="nav-item {{ 'active' if request.path == '/vr' else '' }}">
+                    <span class="nav-icon">🥽</span>
+                    <span class="nav-text">VR Control</span>
+                </a>
+                <a href="/memory" class="nav-item {{ 'active' if request.path == '/memory' else '' }}">
+                    <span class="nav-icon">💾</span>
+                    <span class="nav-text">Memory</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="connection-status">
+                    <div class="connection-dot" id="connection-dot"></div>
+                    <span id="global-status-text">Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 class="page-title">{% block title %}{% endblock %}</h2>
+                <div class="top-actions">
+                    {% block actions %}{% endblock %}
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

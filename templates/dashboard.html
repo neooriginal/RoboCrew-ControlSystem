@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+
+    <!-- Status Card -->
+    <div class="control-card">
+        <h3 style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase;">
+            System Status</h3>
+        <div style="display: grid; gap: 15px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span>Controller</span>
+                <span id="status-controller" class="status-dot"></span>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span>Camera</span>
+                <span id="status-camera" class="status-dot"></span>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span>Arm</span>
+                <span id="status-arm" class="status-dot"></span>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span>Active Mode</span>
+                <span id="status-mode" style="color: var(--primary); font-weight: 600;">LOADING...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="control-card">
+        <h3 style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase;">
+            Quick Actions</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <button class="btn" style="background: rgba(255,255,255,0.1); justify-content: center;"
+                onclick="fetch('/slam/reset', {method: 'POST'})">
+                🔄 Reset SLAM
+            </button>
+            <button class="btn" style="background: rgba(255,255,255,0.1); justify-content: center;"
+                onclick="fetch('/arm/home', {method: 'POST'})">
+                🦾 Home Arm
+            </button>
+            <button class="btn btn-danger" style="grid-column: span 2; justify-content: center; padding: 15px;"
+                onclick="fetch('/emergency_stop', {method: 'POST'})">
+                🛑 EMERGENCY STOP
+            </button>
+        </div>
+    </div>
+
+    <!-- Mini Log / Latest Activity -->
+    <div class="control-card" style="grid-column: 1 / -1;">
+        <h3 style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase;">
+            Latest AI Activity</h3>
+        <div class="log-window" id="mini-log" style="height: 150px;">
+            <div class="log-entry">Waiting for updates...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Poll for status updates on the dashboard
+    setInterval(async () => {
+        try {
+            const res = await fetch('/display/state');
+            const data = await res.json();
+
+            // Update status dots
+            const setStatus = (id, active) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.className = 'status-dot ' + (active ? 'active' : 'error');
+                }
+            };
+
+            setStatus('status-controller', data.controller_connected);
+            setStatus('status-camera', data.camera_connected);
+            setStatus('status-arm', data.arm_connected);
+
+            const modeEl = document.getElementById('status-mode');
+            if (modeEl) modeEl.textContent = (data.control_mode || 'IDLE').toUpperCase();
+
+            // Update Mini Log
+            if (data.ai_status && data.ai_status !== 'Idle') {
+                const logDiv = document.getElementById('mini-log');
+                const time = new Date().toLocaleTimeString();
+                // Simple deduplication
+                if (!logDiv.firstElementChild || !logDiv.firstElementChild.textContent.includes(data.ai_status)) {
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    entry.textContent = `${time} - ${data.ai_status}`;
+                    logDiv.insertBefore(entry, logDiv.firstChild);
+                    if (logDiv.children.length > 20) logDiv.lastChild.remove();
+                }
+            } else if (data.ai_status === 'Idle' && document.getElementById('mini-log').children.length === 1 && document.getElementById('mini-log').children[0].textContent === 'Waiting for updates...') {
+                // Keep waiting
+            }
+        } catch (e) { }
+    }, 1000);
+</script>
+{% endblock %}
