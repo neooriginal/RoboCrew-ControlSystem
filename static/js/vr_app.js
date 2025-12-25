@@ -51,15 +51,15 @@ AFRAME.registerComponent('vr-controller-updater', {
 
         this.rightHand.addEventListener('triggerdown', () => {
             this.rightTriggerDown = true;
-            // Animate moving finger (slide left towards fixed finger)
+            // Animate moving finger (rotate up to vertical)
             const finger = document.querySelector('#fingerMoving');
-            if (finger) finger.setAttribute('position', '-0.005 0 -0.10');
+            if (finger) finger.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 200; easing: easeOutQuad');
         });
         this.rightHand.addEventListener('triggerup', () => {
             this.rightTriggerDown = false;
-            // Reset moving finger (slide back right)
+            // Reset moving finger (rotate down to horizontal)
             const finger = document.querySelector('#fingerMoving');
-            if (finger) finger.setAttribute('position', '0.02 0 -0.10');
+            if (finger) finger.setAttribute('animation', 'property: rotation; to: 0 0 90; dur: 200; easing: easeOutQuad');
 
             if (this.socket?.connected) this.socket.emit('vr_data', { triggerReleased: true });
         });
