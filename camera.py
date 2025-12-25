@@ -55,8 +55,11 @@ def generate_frames():
                     time.sleep(0.02)
                     continue
             
+            # Resize for efficient streaming (960x540 qHD) while keeping capture high-res for AI
+            stream_frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_NEAREST)
+
             # Lower quality = faster encoding = lower latency
-            _, buffer = cv2.imencode('.jpg', frame, [
+            _, buffer = cv2.imencode('.jpg', stream_frame, [
                 cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY,
                 cv2.IMWRITE_JPEG_OPTIMIZE, 0
             ])

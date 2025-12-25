@@ -8,6 +8,7 @@ AFRAME.registerComponent('vr-controller-updater', {
         this.socket = null;
         this.rightGripDown = false;
         this.rightTriggerDown = false;
+        this.leftGripDown = false;
         this.leftStick = { x: 0, y: 0 };
         this.lastSend = 0;
         this.sendInterval = 50;
@@ -67,6 +68,9 @@ AFRAME.registerComponent('vr-controller-updater', {
         this.leftHand.addEventListener('thumbstickmoved', e => {
             this.leftStick = { x: e.detail.x, y: e.detail.y };
         });
+
+        this.leftHand.addEventListener('gripdown', () => this.leftGripDown = true);
+        this.leftHand.addEventListener('gripup', () => this.leftGripDown = false);
     },
 
     tick: function () {
@@ -108,7 +112,10 @@ AFRAME.registerComponent('vr-controller-updater', {
         if (hasInput && right.position) {
             this.socket.emit('vr_data', {
                 rightController: right,
-                leftController: { thumbstick: this.leftStick }
+                leftController: {
+                    thumbstick: this.leftStick,
+                    gripActive: this.leftGripDown
+                }
             });
         }
     }

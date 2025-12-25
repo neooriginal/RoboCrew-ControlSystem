@@ -92,11 +92,12 @@ class VRSocketHandler:
                     self._handle_grip_release()
                 
                 if 'thumbstick' in right:
-                    self._handle_joystick(right['thumbstick'])
+                    self._handle_joystick(right['thumbstick'], right_grip=self.right_controller.grip_active)
                 
                 left = data.get('leftController', {})
+                left_grip = left.get('gripActive', False)
                 if 'thumbstick' in left:
-                    self._handle_joystick(left['thumbstick'])
+                    self._handle_joystick(left['thumbstick'], right_grip=self.right_controller.grip_active, left_grip=left_grip)
                 return
             
             if data.get('gripReleased'):
@@ -163,11 +164,11 @@ class VRSocketHandler:
                     wrist_flex_deg=-ctrl.x_axis_rotation
                 ))
     
-    def _handle_joystick(self, stick: Dict):
+    def _handle_joystick(self, stick: Dict, right_grip=False, left_grip=False):
         x, y = stick.get('x', 0), stick.get('y', 0)
         
-        # Check for precision mode (Grip held)
-        precision_mode = self.right_controller.grip_active
+        # Check for precision mode (EITHER stick held)
+        precision_mode = right_grip or left_grip
         scale = 0.3 if precision_mode else 1.0
         
         # Apply deadzone then scale
