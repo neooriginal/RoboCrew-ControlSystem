@@ -39,11 +39,6 @@ def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-@bp.route('/vr')
-def vr_page():
-    return render_template('vr.html')
-
-
 @bp.route('/head_position')
 def get_head_position():
     if state.controller is None:
