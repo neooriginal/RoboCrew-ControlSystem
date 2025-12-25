@@ -120,10 +120,12 @@ class VRSocketHandler:
         
         trigger_active = trigger > 0.5
         
-        # Safety: Only allow gripper close if side-grip matches strict requirements
-        # User requested: "grip cant be closed while not holding the side-button"
-        if not (grip_active or ctrl.grip_active):
-            trigger_active = False
+        # Safety: Only allow INITITAL gripper close if side-grip matches strict requirements
+        # If already closed (trigger_active=True), allow holding it even if side-grip is released ("Freeze" state)
+        # But prevent starting a new grab (False -> True) without side-grip.
+        if trigger_active and not ctrl.trigger_active:
+             if not (grip_active or ctrl.grip_active):
+                 trigger_active = False
 
         if trigger_active != ctrl.trigger_active:
             ctrl.trigger_active = trigger_active
