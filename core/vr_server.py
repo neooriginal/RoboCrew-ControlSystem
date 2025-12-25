@@ -39,13 +39,23 @@ class VRControllerState:
         self.hand = hand
         self.grip_active = False
         self.trigger_active = False
+        
+        # Position tracking relative movement
         self.origin_position = None
         self.origin_quaternion = None
+        self.accumulated_rotation_quat = None
+        
+        # Rotation tracking
+        self.z_axis_rotation = 0.0
+        self.x_axis_rotation = 0.0
     
     def reset_grip(self):
         self.grip_active = False
         self.origin_position = None
         self.origin_quaternion = None
+        self.accumulated_rotation_quat = None
+        self.z_axis_rotation = 0.0
+        self.x_axis_rotation = 0.0
 
 
 class VRSocketHandler:
@@ -83,10 +93,6 @@ class VRSocketHandler:
                 
                 if 'thumbstick' in right:
                     self._handle_joystick(right['thumbstick'])
-                
-                left = data.get('leftController', {})
-                if 'thumbstick' in left:
-                    self._handle_joystick(left['thumbstick'])
                 return
             
             if data.get('gripReleased'):
@@ -116,31 +122,38 @@ class VRSocketHandler:
             if not ctrl.grip_active:
                 ctrl.grip_active = True
                 ctrl.origin_position = position.copy()
+                
+                # Store quaternion
                 if quaternion:
                     ctrl.origin_quaternion = np.array([
                         quaternion.get('x', 0), quaternion.get('y', 0),
                         quaternion.get('z', 0), quaternion.get('w', 1)
                     ])
+                    ctrl.accumulated_rotation_quat = ctrl.origin_quaternion
+                
                 self._send_goal(ControlGoal(mode=ControlMode.POSITION_CONTROL))
                 logger.info("VR grip activated")
             
             if ctrl.origin_position:
                 delta = compute_relative_position(position, ctrl.origin_position, scale)
                 
-                roll, flex = 0.0, 0.0
-                if ctrl.origin_quaternion is not None and quaternion and R:
-                    cur_q = np.array([
+                # Check for quaternion update
+                if quaternion and R:
+                    current_quat = np.array([
                         quaternion.get('x', 0), quaternion.get('y', 0),
                         quaternion.get('z', 0), quaternion.get('w', 1)
                     ])
-                    roll = self._extract_rotation(cur_q, ctrl.origin_quaternion, 2)
-                    flex = self._extract_rotation(cur_q, ctrl.origin_quaternion, 0)
-                
+                    
+                    if ctrl.origin_quaternion is not None:
+                        ctrl.accumulated_rotation_quat = current_quat
+                        ctrl.z_axis_rotation = self._extract_roll_from_quaternion(current_quat, ctrl.origin_quaternion)
+                        ctrl.x_axis_rotation = self._extract_pitch_from_quaternion(current_quat, ctrl.origin_quaternion)
+
                 self._send_goal(ControlGoal(
                     mode=ControlMode.POSITION_CONTROL,
                     target_position=delta,
-                    wrist_roll_deg=-flex,
-                    wrist_flex_deg=roll
+                    wrist_roll_deg=-ctrl.z_axis_rotation,
+                    wrist_flex_deg=-ctrl.x_axis_rotation
                 ))
     
     def _handle_joystick(self, stick: Dict):
@@ -166,12 +179,37 @@ class VRSocketHandler:
                 self.goal_callback(goal)
             except Exception as e:
                 logger.error(f"Goal callback error: {e}")
-    
-    def _extract_rotation(self, cur: np.ndarray, origin: np.ndarray, axis: int) -> float:
-        if not R:
+
+    def _extract_roll_from_quaternion(self, current_quat: np.ndarray, origin_quat: np.ndarray) -> float:
+        """Extract roll (around Z) from relative rotation."""
+        if current_quat is None or origin_quat is None or not R:
             return 0.0
         try:
-            rel = R.from_quat(cur) * R.from_quat(origin).inv()
-            return -np.degrees(rel.as_rotvec()[axis])
-        except:
+            # Relative rotation: origin -> current
+            origin_rotation = R.from_quat(origin_quat)
+            current_rotation = R.from_quat(current_quat)
+            relative_rotation = current_rotation * origin_rotation.inv()
+            
+            # Z-component of rotation vector is roll around Z
+            rotvec = relative_rotation.as_rotvec()
+            return -np.degrees(rotvec[2])
+        except Exception as e:
+            logger.warning(f"Error extracting roll: {e}")
+            return 0.0
+
+    def _extract_pitch_from_quaternion(self, current_quat: np.ndarray, origin_quat: np.ndarray) -> float:
+        """Extract pitch (around X) from relative rotation."""
+        if current_quat is None or origin_quat is None or not R:
+            return 0.0
+        try:
+            # Same relative rotation
+            origin_rotation = R.from_quat(origin_quat)
+            current_rotation = R.from_quat(current_quat)
+            relative_rotation = current_rotation * origin_rotation.inv()
+            
+            # X-component is pitch around X
+            rotvec = relative_rotation.as_rotvec()
+            return np.degrees(rotvec[0])
+        except Exception as e:
+            logger.warning(f"Error extracting pitch: {e}")
             return 0.0

@@ -176,17 +176,24 @@ class VRKinematics:
 
 
 def vr_to_robot_coordinates(vr_pos: dict, scale: float = 1.0) -> np.ndarray:
+    """
+    Convert VR controller position to robot coordinate system.
+    
+    VR coordinate system: X=right, Y=up, Z=back (towards user)
+    Robot coordinate system: X=forward, Y=left, Z=up
+    """
     return np.array([
-        -vr_pos['z'] * scale,
-        vr_pos['x'] * scale,
-        vr_pos['y'] * scale
+        -vr_pos['x'] * scale,   # VR +Z (back) -> Robot +X (forward)
+        vr_pos['z'] * scale,    # VR +X (right) -> Robot -Y (right) 
+        vr_pos['y'] * scale     # VR +Y (up) -> Robot +Z (up)
     ])
 
 
 def compute_relative_position(current: dict, origin: dict, scale: float = 1.0) -> np.ndarray:
+    """Compute relative position from VR origin to current position."""
     delta = {
         'x': current['x'] - origin['x'],
-        'y': current['y'] - origin['y'],
+        'y': current['y'] - origin['y'], 
         'z': current['z'] - origin['z']
     }
     return vr_to_robot_coordinates(delta, scale)
