@@ -118,6 +118,12 @@ class VRSocketHandler:
         scale = self.config.get('vr_scale', 1.0)
         
         trigger_active = trigger > 0.5
+        
+        # Safety: Only allow gripper close if side-grip matches strict requirements
+        # User requested: "grip cant be closed while not holding the side-button"
+        if not (grip_active or ctrl.grip_active):
+            trigger_active = False
+
         if trigger_active != ctrl.trigger_active:
             ctrl.trigger_active = trigger_active
             self._send_goal(ControlGoal(gripper_closed=trigger_active))
@@ -160,20 +166,17 @@ class VRSocketHandler:
     def _handle_joystick(self, stick: Dict):
         x, y = stick.get('x', 0), stick.get('y', 0)
         
-        # Precision Mode: Reduce speed if grip is active (arm control mode)
-        # This allows precise positioning while manipulating the arm
-        scale = 0.3 if self.right_controller.grip_active else 1.0
+        # Check for precision mode (Grip held)
+        precision_mode = self.right_controller.grip_active
+        scale = 0.3 if precision_mode else 1.0
         
-        # Send goal if outside deadzone, OR if we need to send a final stop command (0,0)
+        # Apply deadzone then scale
         if abs(x) > 0.1 or abs(y) > 0.1:
-            # Invert x (rotation) to fix direction, and use y for forward/back
-            # Apply precision scale
-            self._send_goal(ControlGoal(
-                move_forward=-y * scale, 
-                move_rotation=-x * 0.8 * scale
-            ))
+            # Invert x (rotation) and apply scaling
+            final_fwd = -y * scale
+            final_rot = -x * 0.8 * scale
+            self._send_goal(ControlGoal(move_forward=final_fwd, move_rotation=final_rot))
         else:
-            # Send stop command when stick is centered to prevent "moving too much"
             self._send_goal(ControlGoal(move_forward=0.0, move_rotation=0.0))
     
     def _handle_grip_release(self):

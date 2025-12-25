@@ -18,27 +18,18 @@ def execute_movement(movement):
     
     try:
         # Calculate net movement vector
-        # Calculate net movement vector considering analog values (0.0 to 1.0) or booleans (1.0)
+        # Support both boolean (True=1.0) and float (analog) values
         fwd = 0.0
-        val = movement.get('forward')
-        fwd += float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
-        
-        val = movement.get('backward')
-        fwd -= float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
+        fwd += float(movement.get('forward', 0.0))
+        fwd -= float(movement.get('backward', 0.0))
         
         rot = 0.0
-        val = movement.get('left')
-        rot += float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
-        
-        val = movement.get('right')
-        rot -= float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
+        rot += float(movement.get('left', 0.0))
+        rot -= float(movement.get('right', 0.0))
         
         lat = 0.0
-        val = movement.get('slide_left')
-        lat += float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
-        
-        val = movement.get('slide_right')
-        lat -= float(val) if isinstance(val, (int, float)) and not isinstance(val, bool) else (1.0 if val else 0.0)
+        lat += float(movement.get('slide_left', 0.0))
+        lat -= float(movement.get('slide_right', 0.0))
         
         # Use vector control if available
         if hasattr(state.controller, 'set_velocity_vector'):
