@@ -8,6 +8,7 @@
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="/static/css/vr_styles.css">
+    <link rel="stylesheet" href="/static/css/vla_training.css">
 </head>
 
 <body>
@@ -28,8 +29,24 @@
             <div class="instruction-item grip"><strong>Grip:</strong> Hold to move arm</div>
             <div class="instruction-item trigger"><strong>Trigger:</strong> Close gripper</div>
             <div class="instruction-item joystick"><strong>Thumbstick:</strong> Move robot</div>
+            <div class="instruction-item rec-hint"
+                style="color:var(--danger); border-top:1px solid #444; margin-top:5px; padding-top:5px;">
+                <strong>Recording:</strong> A=Start/Save, B=Discard
+            </div>
         </div>
     </div>
+
+    <!-- Recording Overlay (Toggleable) -->
+    <div id="recordingPanel" class="hidden">
+        <h3>🔴 Data Collection: <span id="recTaskName">None</span></h3>
+        <div class="stats" style="margin: 10px 0; font-size: 1.2rem;">
+            Ep: <span id="recEpisode">0</span> | Frames: <span id="recFrames">0</span>
+        </div>
+        <div class="controls">
+            <button onclick="stopRecordingSession()" class="btn btn-danger">⏹️ Stop Session</button>
+        </div>
+    </div>
+
 
     <div id="cameraOverlay" class="camera-overlay">
         <img id="cameraFeed" src="/video_feed" alt="Camera" onerror="this.style.display='none'">
@@ -43,6 +60,14 @@
                 material="shader: flat; src: #cameraTexture; transparent: true; opacity: 0.95"></a-plane>
             <a-text value="Camera" position="0 0.22 0" align="center" scale="0.08 0.08 0.08" color="#00d2ff"></a-text>
         </a-entity>
+
+        <!-- Rec UI in VR -->
+        <a-entity id="vrRecUI" position="0.3 1.5 -0.8" visible="false">
+            <a-text id="vrRecStatus" value="REC [ ]" color="red" position="0 0.1 0" scale="0.2 0.2 0.2"></a-text>
+            <a-text id="vrRecInfo" value="Ep: 0" color="white" position="0 0 0" scale="0.15 0.15 0.15"></a-text>
+            <a-text value="A: Start/Save | B: Discard" color="#aaa" position="0 -0.1 0" scale="0.08 0.08 0.08"></a-text>
+        </a-entity>
+
 
         <a-entity id="rightHand" oculus-touch-controls="hand: right">
             <a-text id="rightHandInfo" value="Ready" position="0 0.04 -0.05" scale="0.05 0.05 0.05" color="white"

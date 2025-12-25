@@ -12,6 +12,8 @@ except ImportError:
     R = None
 
 from .vr_kinematics import compute_relative_position
+from state import state
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,26 @@ class VRSocketHandler:
                 self._handle_trigger_release()
             elif data.get('position'):
                 self._process_controller(data)
+
+            # VLA Recorder Control
+            # A Button: Toggle Start/Save
+            if data.get('aButtonPressed'):
+                if state.vla_recording_active and state.vla_recorder:
+                    current_desc = getattr(state, 'vla_task_description', 'teleop_task')
+                    if getattr(state, 'vla_is_recording_episode', False):
+                         state.vla_recorder.end_episode()
+                         state.vla_is_recording_episode = False
+                    else:
+                         state.vla_recorder.start_episode(current_desc)
+                         state.vla_is_recording_episode = True
+            
+            # B Button: Discard
+            if data.get('bButtonPressed'):
+                 if state.vla_recording_active and state.vla_recorder:
+                      if getattr(state, 'vla_is_recording_episode', False):
+                        state.vla_recorder.cancel_episode()
+                        state.vla_is_recording_episode = False
+
         except Exception as e:
             logger.error(f"VR data error: {e}")
     
@@ -140,6 +162,20 @@ class VRSocketHandler:
                     wrist_roll_deg=-flex,
                     wrist_flex_deg=roll
                 ))
+
+        # Record frame for VLA if active
+        if getattr(state, 'vla_recording_active', False) and getattr(state, 'vla_is_recording_episode', False) and state.vla_recorder:
+             # We need current arm state. 
+             # Since VRSocketHandler doesn't know absolute arm angles directly unless we ask RobotState,
+             # we will fetch it.
+             arm_state = state.get_arm_positions() # This returns dict of angles
+             # Action is the target we just sent? Or similar. 
+             # For now we use the same state as 'action' approximation or the result of IK.
+             # Ideally we used the IK result, but that's computed in the goal callback usually.
+             # We will pass the current arm state as both state and action source for now roughly, 
+             # or better: we use the timestamped record. 
+             state.vla_recorder.capture_frame(arm_state, arm_state) 
+
     
     def _handle_joystick(self, stick: Dict):
         x, y = stick.get('x', 0), stick.get('y', 0)

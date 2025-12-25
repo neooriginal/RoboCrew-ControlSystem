@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLA Training Suite | RoboCrew</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vla_training.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+</head>
+
+<body>
+
+    <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>🧠 VLA Dashboard</h1>
+        <a href="/" class="btn">🏠 Home</a>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-grid">
+
+        <!-- Recording Card -->
+        <div class="card" style="border-color: var(--primary);">
+            <div class="card-header">
+                <span class="card-title">🎮 Data Collection</span>
+            </div>
+            <div style="text-align:center; padding: 20px 0;">
+                <p class="text-muted">Put on your VR headset and start recording demonstrations.</p>
+                <div class="vr-hint">
+                    <strong>Instructions:</strong><br>
+                    1. Click below to enter VR Mode<br>
+                    2. Use <b>Overlay UI</b> to Start/Stop Session<br>
+                    3. <b>Button A</b>: Start/Save Episode<br>
+                    4. <b>Button B</b>: Discard Episode
+                </div>
+
+                <a href="/vr" class="btn btn-primary btn-large">
+                    🕶️ ENTER VR RECORDING
+                </a>
+            </div>
+        </div>
+
+        <!-- Dataset Management -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">📁 Datasets (Local)</span>
+                <button id="refreshBtn" class="btn">🔄</button>
+            </div>
+            <div id="datasetList">
+                <div class="list-item">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Models Info -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🎓 Trained Models</span>
+            </div>
+            <div class="list-item">
+                <div>
+                    <div>No models found</div>
+                    <small style="color:#666">Train on PC & Upload</small>
+                </div>
+            </div>
+            <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+                <button class="btn" style="width:100%" onclick="alert('Upload feature coming soon')">⬆️ Upload
+                    Model</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/vla_training.js') }}"></script>
+</body>
+
+</html>

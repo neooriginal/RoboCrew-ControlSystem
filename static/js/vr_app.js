@@ -12,9 +12,64 @@ AFRAME.registerComponent('vr-controller-updater', {
         this.lastSend = 0;
         this.sendInterval = 50;
 
+        // VLA Recording State
+        this.recordingActive = false;
+        this.recordingEpisode = 0;
+        this.framesRecorded = 0;
+
+        // Global access for UI
+        window.vrApp = this;
+
         this.connectSocket();
         this.setupEvents();
     },
+
+    toggleRecording: async function () {
+        if (this.recordingActive) {
+            this.stopRecording();
+        } else {
+            const name = prompt("Enter dataset name (e.g., 'pick_cup'):", "dataset_" + Date.now());
+            if (!name) return;
+            const task = prompt("Enter task description:", "pick up the object");
+
+            try {
+                const res = await fetch('/api/vla/record/session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dataset_name: name, task_description: task })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.setRecordingState(true, name);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) {
+                alert('Failed to start session');
+            }
+        }
+    },
+
+    stopRecording: async function () {
+        await fetch('/api/vla/record/session/stop', { method: 'POST' });
+        this.setRecordingState(false);
+    },
+
+    setRecordingState: function (active, name) {
+        this.recordingActive = active;
+        const panel = document.getElementById('recordingPanel');
+        const vrUI = document.getElementById('vrRecUI');
+
+        if (active) {
+            panel.classList.remove('hidden');
+            document.getElementById('recTaskName').textContent = name;
+            if (vrUI) vrUI.setAttribute('visible', true);
+        } else {
+            panel.classList.add('hidden');
+            if (vrUI) vrUI.setAttribute('visible', false);
+        }
+    },
+
 
     connectSocket: function () {
         try {
@@ -58,6 +113,36 @@ AFRAME.registerComponent('vr-controller-updater', {
         this.leftHand.addEventListener('thumbstickmoved', e => {
             this.leftStick = { x: e.detail.x, y: e.detail.y };
         });
+
+        // VLA Recording Buttons (A/B)
+        // Note: A-Frame maps Oculus 'A' or 'X' to 'abuttondown' depending on hand
+        this.rightHand.addEventListener('abuttondown', () => {
+            if (this.socket?.connected) {
+                this.socket.emit('vr_data', { aButtonPressed: true });
+                // Optimistic UI update
+                if (this.recordingActive) this.flashRecStatus('Saved');
+            }
+        });
+
+        this.rightHand.addEventListener('bbuttondown', () => {
+            if (this.socket?.connected) {
+                this.socket.emit('vr_data', { bButtonPressed: true });
+                if (this.recordingActive) this.flashRecStatus('Discarded', 'red');
+            }
+        });
+    },
+
+    flashRecStatus: function (text, color = 'green') {
+        const el = document.getElementById('vrRecStatus');
+        if (!el) return;
+        const original = el.getAttribute('value');
+        el.setAttribute('value', text);
+        el.setAttribute('color', color);
+        setTimeout(() => {
+            el.setAttribute('value', 'REC [ ]'); // Reset to default
+            el.setAttribute('color', 'red');
+        }, 1500);
+
     },
 
     tick: function () {
@@ -104,3 +189,12 @@ AFRAME.registerComponent('vr-controller-updater', {
         }
     }
 });
+
+// Global helpers
+function toggleRecording() {
+    if (window.vrApp) window.vrApp.toggleRecording();
+}
+function stopRecordingSession() {
+    if (window.vrApp) window.vrApp.stopRecording();
+}
+

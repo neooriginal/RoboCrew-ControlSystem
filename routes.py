@@ -10,7 +10,14 @@ from state import state
 from camera import generate_frames
 from movement import execute_movement
 from arm import arm_controller
+from arm import arm_controller
 import tts
+from core.vla_trainer import VLADatasetRecorder, VLADatasetManager, VLA_DATASETS_DIR
+from pathlib import Path
+import shutil
+import threading
+import os
+
 
 bp = Blueprint('robot', __name__)
 
@@ -548,4 +555,117 @@ def vr_status():
         'arm_mode': arm_mode,
         'arm_connected': state.arm_connected
     })
+
+
+# VLA Training Routes
+
+@bp.route('/vla')
+def vla_page():
+    """VLA Training Suite Dashboard."""
+    return render_template('vla_training.html')
+
+@bp.route('/api/vla/datasets')
+def list_vla_datasets():
+    datasets = VLADatasetManager.list_datasets()
+    return jsonify({'datasets': datasets})
+
+@bp.route('/api/vla/datasets/<name>', methods=['DELETE'])
+def delete_vla_dataset(name):
+    VLADatasetManager.delete_dataset(name)
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/datasets/export/<name>')
+def export_vla_dataset(name):
+    """Create ZIP export of dataset and return path to download."""
+    # This creates a zip file in the datasets folder
+    archive_path = VLADatasetManager.export_dataset(name)
+    if not archive_path:
+        return jsonify({'error': 'Dataset not found'}), 404
+    
+    # Return the file for download
+    # Since flask.send_file assumes relative to root usually, or absolute
+    return jsonify({'status': 'ok', 'download_url': f'/api/vla/download/{name}'})
+
+@bp.route('/api/vla/download/<name>')
+def download_vla_dataset(name):
+    """Download the actual zip file."""
+    # Assuming export_vla_dataset was called and zip exists
+    # We serve the file.
+    # Note: send_from_directory is safer.
+    from flask import send_from_directory
+    filename = f"{name}.zip"
+    return send_from_directory(VLA_DATASETS_DIR, filename, as_attachment=True)
+
+
+@bp.route('/api/vla/record/session/start', methods=['POST'])
+def start_vla_session():
+    """Start a recording session (initializes recorder)."""
+    data = request.json
+    dataset_name = data.get('dataset_name')
+    task_desc = data.get('task_description', 'teleop task')
+    
+    if not dataset_name:
+        return jsonify({'status': 'error', 'error': 'Dataset name required'}), 400
+        
+    state.vla_recording_active = True
+    state.vla_task_description = task_desc
+    state.vla_current_dataset = dataset_name
+    
+    # Initialize recorder logic or class
+    state.vla_recorder = VLADatasetRecorder(dataset_name, task_desc)
+    
+    return jsonify({'status': 'ok', 'dataset_name': dataset_name})
+
+@bp.route('/api/vla/record/session/stop', methods=['POST'])
+def stop_vla_session():
+    """Stop the recording session."""
+    state.vla_recording_active = False
+    state.vla_is_recording_episode = False
+    if state.vla_recorder:
+        state.vla_recorder.close()
+        state.vla_recorder = None
+    
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/record/episode/start', methods=['POST'])
+def start_vla_episode():
+    """Manually start an episode from UI."""
+    if not state.vla_recorder:
+         return jsonify({'status': 'error', 'error': 'Session not active'}), 400
+    
+    state.vla_recorder.start_episode(state.vla_task_description)
+    state.vla_is_recording_episode = True
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/record/episode/end', methods=['POST'])
+def end_vla_episode():
+    """Manually end an episode from UI."""
+    if not state.vla_recorder:
+         return jsonify({'status': 'error', 'error': 'Session not active'}), 400
+    
+    state.vla_recorder.end_episode()
+    state.vla_is_recording_episode = False
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/record/episode/cancel', methods=['POST'])
+def cancel_vla_episode():
+    """Discard current episode."""
+    if not state.vla_recorder:
+         return jsonify({'status': 'error', 'error': 'Session not active'}), 400
+    
+    state.vla_recorder.cancel_episode()
+    state.vla_is_recording_episode = False
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/train', methods=['POST'])
+def train_vla_model():
+    """Trigger training job."""
+    # Placeholder for training logic.
+    # On Pi 4, this might just acknowledge and start a background thread
+    # or return a warning if this is heavy.
+    return jsonify({
+        'status': 'warning', 
+        'message': 'Training on local CPU is extremely slow. Recommend exporting dataset.'
+    })
+
 

@@ -68,10 +68,18 @@ class RobotState:
         # Shared Obstacle Detector
         self.detector = None
         
-        # VINS-SLAM
+        # VLA-SLAM
         self.vins_slam = None
         self.slam_enabled = True
         self.pose = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+
+        # VLA Recording State
+        self.vla_recording_active = False # Session active
+        self.vla_recorder = None
+        self.vla_task_description = ""
+        self.vla_is_recording_episode = False # Currently recording an episode
+        self.vla_current_dataset = None
+
 
     
     def update_movement(self, data):

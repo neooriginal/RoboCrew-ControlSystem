@@ -1,5 +1,7 @@
 """ARCS Configuration"""
 
+from pathlib import Path
+
 # Hardware ports
 CAMERA_PORT = "/dev/video0"
 WHEEL_USB = "/dev/robot_acm0"
@@ -41,4 +43,15 @@ VR_ENABLED = True
 VR_WEBSOCKET_PORT = 8442
 VR_TO_ROBOT_SCALE = 1.0
 VR_SEND_INTERVAL = 0.05
+VR_A_BUTTON_DEBOUNCE = 0.5  # Seconds to prevent accidental double-clicks
+
+# VLA Training Configuration
+VLA_ARM_CAMERA_PORT = "/dev/video1"     # Arm-mounted camera
+VLA_CAMERA_WIDTH = 320                  # Reduced resolution for Pi 4 performance
+VLA_CAMERA_HEIGHT = 240
+VLA_CAMERA_FPS = 30
+VLA_DATASETS_DIR = Path.home() / ".cache" / "huggingface" / "lerobot" / "datasets"
+VLA_MODELS_DIR = Path("./models/vla")
+VLA_DEFAULT_POLICY = "act"
+VLA_TRAINING_DEVICE = "cpu"             # Force CPU for Pi 4
 

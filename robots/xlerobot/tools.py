@@ -465,4 +465,42 @@ def create_vla_single_arm_manipulation(
     tool_name_to_override.name = tool_name
     tool_name_to_override.description = tool_description
 
+    tool_name_to_override.description = tool_description
+
     return tool_name_to_override
+
+def create_vla_tool_from_model(model_name: str, task_description: str, servo_controller, main_camera_object):
+    """Dynamically creates an AI tool from a trained VLA model."""
+    from config import VLA_MODELS_DIR, VLA_TRAINING_DEVICE, VLA_ARM_CAMERA_PORT, CAMERA_PORT
+    
+    # Path to the specific model checkpoint
+    policy_path = str(VLA_MODELS_DIR / model_name)
+    
+    # Configuration for Pi 4 (Video1 for arm, Video0 for main if needed)
+    # Note: Trained policies usually expect specific camera names like 'main' or 'arm'
+    # dependent on how they were recorded. Our recorder uses 'arm_camera'.
+    camera_config = {
+        "arm_camera": {
+            "index_or_path": VLA_ARM_CAMERA_PORT,
+            "width": 320,  # Match recording
+            "height": 240,
+            "fps": 30
+        }
+    }
+    
+    return create_vla_single_arm_manipulation(
+        tool_name=f"vla_{model_name}",
+        tool_description=f"Execute learned action: {task_description}",
+        task_prompt=task_description,
+        server_address="0.0.0.0", # Local
+        policy_name=policy_path,
+        policy_type="act", # Default
+        arm_port="/dev/ttyUSB0", # This should be config driven
+        servo_controller=servo_controller,
+        camera_config=camera_config,
+        main_camera_object=main_camera_object,
+        main_camera_usb_port=CAMERA_PORT,
+        execution_time=45, # Generous for Pi 4
+        policy_device=VLA_TRAINING_DEVICE
+    )
+
