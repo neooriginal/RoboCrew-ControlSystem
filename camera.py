@@ -5,6 +5,7 @@ Handles camera initialization and MJPEG streaming.
 
 import time
 import cv2
+import numpy as np
 
 from config import CAMERA_PORT, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_BUFFER_SIZE, JPEG_QUALITY
 from state import state
@@ -72,9 +73,20 @@ def _capture_loop():
 
 def generate_frames():
     """MJPEG video stream generator using the latest captured frame."""
+    
+    # Create a placeholder frame (black image with text)
+    blank_frame = np.zeros((180, 320, 3), np.uint8)
+    cv2.putText(blank_frame, "WAITING FOR CAMERA...", (20, 90), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    _, blank_buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, 20])
+    blank_bytes = blank_buffer.tobytes()
+
     while state.running:
         if not hasattr(state, 'latest_frame') or state.latest_frame is None:
-            time.sleep(0.05)
+            # Yield placeholder instead of blocking
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + blank_bytes + b'\r\n')
+            time.sleep(0.5)
             continue
         
         try:
@@ -99,8 +111,10 @@ def generate_frames():
             time.sleep(0.03)
             
         except Exception as e:
-            state.last_error = f"Camera error: {str(e)}"
-            time.sleep(0.05)
+            print(f"[Stream] Error: {e}")
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + blank_bytes + b'\r\n')
+            time.sleep(0.1)
 
 
 def release_camera():
