@@ -37,6 +37,7 @@ python main.py
 
 ## 🙏 Special Thanks
 Based on the [RoboCrew](https://github.com/Grigorij-Dudnik/RoboCrew) project. 
+Some parts of the code are based on the [Telegrip](https://github.com/DipFlip/telegrip/tree/main) project.
 
 ## 📝 License
 [MIT License](LICENSE)
