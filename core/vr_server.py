@@ -173,9 +173,8 @@ class VRSocketHandler:
             self._send_goal(ControlGoal(mode=ControlMode.IDLE))
     
     def _handle_trigger_release(self):
-        if self.right_controller.trigger_active:
-            self.right_controller.trigger_active = False
-            self._send_goal(ControlGoal(gripper_closed=False))
+        self.right_controller.trigger_active = False
+        self._send_goal(ControlGoal(gripper_closed=False))
     
     def _send_goal(self, goal: ControlGoal):
         if self.goal_callback:
