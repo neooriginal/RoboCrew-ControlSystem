@@ -73,6 +73,8 @@ class VRSocketHandler:
     def on_vr_data(self, data: Dict):
         try:
             if 'rightController' in data:
+                # DEBUG: Trace data receipt
+                # logger.info(f"VR Data: {data.keys()}") 
                 right = data['rightController']
                 if right.get('position'):
                     self._process_controller(right)
@@ -144,6 +146,7 @@ class VRSocketHandler:
     def _handle_joystick(self, stick: Dict):
         x, y = stick.get('x', 0), stick.get('y', 0)
         if abs(x) > 0.1 or abs(y) > 0.1:
+            logger.info(f"VR Joystick: x={x:.2f}, y={y:.2f}")
             self._send_goal(ControlGoal(move_forward=-y, move_rotation=x * 0.8))
     
     def _handle_grip_release(self):

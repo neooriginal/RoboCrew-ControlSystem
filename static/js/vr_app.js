@@ -18,7 +18,7 @@ AFRAME.registerComponent('vr-controller-updater', {
 
     connectSocket: function () {
         try {
-            this.socket = io(window.location.origin, { transports: ['websocket', 'polling'] });
+            this.socket = io(window.location.origin, { transports: ['websocket'] });
 
             this.socket.on('connect', () => {
                 this.updateStatus('wsStatus', true);

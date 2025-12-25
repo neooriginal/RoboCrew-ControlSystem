@@ -82,6 +82,8 @@ class VRArmController:
         fwd = goal.move_forward
         rot = goal.move_rotation
         
+        logger.info(f"VR Controller Movement: fwd={fwd}, rot={rot}")
+
         state.movement = {
             'forward': fwd > 0.3,
             'backward': fwd < -0.3,
