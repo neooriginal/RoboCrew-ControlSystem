@@ -25,7 +25,7 @@ class VRArmController:
         self.gripper_closed = False
         
         self.last_movement_time = 0
-        self.movement_interval = 0.1
+        self.movement_interval = 0.05
         
         self.last_arm_update_time = 0
         self.arm_update_interval = 0.05  # 20Hz max for arm updates
