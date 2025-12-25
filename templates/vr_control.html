@@ -42,10 +42,15 @@
     <a-scene vr-mode-ui="enabled: false;" embedded style="width: 100%; height: 100%;">
         <a-entity webxr-passthrough="referenceSpaceType: local-floor"></a-entity>
 
-        <a-entity id="cameraPanel" position="0 1.5 -0.8">
-            <a-plane id="cameraPlane" width="0.5" height="0.375"
-                material="shader: flat; src: #cameraTexture; transparent: true; opacity: 0.95"></a-plane>
-            <a-text value="Camera" position="0 0.22 0" align="center" scale="0.08 0.08 0.08" color="#00d2ff"></a-text>
+        <a-entity id="cameraPanel" position="0 1.2 -1.5">
+            <!-- Tilted slightly up for better viewing from seated/standing -->
+            <a-entity rotation="-15 0 0">
+                <a-plane id="cameraPlane" width="0.5" height="0.375"
+                    material="shader: flat; src: #cameraTexture; transparent: true; opacity: 0.95"></a-plane>
+                <a-text value="Camera" position="0 0.22 0" align="center" scale="0.08 0.08 0.08"
+                    color="#00d2ff"></a-text>
+            </a-entity>
+
         </a-entity>
 
         <a-entity id="rightHand" oculus-touch-controls="hand: right">
