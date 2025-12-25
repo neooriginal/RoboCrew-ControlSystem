@@ -100,10 +100,12 @@
         // The texture loader in A-Frame handles it.
         cameraImg.src = '/video_feed';
 
-        if (cameraPlane && cameraPlane.getObject3D('mesh')) {
-            const mat = cameraPlane.getObject3D('mesh').material;
-            if (mat.map) mat.map.needsUpdate = true;
-        }
+        setInterval(() => {
+            if (cameraPlane && cameraPlane.getObject3D('mesh')) {
+                const mat = cameraPlane.getObject3D('mesh').material;
+                if (mat.map) mat.map.needsUpdate = true;
+            }
+        }, 33);
     });
 </script>
 
