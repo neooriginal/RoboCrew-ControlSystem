@@ -42,13 +42,13 @@ class VRArmController:
         except Exception as e:
             logger.error(f"Kinematics error: {e}")
     
-    def _sync_from_robot(self):
+    def _sync_from_robot(self) -> bool:
         if not self.servo_controller or not hasattr(self.servo_controller, 'get_arm_position'):
-            return
+            return False
         try:
             pos = self.servo_controller.get_arm_position()
             if pos:
-                self.current_angles = np.array([
+                new_angles = np.array([
                     pos.get('shoulder_pan', 0),
                     pos.get('shoulder_lift', 0),
                     pos.get('elbow_flex', 0),
@@ -56,12 +56,23 @@ class VRArmController:
                     pos.get('wrist_roll', 0),
                     pos.get('gripper', 0)
                 ])
+                
+                # Sanity check: If all angles are close to -180 (within 5 deg), it's likely a read error/overflow
+                # -180 is roughly -3.14 rad. 
+                if np.all(new_angles < -170):
+                    logger.error(f"Sync rejected: Suspicious servo values (near -180): {new_angles}")
+                    return False
+
+                self.current_angles = new_angles
                 vr_kinematics.update_current_angles(self.current_angles)
                 logger.info(f"Synced arm angles: {self.current_angles}")
+                return True
             else:
                 logger.warning("Synced arm failed: Empty position data")
+                return False
         except Exception as e:
             logger.warning(f"Sync error: {e}")
+            return False
     
     def _handle_goal(self, goal: ControlGoal):
         try:
@@ -100,12 +111,16 @@ class VRArmController:
     
     def _handle_mode_change(self, goal: ControlGoal):
         if goal.mode == ControlMode.POSITION_CONTROL and self.mode != ControlMode.POSITION_CONTROL:
-            self._sync_from_robot()
-            self.origin_position = vr_kinematics.get_end_effector_position(self.current_angles)
-            self.origin_wrist_roll = self.current_angles[WRIST_ROLL_INDEX]
-            self.origin_wrist_flex = self.current_angles[WRIST_FLEX_INDEX]
-            self.mode = ControlMode.POSITION_CONTROL
-            logger.info(f"Position control on, origin: {self.origin_position}")
+            if self._sync_from_robot():
+                self.origin_position = vr_kinematics.get_end_effector_position(self.current_angles)
+                self.origin_wrist_roll = self.current_angles[WRIST_ROLL_INDEX]
+                self.origin_wrist_flex = self.current_angles[WRIST_FLEX_INDEX]
+                self.mode = ControlMode.POSITION_CONTROL
+                logger.info(f"Position control on, origin: {self.origin_position}")
+            else:
+                logger.error("Failed to sync arm position, blocking VR control safety engagement")
+                self.mode = ControlMode.IDLE
+                
         elif goal.mode == ControlMode.IDLE:
             self.mode = ControlMode.IDLE
             self.origin_position = None
