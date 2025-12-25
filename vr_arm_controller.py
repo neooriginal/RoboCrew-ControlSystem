@@ -57,6 +57,9 @@ class VRArmController:
                     pos.get('gripper', 0)
                 ])
                 vr_kinematics.update_current_angles(self.current_angles)
+                logger.info(f"Synced arm angles: {self.current_angles}")
+            else:
+                logger.warning("Synced arm failed: Empty position data")
         except Exception as e:
             logger.warning(f"Sync error: {e}")
     
