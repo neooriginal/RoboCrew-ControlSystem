@@ -11,6 +11,7 @@ class RobotState:
     
     def __init__(self):
         self.camera = None
+        self.controller = None  # Restoring missing attribute
         self.latest_frame = None  # Threaded capture frame buffer
         self.last_error = None
         self.running = True

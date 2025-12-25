@@ -50,16 +50,24 @@ def init_camera():
 
 def _capture_loop():
     """Background thread to constantly read the latest frame."""
+    print("[Camera] Capture thread started")
+    frames_read = 0
     while state.running and state.camera and state.camera.isOpened():
         try:
             # Grab and retrieve to clear buffer
             ret, frame = state.camera.read()
             if ret:
                 state.latest_frame = frame
+                frames_read += 1
+                if frames_read % 100 == 0:
+                    print(f"[Camera] Captured {frames_read} frames", end='\r')
             else:
+                print("[Camera] Failed to read frame")
                 time.sleep(0.01)
-        except Exception:
+        except Exception as e:
+            print(f"[Camera] Thread error: {e}")
             time.sleep(0.1)
+    print("[Camera] Capture thread stopped")
 
 
 def generate_frames():
