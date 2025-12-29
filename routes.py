@@ -494,33 +494,7 @@ def clear_memories():
     return jsonify({'status': 'ok'})
 
 
-@bp.route('/slam/data')
-def slam_data():
-    if state.vins_slam is None:
-        return jsonify({'error': 'SLAM not initialized'})
-    return jsonify(state.vins_slam.get_data())
 
-
-@bp.route('/slam/status')
-def slam_status():
-    if state.vins_slam is None:
-        return jsonify({'enabled': False, 'error': 'SLAM not initialized'})
-    status = state.vins_slam.get_status()
-    status['enabled'] = state.slam_enabled
-    return jsonify(status)
-
-
-@bp.route('/slam/toggle', methods=['POST'])
-def slam_toggle():
-    state.slam_enabled = not state.slam_enabled
-    return jsonify({'enabled': state.slam_enabled})
-
-
-@bp.route('/slam/reset', methods=['POST'])
-def slam_reset():
-    if state.vins_slam:
-        state.vins_slam.reset()
-    return jsonify({'status': 'ok'})
 
 
 # VR Control Routes

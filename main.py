@@ -26,7 +26,7 @@ import routes
 import tts
 from core.robot_system import RobotSystem
 from core.navigation_agent import NavigationAgent
-from core.vins_slam import VinsSlam
+
 from config import WEB_PORT, VR_ENABLED
 from robots.xlerobot.tools import (
     create_move_forward, 
@@ -80,26 +80,7 @@ def agent_loop():
         time.sleep(0.1)
 
 
-def slam_loop():
-    """Background thread for VINS-SLAM mapping."""
-    logger.info("SLAM loop started")
-    while state.running:
-        if not state.slam_enabled or state.vins_slam is None:
-            time.sleep(0.5)
-            continue
-        
-        if state.camera is None:
-            time.sleep(0.5)
-            continue
-        
-        try:
-            ret, frame = state.camera.read()
-            if ret and frame is not None:
-                state.vins_slam.process_frame(frame)
-        except Exception as e:
-            logger.debug(f"SLAM frame error: {e}")
-        
-        time.sleep(0.1)
+
 
 
 def cleanup(signum=None, frame=None):
@@ -168,10 +149,7 @@ def main():
     # AI Agent thread
     threading.Thread(target=agent_loop, daemon=True).start()
     
-    # VINS-SLAM thread
-    state.vins_slam = VinsSlam()
-    threading.Thread(target=slam_loop, daemon=True).start()
-    print("🗺️ SLAM ready")
+
     
     # Initialize VR Control (if enabled)
     vr_controller = None

@@ -71,9 +71,7 @@ class RobotState:
         self.detector = None
         
         # VINS-SLAM
-        self.vins_slam = None
-        self.slam_enabled = True
-        self.pose = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+        # Removed per user request
 
     
     def update_movement(self, data):
