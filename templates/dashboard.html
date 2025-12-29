@@ -46,8 +46,7 @@
             QUICK ACTIONS</h3>
 
         <div style="display: grid; grid-template-columns: 1fr; gap: 15px; flex: 1;">
-            <button class="btn"
-                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); justify-content: center; height: 50px;"
+            <button class="btn btn-primary" style="justify-content: center; height: 50px;"
                 onclick="fetch('/arm/home', {method: 'POST'})">
                 <span style="font-size: 1.2rem;">🦾</span> Home Arm
             </button>
@@ -57,6 +56,20 @@
                 onclick="fetch('/emergency_stop', {method: 'POST'})">
                 🛑 EMERGENCY STOP
             </button>
+        </div>
+    </div>
+
+    <!-- Live Camera Feed -->
+    <div class="control-card" style="grid-column: span 2;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="color: var(--text-secondary); font-size: 0.85rem; letter-spacing: 1.5px; font-weight: 600;">
+                VISUAL UPLINK</h3>
+            <div class="status-dot active"
+                style="width: 6px; height: 6px; background: var(--error); box-shadow: 0 0 10px var(--error);"></div>
+        </div>
+        <div
+            style="background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); aspect-ratio: 16/9;">
+            <img src="/video_feed" style="width: 100%; height: 100%; object-fit: cover;" alt="Live Feed">
         </div>
     </div>
 
