@@ -980,19 +980,18 @@ body {
     }
 }
 
-/* Mobile Restricted Overlay (Hidden by default) */
-.mobile-restricted-overlay {
+/* VR Specific Restriction (Hidden by default) */
+.vr-only-overlay {
     display: none;
-    /* Hidden on desktop */
 }
 
 @media (max-width: 768px) {
-    .mobile-restricted {
+    .vr-restricted {
         position: relative;
         overflow: hidden;
     }
 
-    .mobile-restricted-overlay {
+    .vr-only-overlay {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -1010,14 +1009,7 @@ body {
         padding: 40px;
     }
 
-    .mobile-restricted-icon {
-        font-size: 4rem;
-        margin-bottom: 20px;
-        opacity: 0.5;
-        animation: pulse 2s infinite;
-    }
-
-    .mobile-restricted-title {
+    .vr-restricted-title {
         font-size: 1.2rem;
         color: var(--error);
         margin-bottom: 10px;
@@ -1026,7 +1018,7 @@ body {
         letter-spacing: 2px;
     }
 
-    .mobile-restricted-msg {
+    .vr-restricted-msg {
         color: var(--text-secondary);
         font-size: 0.9rem;
         line-height: 1.5;
