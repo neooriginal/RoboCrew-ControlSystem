@@ -9,7 +9,8 @@
 </p>
 
 <p align="center">
-  <img width="100%" alt="remote-control-webui" src="https://github.com/user-attachments/assets/64a978bc-f0ca-496d-a325-dee9dd3e7171" />
+  <img width="80%" alt="dashboard-webui" src="https://github.com/user-attachments/assets/1252df5d-eda6-47ed-afa5-d2b84e1cadb4" />
+  <img width="80%" alt="remote-control-webui" src="https://github.com/user-attachments/assets/64a978bc-f0ca-496d-a325-dee9dd3e7171" />
 </p>
 
 <p align="center">
