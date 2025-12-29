@@ -64,22 +64,22 @@ class ObstacleDetector:
         self.last_gap_update_time = 0
         self.gap_lock_duration = 5.0  # seconds
         
+        # Caching
+        self.last_frame_id = -1
+        self.cached_result = (["STOP"], None, {})
+        
     def process(self, frame):
         """
         Process a video frame to detect obstacles and determine safe navigation actions.
-        
-        Args:
-            frame (np.ndarray): Input video frame (BGR).
-            
-        Returns:
-            tuple: (
-                safe_actions (list): List of allowed actions ['FORWARD', 'LEFT', 'RIGHT', 'BACKWARD'],
-                overlay (np.ndarray): Visualization frame,
-                metrics (dict): Internal detection metrics
-            )
+        Uses caching to avoid double-processing the same frame.
         """
         if frame is None:
             return ["STOP"], None, {}
+            
+        with self.lock:
+            # Check Cache
+            if state.frame_id == self.last_frame_id:
+                return self.cached_result
 
         # 1. Image Preprocessing & Edge Detection
         edges, total_edge_pixels = self._detect_edges(frame)
@@ -134,14 +134,20 @@ class ObstacleDetector:
             
         cv2.putText(overlay, mode_text, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, mode_color, 2)
 
-        return safe_actions, overlay, {
+        result = (safe_actions, overlay, {
             'c_left': c_left, 
             'c_fwd': c_fwd, 
             'c_right': c_right, 
             'edges': total_edge_pixels,
             'guidance': guidance,
             'rotation_hint': rotation_hint
-        }
+        })
+        
+        with self.lock:
+            self.last_frame_id = state.frame_id
+            self.cached_result = result
+            
+        return result
 
     def _detect_edges(self, frame):
         """

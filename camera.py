@@ -74,6 +74,7 @@ def _capture_loop():
             ret, frame = state.camera.read()
             if ret:
                 state.latest_frame = frame
+                state.frame_id += 1 # New frame captured
                 
                 # Resize and encode once for all clients
                 stream_frame = cv2.resize(frame, (STREAM_WIDTH, STREAM_HEIGHT), interpolation=cv2.INTER_NEAREST)
@@ -99,16 +100,35 @@ def _capture_loop():
 def generate_frames():
     global encoded_frame
     
+    # Send current frame immediately to establish connection and prevent
+    # "write() before start_response" errors if the camera thread is slow.
+    current_frame = encoded_frame
+    
+    # Fallback if camera hasn't started yet
+    if current_frame is None:
+        try:
+            blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+            cv2.putText(blank_frame, "STARTING...", (20, STREAM_HEIGHT//2), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            _, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+            current_frame = buffer.tobytes()
+        except Exception:
+            pass # Should not happen, but safe fallback
+
+    if current_frame:
+         yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+    
     while state.running:
         with frame_condition:
-            frame_condition.wait(timeout=1.0)
+            # Wait for notification of NEW frame
+            frame_condition.wait(timeout=0.5)
             current_frame = encoded_frame
 
         if current_frame:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
         else:
-            # Should barely happen due to pre-allocation
             time.sleep(0.1)
 
 

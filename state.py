@@ -13,6 +13,7 @@ class RobotState:
         self.camera = None
         self.controller = None  # Restoring missing attribute
         self.latest_frame = None  # Threaded capture frame buffer
+        self.frame_id = 0 # Counter for frame synchronization
         self.last_error = None
         self.running = True
         self.movement = {
