@@ -167,12 +167,9 @@ class VRSocketHandler:
     def _handle_joystick(self, stick: Dict, right_grip=False, left_grip=False):
         x, y = stick.get('x', 0), stick.get('y', 0)
         
-        precision_mode = right_grip or left_grip
-        scale = 0.3 if precision_mode else 1.0
-        
         if abs(x) > 0.1 or abs(y) > 0.1:
-            final_fwd = -y * scale
-            final_rot = -x * 0.8 * scale
+            final_fwd = -y
+            final_rot = -x * 0.8
             self._send_goal(ControlGoal(move_forward=final_fwd, move_rotation=final_rot))
         else:
             self._send_goal(ControlGoal(move_forward=0.0, move_rotation=0.0))
