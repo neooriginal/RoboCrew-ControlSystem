@@ -30,13 +30,26 @@ def init_camera():
             print("✓ (Already open)")
             return True
 
-        camera = cv2.VideoCapture(CAMERA_PORT)
-        camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # Use V4L2 backend explicitly for better buffer control on Linux
+        camera = cv2.VideoCapture(CAMERA_PORT, cv2.CAP_V4L2)
+        
+        # Request MJPEG format from camera (hardware-encoded, much faster)
+        camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         camera.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
         camera.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+        camera.set(cv2.CAP_PROP_FPS, 30)  # Request 30 FPS
+        camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer
         
         if camera.isOpened():
+            # Drain the camera buffer to get fresh frames
+            print("draining buffer...", end=" ", flush=True)
+            for _ in range(5):
+                camera.grab()  # Discard stale frames
+            
             print("✓")
+            actual_fps = camera.get(cv2.CAP_PROP_FPS)
+            print(f"[Camera] Actual FPS: {actual_fps}, Size: {int(camera.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
+            
             state.camera = camera
             
             # Start background capture thread
@@ -82,10 +95,17 @@ def _capture_loop():
     while state.running and state.camera and state.camera.isOpened():
         try:
             capture_start = time.time()
-            ret, frame = state.camera.read()
+            # Use grab() + retrieve() instead of read() for non-blocking capture
+            # grab() gets the frame from the buffer quickly, retrieve() decodes it
+            grabbed = state.camera.grab()
+            if grabbed:
+                ret, frame = state.camera.retrieve()
+            else:
+                ret = False
+                frame = None
             capture_time = time.time() - capture_start
             
-            if ret:
+            if ret and frame is not None:
                 state.latest_frame = frame
                 state.frame_id += 1
                 
