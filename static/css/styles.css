@@ -996,10 +996,22 @@ body {
         height: auto;
     }
 
-    /* Ensure video container fills space */
+    /* Ensure video container fills space and clips overflow */
     .video-container {
         height: 100%;
-        min-height: 50vh;
+        min-height: 60vh;
+        overflow: hidden;
+        border-radius: 0;
+        margin: -15px;
+        /* Pull to edges of content-wrapper */
+        width: calc(100% + 30px);
+    }
+
+    #video-feed {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        /* Cut out black bars */
     }
 }
 
@@ -1066,6 +1078,70 @@ body {
         width: 100%;
         overflow-x: auto;
         padding-bottom: 5px;
+    }
+
+    /* Touch Controls Layer */
+    .touch-controls-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 800;
+        display: block;
+    }
+
+    .joystick-zone {
+        position: absolute;
+        width: 160px;
+        height: 160px;
+        pointer-events: auto;
+        bottom: 160px;
+        /* High enough to clear nav and centered on video */
+    }
+
+    #joystick-left {
+        left: 20px;
+    }
+
+    #joystick-right {
+        right: 20px;
+    }
+
+    .mobile-actions {
+        position: absolute;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        pointer-events: auto;
+    }
+
+    .mobile-btn {
+        background: rgba(0, 242, 255, 0.2);
+        border: 1px solid var(--primary);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        backdrop-filter: blur(5px);
+        transition: all 0.2s;
+    }
+
+    .mobile-btn:active,
+    .mobile-btn.active {
+        background: var(--primary);
+        color: black;
+        box-shadow: 0 0 15px var(--primary);
+    }
+}
+
+/* Hide touch controls on desktop */
+@media (min-width: 769px) {
+    .touch-controls-layer {
+        display: none;
     }
 }
 
