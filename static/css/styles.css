@@ -1032,6 +1032,26 @@ body {
         line-height: 1.5;
         max-width: 300px;
     }
+
+    /* Hide VR Status Panel on mobile since it's restricted anyway */
+    #statusPanel {
+        display: none !important;
+    }
+
+    /* Stack Top Bar for better spacing on mobile */
+    .top-bar {
+        height: auto !important;
+        padding: 10px 15px !important;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .top-actions {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
 }
 
 /* Debug panel */
