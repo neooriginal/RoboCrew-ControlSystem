@@ -169,9 +169,11 @@ class VRSocketHandler:
     def _handle_joystick(self, stick: Dict, right_grip=False, left_grip=False):
         x, y = stick.get('x', 0), stick.get('y', 0)
         
-        if abs(x) > 0.1 or abs(y) > 0.1:
-            final_fwd = -y
-            final_rot = -x * 0.1
+        # Apply deadzone per-axis
+        final_fwd = -y if abs(y) > 0.1 else 0.0
+        final_rot = -x * 0.1 if abs(x) > 0.1 else 0.0
+        
+        if final_fwd != 0 or final_rot != 0:
             self._send_goal(ControlGoal(move_forward=final_fwd, move_rotation=final_rot))
         else:
             self._send_goal(ControlGoal(move_forward=0.0, move_rotation=0.0))
@@ -179,9 +181,11 @@ class VRSocketHandler:
     def _handle_head_control(self, stick: Dict):
         x, y = stick.get('x', 0), stick.get('y', 0)
         
-        if abs(x) > 0.15 or abs(y) > 0.15:
-            yaw_delta = -x * 2.0
-            pitch_delta = y * 2.0
+        # Apply deadzone per-axis
+        yaw_delta = x * 2.0 if abs(x) > 0.15 else 0.0
+        pitch_delta = y * 2.0 if abs(y) > 0.15 else 0.0
+        
+        if yaw_delta != 0 or pitch_delta != 0:
             self._send_goal(ControlGoal(head_yaw_delta=yaw_delta, head_pitch_delta=pitch_delta))
     
     def _handle_grip_release(self):
