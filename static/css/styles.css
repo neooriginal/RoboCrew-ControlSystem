@@ -952,6 +952,32 @@ body {
     .hide-on-mobile {
         display: none;
     }
+
+    /* AI Control Mobile Layout */
+    .ai-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        gap: 15px;
+    }
+
+    .ai-video {
+        aspect-ratio: 16/9;
+        height: auto;
+        order: -1;
+        /* Ensure video is on top */
+    }
+
+    .ai-controls {
+        gap: 15px;
+    }
+
+    /* Remote Control Mobile Header */
+    .remote-actions {
+        overflow-x: auto;
+        padding-bottom: 5px;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 /* Mobile Restricted Overlay (Hidden by default) */
@@ -979,28 +1005,9 @@ body {
         background: rgba(5, 5, 8, 0.95);
         backdrop-filter: blur(10px);
         z-index: 900;
-        /* Below sidebar nav (1000) */
+        /* Below sidebar (1000) */
         text-align: center;
         padding: 40px;
-    }
-
-    /* Fix Remote Header Cropping */
-    .top-bar {
-        overflow-x: auto;
-        /* Allow horizontal scroll for controls */
-        padding-right: 0;
-    }
-
-    .top-actions {
-        flex-wrap: nowrap;
-        min-width: max-content;
-        padding-right: 20px;
-    }
-
-    /* Fix AI Video Height */
-    .ai-video {
-        min-height: 250px;
-        flex: 0 0 auto;
     }
 
     .mobile-restricted-icon {
