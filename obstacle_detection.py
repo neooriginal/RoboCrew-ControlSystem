@@ -7,7 +7,7 @@ import time
 from state import state
 from config import (
     CAMERA_WIDTH, CAMERA_HEIGHT, 
-    OBSTACLE_CANNY_LOW, OBSTACLE_CANNY_HIGH, 
+    OBSTACLE_SOBEL_THRESHOLD, 
     OBSTACLE_THRESHOLD_RATIO
 )
 
@@ -144,9 +144,24 @@ class ObstacleDetector:
         }
 
     def _detect_edges(self, frame):
-        """Apply filters and Canny edge detection."""
-        filtered = cv2.bilateralFilter(frame, 9, 75, 75)
-        edges = cv2.Canny(filtered, OBSTACLE_CANNY_LOW, OBSTACLE_CANNY_HIGH)
+        """
+        Detect vertical edges using Sobel-X operator.
+        This ignores horizontal lines (like carpet/floor textures) and highlights vertical obstacles.
+        """
+        # Grey scale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Blur slightly to reduce noise
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+        
+        # Sobel-X: Gradient in X direction (detects vertical lines)
+        sobelx = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=3)
+        abs_sobelx = np.absolute(sobelx)
+        
+        # Threshold
+        _, edges = cv2.threshold(abs_sobelx, OBSTACLE_SOBEL_THRESHOLD, 255, cv2.THRESH_BINARY)
+        edges = np.uint8(edges)
+        
         total_pixels = np.count_nonzero(edges)
         return edges, total_pixels
 
