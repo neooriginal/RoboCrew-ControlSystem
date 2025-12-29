@@ -5,6 +5,10 @@
 
 **AI Agent • Remote Manipulation • Active Safety**
 
+<img width="1916" height="1072" alt="remote-control-webui" src="https://github.com/user-attachments/assets/5cb2a44a-04e2-43a9-b22a-0b9a5cece027" />
+
+DEMO COMING SOON
+
 A robust control framework for ARCS. Feature-rich, safe, and ready for autonomy.
 
 ## 📚 Documentation
