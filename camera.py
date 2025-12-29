@@ -49,13 +49,45 @@ def init_camera():
         return False
 
 
+# Frame synchronization
+frame_condition = threading.Condition()
+encoded_frame = None
+
 def _capture_loop():
+    global encoded_frame
     print("[Camera] Capture thread started")
+    
+    # Pre-allocate blank frame for fallback
+    blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(blank_frame, "WAITING...", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    _, blank_buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+    blank_bytes = blank_buffer.tobytes()
+    
+    # Set initial encoded frame
+    with frame_condition:
+        encoded_frame = blank_bytes
+        frame_condition.notify_all()
+
     while state.running and state.camera and state.camera.isOpened():
         try:
             ret, frame = state.camera.read()
             if ret:
                 state.latest_frame = frame
+                
+                # Resize and encode once for all clients
+                stream_frame = cv2.resize(frame, (STREAM_WIDTH, STREAM_HEIGHT), interpolation=cv2.INTER_NEAREST)
+                _, buffer = cv2.imencode('.jpg', stream_frame, [
+                    cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY,
+                    cv2.IMWRITE_JPEG_OPTIMIZE, 0
+                ])
+                
+                with frame_condition:
+                    encoded_frame = buffer.tobytes()
+                    frame_condition.notify_all()
+                    
+                # Small sleep to limit global framerate if needed (optional)
+                # time.sleep(0.01) 
             else:
                 time.sleep(0.01)
         except Exception as e:
@@ -65,35 +97,18 @@ def _capture_loop():
 
 
 def generate_frames():
-    blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
-    cv2.putText(blank_frame, "WAITING...", (20, STREAM_HEIGHT//2), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    _, blank_buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
-    blank_bytes = blank_buffer.tobytes()
-
+    global encoded_frame
+    
     while state.running:
-        if not hasattr(state, 'latest_frame') or state.latest_frame is None:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + blank_bytes + b'\r\n')
-            time.sleep(0.5)
-            continue
-        
-        try:
-            frame = state.latest_frame
-            stream_frame = cv2.resize(frame, (STREAM_WIDTH, STREAM_HEIGHT), interpolation=cv2.INTER_NEAREST)
+        with frame_condition:
+            frame_condition.wait(timeout=1.0)
+            current_frame = encoded_frame
 
-            _, buffer = cv2.imencode('.jpg', stream_frame, [
-                cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY,
-                cv2.IMWRITE_JPEG_OPTIMIZE, 0
-            ])
+        if current_frame:
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            
-            time.sleep(0.03)
-            
-        except Exception as e:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + blank_bytes + b'\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+        else:
+            # Should barely happen due to pre-allocation
             time.sleep(0.1)
 
 
