@@ -978,9 +978,29 @@ body {
         height: 100%;
         background: rgba(5, 5, 8, 0.95);
         backdrop-filter: blur(10px);
-        z-index: 9999;
+        z-index: 900;
+        /* Below sidebar nav (1000) */
         text-align: center;
         padding: 40px;
+    }
+
+    /* Fix Remote Header Cropping */
+    .top-bar {
+        overflow-x: auto;
+        /* Allow horizontal scroll for controls */
+        padding-right: 0;
+    }
+
+    .top-actions {
+        flex-wrap: nowrap;
+        min-width: max-content;
+        padding-right: 20px;
+    }
+
+    /* Fix AI Video Height */
+    .ai-video {
+        min-height: 250px;
+        flex: 0 0 auto;
     }
 
     .mobile-restricted-icon {
