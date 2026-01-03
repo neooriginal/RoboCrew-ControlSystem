@@ -150,3 +150,6 @@ robocrew_memory.db
 /vla/__pycache__
 
 ./datasets
+/standalone_trainer/extracted_datasets
+/standalone_trainer/models
+/standalone_trainer/__pycache__

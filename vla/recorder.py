@@ -1,6 +1,6 @@
 """
 VLA Data Recorder
-Handles recording of camera frames and robot state for imitation learning.
+Handles recording of camera frames and robot state.
 """
 
 import os
@@ -59,12 +59,12 @@ class VLARecorder:
                 
             self.recording = True
             self.frame_count = 0
-            self.current_task_name = dataset_name # Track this for status
+            self.current_task_name = dataset_name
             
             self.record_thread = threading.Thread(target=_record_loop, args=(self,), daemon=True)
             self.record_thread.start()
             
-            logger.info(f"Started recording episode: {dataset_name}/{episode_name}")
+            logger.info(f"Started recording: {dataset_name}/{episode_name}")
             return True, f"{dataset_name}/{episode_name}"
 
     def stop_recording(self):
@@ -153,11 +153,7 @@ def _record_loop(recorder):
                 img_wrist = state.latest_frame_right.copy()
                 
             # 2. Get Arm Position
-            # We want the *actual* read position if possible, but state.arm_positions 
-            # is updated by the servo controller loop, so it is the best we have.
-            # We might also want the *target* if we were doing open-loop, 
-            # but for VLA usually current state + next action is used.
-            # For now, recording PRESENT positions.
+            # Currently using state.get_arm_positions() which returns the latest known positions.
             arm_pos = state.get_arm_positions()
             current_state["qpos"] = arm_pos
             
@@ -189,10 +185,7 @@ def _record_loop(recorder):
                 except Exception as e:
                     logger.error(f"Failed to save wrist image: {e}")
             
-            # 4. Save JSONL Entry
-            # We only save if we got at least one image or just save regardless?
-            # Usually better to have complete data. 
-            # If main camera is missing, it's probably bad data.
+            # 4. Save Jsonl Entry
             
             if img_main is not None:
                 f.write(json.dumps(current_state) + "\n")

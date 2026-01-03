@@ -1,7 +1,6 @@
 """
 VLA Executor
-Handles model inference and robot control.
-Implements Receding Horizon Control (predict chunk -> execute first n steps -> repeat).
+Handles model inference and robot control using Receding Horizon Control.
 """
 
 import time
@@ -32,9 +31,7 @@ class VLAExecutor:
             
         try:
             # Re-init model structure
-            # TODO: We need to know chunk_size if it changed, but assuming default 10 for now
             self.model = SimplePolicy(chunk_size=10).to(self.device)
-            # Use weights_only=True for security if possible, but state_dict is safeish
             self.model.load_state_dict(torch.load(model_path, map_location=self.device))
             self.model.eval()
             logger.info(f"Loaded model {model_name}")
@@ -104,10 +101,8 @@ class VLAExecutor:
                 actions_chunk = self.model(img_t, qpos_t)
                 actions_np = actions_chunk.cpu().numpy()[0] # [10, 6]
                 
-                # 3. Execute first few actions
-                # If inference took ~100ms (2 steps), we should execute maybe steps 0, 1, 2?
-                # For simplicity, let's just execute step 1 (H_1) or a weighted average.
-                # Let's try executing just the first 3 steps (150ms) to allow overlap
+                # 3. Execute first few actions (Receding Horizon)
+                # Execute first 3 steps (approx 150ms) before re-planning
                 
                 steps_to_exec = 3
                 for i in range(steps_to_exec):

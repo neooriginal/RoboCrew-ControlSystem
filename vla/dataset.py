@@ -54,12 +54,7 @@ class VLADataset(Dataset):
         if not entries:
             return
             
-        # We need at least sequence_length frames to form one sample?
-        # Actually usually we paddle or just stop early.
-        # Let's say we have N frames. We can generate N - seq_len + 1 samples.
-        # BUT ACT uses chunking. At step t, we predict t..t+k.
-        # So we need entries up to t+k.
-        
+        # Ensure enough frames for sequence
         valid_samples = max(0, len(entries) - self.sequence_length + 1)
         if valid_samples == 0:
             return
@@ -95,7 +90,6 @@ class VLADataset(Dataset):
         img_main_path = str(episode["images_main"] / entry["image_main"])
         img_main = cv2.imread(img_main_path)
         if img_main is None:
-             # Fallback black image if missing/corrupt
              img_main = np.zeros((224, 224, 3), dtype=np.uint8)
         else:
              img_main = cv2.cvtColor(img_main, cv2.COLOR_BGR2RGB)

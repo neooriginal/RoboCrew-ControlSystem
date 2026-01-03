@@ -12,13 +12,13 @@ This folder contains the training scripts to train VLA policies on your PC.
 
 ## Workflow
 1. **Download Dataset**: Go to the Robot Web UI -> VLA -> Click "⬇️ ZIP" on your dataset.
-2. **Unzip**: Extract the zip file (e.g., to `datasets/pickup_cup`).
-3. **Train**:
+2. **Train**:
+   Run the script pointing directly to the downloaded ZIP file. It will automatically extract it for you.
    ```bash
-   python train.py --dataset datasets/pickup_cup --model_name my_model --epochs 50
+   python train.py --dataset downloads/pickup_cup.zip --model_name my_model
    ```
-4. **Upload**: 
+3. **Upload**: 
    - Find the trained model in `models/my_model_ep50.pth`.
    - Go to Robot Web UI -> VLA -> "Upload Model".
    - Select the file.
-5. **Run**: Select the model in the dropdown and click "Run Model".
+4. **Run**: Select the model in the dropdown and click "Run Model".

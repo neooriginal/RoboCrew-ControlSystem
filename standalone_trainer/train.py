@@ -83,8 +83,26 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if not Path(args.dataset).exists():
-        print(f"Error: Dataset path {args.dataset} does not exist.")
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        print(f"Error: Dataset path {dataset_path} does not exist.")
         exit(1)
+
+    # Handle ZIP files
+    if dataset_path.suffix == '.zip':
+        print(f"Detected ZIP file: {dataset_path}")
+        extract_root = Path("extracted_datasets")
+        extract_dir = extract_root / dataset_path.stem
         
-    train(args.dataset, args.model_name, args.epochs, args.batch)
+        if not extract_dir.exists():
+            print(f"Extracting to {extract_dir}...")
+            import zipfile
+            with zipfile.ZipFile(dataset_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+            print("Extraction complete.")
+        else:
+            print(f"Using existing extracted data at {extract_dir} (delete folder to re-extract)")
+            
+        dataset_path = extract_dir
+        
+    train(dataset_path, args.model_name, args.epochs, args.batch)

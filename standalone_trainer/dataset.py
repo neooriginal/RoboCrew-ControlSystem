@@ -49,6 +49,7 @@ class VLADataset(Dataset):
         if not entries:
             return
             
+        # Ensure enough frames for sequence
         valid_samples = max(0, len(entries) - self.sequence_length + 1)
         if valid_samples == 0:
             return
