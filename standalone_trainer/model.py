@@ -126,13 +126,16 @@ class ConditionalUnet1D(nn.Module):
 
         # Decoder
         self.up_modules = nn.ModuleList([])
+        in_ch = self.down_dims[-1] # Start with bottleneck dim
+        
         for dim in reversed(self.down_dims):
             self.up_modules.append(nn.ModuleList([
-                # Upsample
-                nn.ConvTranspose1d(dim, dim, 4, stride=2, padding=1),
+                # Upsample: from previous output dim to current dim
+                nn.ConvTranspose1d(in_ch, dim, 4, stride=2, padding=1),
                 ResidualBlock1D(dim * 2, dim, cond_dim, self.kernel_size, self.n_groups), # *2 for concat skip connection
                 ResidualBlock1D(dim, dim, cond_dim, self.kernel_size, self.n_groups)
             ]))
+            in_ch = dim # Update for next layer
             
         # Final Output
         self.final_conv = nn.Conv1d(self.down_dims[0], action_dim, 1)
