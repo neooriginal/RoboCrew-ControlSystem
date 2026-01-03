@@ -209,50 +209,60 @@
             </div>
         </div>
 
-        <div class="dataset-list">
-            <div class="status-header">Recent Datasets</div>
-            <!-- Populated by JS -->
-            <div id="dataset-list-content"></div>
-        </div>
-
-        <div class="dataset-list">
-            <div class="status-header">Training</div>
-
-            <div class="input-group">
-                <label>Select Dataset</label>
-                <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label>Model Name</label>
-                <input type="text" id="model-name" class="input-field" placeholder="policy_v1">
-            </div>
-
-            <button id="train-btn" class="btn record" style="background: #2563eb;" onclick="startTraining()">
-                Start Training
-            </button>
-            <button id="stop-train-btn" class="btn discard" style="display:none;" onclick="stopTraining()">
-                Stop Training
-            </button>
-        </div>
-
-        <div class="dataset-list">
-            <div class="status-header">Execution</div>
-
-            <div class="input-group">
-                <label>Select Model</label>
-                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1);">
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-
-            <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
-                Run Model
-            </button>
-        </div>
+        <br>
+        <a href="/vr" class="btn"
+            style="background: #7c3aed; color: white; text-align: center; text-decoration: none; display: block; padding: 10px; border-radius: 8px;">
+            🥽 Open VR Controller
+        </a>
     </div>
+
+    <div class="dataset-list">
+        <div class="status-header">Recent Datasets</div>
+        <!-- Populated by JS -->
+        <div id="dataset-list-content"></div>
+    </div>
+
+    <div class="dataset-list">
+        <div class="status-header">Training</div>
+
+        <div class="input-group">
+            <label>Select Dataset</label>
+            <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Model Name</label>
+            <input type="text" id="model-name" class="input-field" placeholder="policy_v1">
+        </div>
+
+        <button id="train-btn" class="btn record" style="background: #2563eb;" onclick="startTraining()">
+            Start Training
+        </button>
+        <button id="stop-train-btn" class="btn discard" style="display:none;" onclick="stopTraining()">
+            Stop Training
+        </button>
+    </div>
+
+    <div class="dataset-list">
+        <div class="status-header">Execution</div>
+
+        <div class="input-group">
+            <label>Select Model</label>
+            <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1);">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+
+        <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
+            Run Model
+        </button>
+        <button class="btn discard" style="margin-top: 8px;" onclick="deleteModel()">
+            Delete Selected Model
+        </button>
+    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -336,7 +346,10 @@
             data.datasets.forEach(name => {
                 const item = document.createElement('div');
                 item.className = 'dataset-item';
-                item.textContent = name;
+                item.innerHTML = `
+                    <span>${name}</span>
+                    <button onclick="deleteDataset('${name}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">✖</button>
+                `;
                 list.appendChild(item);
 
                 const opt = document.createElement('option');
@@ -374,6 +387,29 @@
         } catch (e) {
             console.error(e);
         }
+    }
+
+    async function deleteDataset(name) {
+        if (!confirm(`Delete dataset "${name}"? This cannot be undone.`)) return;
+        await fetch('/api/vla/delete/dataset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        loadDatasets();
+    }
+
+    async function deleteModel() {
+        const name = document.getElementById('exec-model').value;
+        if (!name) return;
+        if (!confirm(`Delete model "${name}"? This cannot be undone.`)) return;
+
+        await fetch('/api/vla/delete/model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        loadModels();
     }
 
     async function toggleExecution() {

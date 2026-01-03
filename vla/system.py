@@ -55,3 +55,24 @@ class VLASystem:
         
     def stop_execution(self):
         return self.executor.stop_execution()
+        
+    def delete_dataset(self, dataset_name):
+        path = self.recorder.dataset_root / dataset_name
+        if not path.exists():
+            return False, "Dataset not found"
+        try:
+            import shutil
+            shutil.rmtree(path)
+            return True, "Dataset deleted"
+        except Exception as e:
+            return False, str(e)
+
+    def delete_model(self, model_name):
+        path = self.executor.models_dir / f"{model_name}.pth"
+        if not path.exists():
+            return False, "Model not found"
+        try:
+            path.unlink()
+            return True, "Model deleted"
+        except Exception as e:
+            return False, str(e)

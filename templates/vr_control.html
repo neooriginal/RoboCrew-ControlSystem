@@ -40,6 +40,11 @@
                     style="width: 10px; height: 10px; border-radius: 50%; background: #555;"></div>
                 <span style="color: var(--text-secondary);">Arm Control</span>
             </div>
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px;">
+                <div class="status-indicator" id="recStatus"
+                    style="width: 10px; height: 10px; border-radius: 50%; background: #333;"></div>
+                <span style="color: var(--text-secondary);">Recording (Btn A)</span>
+            </div>
         </div>
         <div class="instructions">
             <h3 style="color: #fff; font-size: 0.9rem; margin-bottom: 10px;">🎮 Controls</h3>
@@ -139,6 +144,20 @@
             navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
             navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
         ]).then(([ar, vr]) => {
+
+            // Poll for recording status
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/vla/status');
+                    const data = await res.json();
+                    const el = document.getElementById('recStatus');
+                    if (el && data.recorder) {
+                        el.style.background = data.recorder.recording ? '#ef4444' : '#333';
+                        el.style.boxShadow = data.recorder.recording ? '0 0 10px #ef4444' : 'none';
+                    }
+                } catch (e) { }
+            }, 1000);
+
             if (!ar && !vr) return;
 
             const btn = document.createElement('button');
