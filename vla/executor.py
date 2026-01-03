@@ -218,37 +218,47 @@ class VLAExecutor:
                 norm_actions_np = actions_chunk.cpu().numpy()[0] # [10, 6]
                 
                 # 4. Execute (Receding Horizon)
-                if self.running:
-                    # Take first action
-                    norm_action = norm_actions_np[0]
-                    
-                    # Un-normalize
-                    target_action = self._unnormalize_qpos(norm_action)
-                    
-                    # Safety: Clamp max delta from current position
-                    # We know current position is obs[2] (raw)
-                    current_pos = obs[2]
-                    delta = target_action - current_pos
-                    
-                    # Clamp magnitude
-                    delta = np.clip(delta, -self.max_delta, self.max_delta)
-                    safe_action = current_pos + delta
-                    
-                    target_pos = {
-                        'shoulder_pan': float(safe_action[0]),
-                        'shoulder_lift': float(safe_action[1]),
-                        'elbow_flex': float(safe_action[2]),
-                        'wrist_flex': float(safe_action[3]),
-                        'wrist_roll': float(safe_action[4]),
-                        'gripper': float(safe_action[5])
-                    }
-                    
-                    if state.controller:
-                        try:
-                            state.controller.set_arm_position(target_pos)
-                            state.update_arm_positions(target_pos)
-                        except Exception as e:
-                            logger.error(f"Control error: {e}")
+                    if self.running:
+                        # Take first action
+                        norm_action = norm_actions_np[0]
+                        
+                        # Un-normalize
+                        target_action = self._unnormalize_qpos(norm_action)
+                        
+                        # Safety: Clamp max delta from current position
+                        # We know current position is obs[2] (raw)
+                        current_pos = obs[2]
+                        delta = target_action - current_pos
+                        
+                        # DEBUG LOGGING (Throttle to ~2Hz)
+                        if int(time.time() * 2) % 2 == 0:  # simplistic throttle
+                            logger.info(f"--- DEBUG STEP ---")
+                            logger.info(f"Current: {np.round(current_pos, 3)}")
+                            logger.info(f"Model Raw: {np.round(norm_action, 3)}")
+                            logger.info(f"Target: {np.round(target_action, 3)}")
+                            logger.info(f"Delta: {np.round(delta, 3)}")
+                            if self.stats:
+                                logger.info(f"Stats Range: {np.round(self.stats['qpos_max'] - self.stats['qpos_min'], 3)}")
+                        
+                        # Clamp magnitude
+                        delta = np.clip(delta, -self.max_delta, self.max_delta)
+                        safe_action = current_pos + delta
+                        
+                        target_pos = {
+                            'shoulder_pan': float(safe_action[0]),
+                            'shoulder_lift': float(safe_action[1]),
+                            'elbow_flex': float(safe_action[2]),
+                            'wrist_flex': float(safe_action[3]),
+                            'wrist_roll': float(safe_action[4]),
+                            'gripper': float(safe_action[5])
+                        }
+                        
+                        if state.controller:
+                            try:
+                                state.controller.set_arm_position(target_pos)
+                                state.update_arm_positions(target_pos)
+                            except Exception as e:
+                                logger.error(f"Control error: {e}")
                             
                 # Wait remainder of cycle
                 elapsed = time.time() - start_time
