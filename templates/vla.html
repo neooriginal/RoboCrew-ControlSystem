@@ -159,12 +159,44 @@
         gap: 6px;
     }
 
-    .recording-indicator::before {
-        content: '';
-        width: 8px;
-        height: 8px;
-        background: white;
-        border-radius: 50%;
+    background: white;
+    border-radius: 50%;
+    }
+
+    .training-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .log-box {
+        background: #000;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 10px;
+        height: 150px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.8em;
+        color: #0f0;
+        white-space: pre-wrap;
+    }
+
+    progress {
+        width: 100%;
+        height: 10px;
+        border-radius: 5px;
+        appearance: none;
+    }
+
+    progress::-webkit-progress-bar {
+        background-color: #333;
+        border-radius: 5px;
+    }
+
+    progress::-webkit-progress-value {
+        background-color: #2563eb;
+        border-radius: 5px;
     }
 </style>
 {% endblock %}
@@ -215,37 +247,30 @@
             <div id="dataset-list-content"></div>
         </div>
 
-        <div class="dataset-list">
-            <div class="status-header">Training</div>
-
-            <div class="input-group">
-                <label>Select Dataset</label>
-                <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label>Model Name</label>
-                <input type="text" id="model-name" class="input-field" placeholder="policy_v1">
-            </div>
-
-            <button id="train-btn" class="btn record" style="background: #2563eb;" onclick="startTraining()">
-                Start Training
-            </button>
-            <button id="stop-train-btn" class="btn discard" style="display:none;" onclick="stopTraining()">
-                Stop Training
-            </button>
-        </div>
+        <!-- Training Removed -->
 
         <div class="dataset-list">
             <div class="status-header">Execution</div>
+
+            <div class="input-group">
+                <label>Upload Model (.pth)</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="file" id="model-upload-input" accept=".pth" style="display: none;"
+                        onchange="uploadModel()">
+                    <button class="btn discard" style="flex: 1; background: #333;"
+                        onclick="document.getElementById('model-upload-input').click()">
+                        Choose File...
+                    </button>
+                    <!-- <span id="upload-status" style="font-size: 0.8em; align-self: center;"></span> -->
+                </div>
+            </div>
 
             <div class="input-group">
                 <label>Select Model</label>
                 <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1);">
                     <option value="">Loading...</option>
                 </select>
+                <!-- Add a little downward arrow hint if default appearance is hidden, or just rely on generic select style -->
             </div>
 
             <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
@@ -259,7 +284,6 @@
 {% block scripts %}
 <script>
     let isRecording = false;
-    let isTraining = false;
     let isExecuting = false;
     let pollInterval = null;
 
@@ -292,22 +316,16 @@
                     discardBtn.textContent = 'Delete Last Episode';
                     discardBtn.style.display = 'block';
 
-                    if (!isTraining && !isExecuting) {
+                    discardBtn.textContent = 'Delete Last Episode';
+                    discardBtn.style.display = 'block';
+
+                    if (!isExecuting) {
                         document.getElementById('system-status').textContent = 'Ready';
                     }
                 }
             }
 
-            if (data.training) {
-                isTraining = true;
-                document.getElementById('system-status').textContent = 'TRAINING IN PROGRESS...';
-                document.getElementById('train-btn').style.display = 'none';
-                document.getElementById('stop-train-btn').style.display = 'block';
-            } else {
-                isTraining = false;
-                document.getElementById('train-btn').style.display = 'block';
-                document.getElementById('stop-train-btn').style.display = 'none';
-            }
+            // Training status logic removed
 
             if (data.execution) {
                 isExecuting = true;
@@ -332,7 +350,7 @@
             const res = await fetch('/api/vla/datasets');
             const data = await res.json();
             const list = document.getElementById('dataset-list-content');
-            const select = document.getElementById('train-dataset');
+            // const select = document.getElementById('train-dataset');
 
             list.innerHTML = '';
             select.innerHTML = '';
@@ -340,13 +358,19 @@
             data.datasets.forEach(name => {
                 const item = document.createElement('div');
                 item.className = 'dataset-item';
-                item.textContent = name;
-                list.appendChild(item);
 
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                select.appendChild(opt);
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+
+                const dlLink = document.createElement('a');
+                dlLink.href = `/api/vla/dataset/${name}/download`;
+                dlLink.textContent = '⬇️ ZIP';
+                dlLink.style.color = '#60a5fa';
+                dlLink.style.textDecoration = 'none';
+
+                item.appendChild(nameSpan);
+                item.appendChild(dlLink);
+                list.appendChild(item);
             });
 
             if (data.datasets.length === 0) {
@@ -400,28 +424,40 @@
         updateStatus();
     }
 
-    async function startTraining() {
-        const dataset = document.getElementById('train-dataset').value;
-        const model = document.getElementById('model-name').value;
+    // Training functions removed
 
-        if (!dataset) return alert("Select a dataset");
-        if (!model) return alert("Enter model name");
+    async function uploadModel() {
+        const input = document.getElementById('model-upload-input');
+        if (input.files.length === 0) return;
 
-        const res = await fetch('/api/vla/train', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataset: dataset, model: model, epochs: 10 })
-        });
-        const data = await res.json();
-        if (data.status === 'ok') {
-            alert('Training started! Check console logs for progress.');
-        } else {
-            alert('Error: ' + data.error);
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const btn = input.nextElementSibling;
+            const originalText = btn.textContent;
+            btn.textContent = "Uploading...";
+            btn.disabled = true;
+
+            const res = await fetch('/api/vla/model/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.status === 'ok') {
+                alert('Model uploaded successfully!');
+                loadModels(); // Refresh list
+            } else {
+                alert('Upload failed: ' + data.error);
+            }
+            btn.textContent = originalText;
+            btn.disabled = false;
+        } catch (e) {
+            console.error(e);
+            alert('Upload error');
         }
-    }
-
-    async function stopTraining() {
-        await fetch('/api/vla/train/stop', { method: 'POST' });
     }
 
     async function toggleRecording() {

@@ -41,7 +41,10 @@ AFRAME.registerComponent('vr-controller-updater', {
             } else {
                 // Start
                 try {
-                    const taskName = "vr_demo"; // Default for VR
+                    const taskInput = document.getElementById('vrTaskName');
+                    // Default to 'vr_demo' if empty
+                    const taskName = (taskInput && taskInput.value.trim()) ? taskInput.value.trim() : "vr_demo";
+
                     await fetch('/api/vla/record/start', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

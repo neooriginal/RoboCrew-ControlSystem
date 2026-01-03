@@ -604,32 +604,62 @@ def vla_datasets():
     datasets = [d.name for d in root.iterdir() if d.is_dir()]
     return jsonify({'datasets': datasets})
 
-@bp.route('/api/vla/train', methods=['POST'])
-def vla_train():
-    vla = state.get_vla_system()
-    if not vla:
-        return jsonify({'status': 'error', 'error': 'VLA System not available'})
-        
-    data = request.json
-    dataset = data.get('dataset')
-    model = data.get('model')
-    epochs = data.get('epochs', 5)
+@bp.route('/api/vla/dataset/<name>/download')
+def vla_download_dataset(name):
+    # Zip the dataset folder and serve it
+    dataset_path = state.vla_system.recorder.dataset_root / name
+    if not dataset_path.exists():
+         return jsonify({"error": "Dataset not found"}), 404
+         
+    # Create zip in-memory or temp? 
+    # Use shutil to make zip in temp
+    import shutil
+    import tempfile
+    from flask import send_file, current_app as app # Import app for route decorator
     
-    if not dataset or not model:
-        return jsonify({'status': 'error', 'error': 'Missing dataset or model name'})
+    # We will create a zip file in a temp directory
+    # Note: This might be slow for large datasets.
+    # For now, synchronous is okay but ideally background job.
+    
+    try:
+        # Create a zip of the directory
+        # We assume the name is safe because it comes from our list
         
-    success, msg = vla.train_model(dataset, model, epochs)
-    if success:
-        return jsonify({'status': 'ok', 'message': msg})
-    return jsonify({'status': 'error', 'error': msg})
+        # Output filename without extension
+        base_name = tempfile.mktemp() 
+        shutil.make_archive(base_name, 'zip', dataset_path)
+        
+        zip_file = base_name + ".zip"
+        
+        return send_file(zip_file, as_attachment=True, download_name=f"{name}.zip")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-@bp.route('/api/vla/train/stop', methods=['POST'])
-def vla_train_stop():
-    vla = state.get_vla_system()
-    if not vla:
-        return jsonify({'status': 'error', 'error': 'VLA System not available'})
-    vla.stop_training()
-    return jsonify({'status': 'ok'})
+@bp.route('/api/vla/model/upload', methods=['POST'])
+def vla_upload_model():
+    from flask import request, jsonify, current_app as app # Import app for route decorator
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+        
+    if file and file.filename.endswith('.pth'):
+        try:
+            # Save to models dir
+            models_dir = state.vla_system.executor.models_dir
+            models_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Secure filename
+            from werkzeug.utils import secure_filename
+            filename = secure_filename(file.filename)
+            file.save(models_dir / filename)
+            
+            return jsonify({"status": "ok", "filename": filename})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+            
+    return jsonify({"error": "Invalid file type (must be .pth)"}), 400
 
 @bp.route('/api/vla/models')
 def vla_models():

@@ -15,6 +15,16 @@
     <div class="vr-only-overlay">
         <div class="mobile-restricted-icon">🥽</div>
         <div class="vr-restricted-title">VR Mode</div>
+
+        <!-- Task Name Input -->
+        <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+            <label style="font-size: 0.9em; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">Task
+                Name</label>
+            <input type="text" id="vrTaskName" placeholder="task_name" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                          padding: 10px 15px; border-radius: 8px; color: white; font-size: 1.1em; 
+                          text-align: center; width: 250px; outline: none;">
+        </div>
+
         <p class="vr-restricted-msg">
             This mode is designed for <strong>Standalone VR Headsets</strong> (e.g., Meta Quest) via the onboard
             browser, or Desktop WebXR.
@@ -145,6 +155,20 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // Load saved task name
+        const taskInput = document.getElementById('vrTaskName');
+        const savedTask = localStorage.getItem('vr_task_name');
+        if (savedTask && taskInput) {
+            taskInput.value = savedTask;
+        }
+
+        // Save on change
+        if (taskInput) {
+            taskInput.addEventListener('input', (e) => {
+                localStorage.setItem('vr_task_name', e.target.value);
+            });
+        }
+
         const scene = document.querySelector('a-scene');
 
         if (!navigator.xr) return;
@@ -166,6 +190,10 @@
             btn.style.padding = '15px 30px';
 
             btn.textContent = '🥽 Enter VR';
+
+            // Hide overlay content when button is present (it's handled by CSS usually, but let's be safe)
+            // Actually the overlay is the content.
+
             btn.onclick = async () => {
                 btn.textContent = 'Starting...';
                 btn.disabled = true;
@@ -183,10 +211,13 @@
             scene.addEventListener('enter-vr', () => {
                 btn.style.display = 'none';
                 document.getElementById('statusPanel').style.display = 'none';
+                // Hide inputs when in VR
+                document.querySelector('.vr-only-overlay').style.display = 'none';
             });
             scene.addEventListener('exit-vr', () => {
                 btn.style.display = 'block';
                 document.getElementById('statusPanel').style.display = 'block';
+                document.querySelector('.vr-only-overlay').style.display = 'flex';
             });
         });
     });
