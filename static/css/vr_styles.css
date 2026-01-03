@@ -37,3 +37,40 @@
     background: #00d4aa !important;
     box-shadow: 0 0 8px rgba(0, 212, 170, 0.5);
 }
+
+.vr-only-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    min-width: 300px;
+}
+
+.vr-restricted-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 10px 0;
+}
+
+.mobile-restricted-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.vr-restricted-msg {
+    color: #ccc;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-width: 400px;
+}
