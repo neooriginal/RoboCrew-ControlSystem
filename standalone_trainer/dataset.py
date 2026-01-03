@@ -1,6 +1,7 @@
 """
 VLA Dataset Loader
 Loads image-action pairs from the recorded dataset (multi-episode).
+Updated for Diffusion Policy: Returns history of observations.
 """
 
 import json
@@ -9,12 +10,15 @@ from torch.utils.data import Dataset
 from pathlib import Path
 import cv2
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VLADataset(Dataset):
-    def __init__(self, dataset_path, transform=None, sequence_length=1):
+    def __init__(self, dataset_path, sequence_length=10, history_length=2):
         self.root = Path(dataset_path)
-        self.transform = transform
-        self.sequence_length = sequence_length
+        self.sequence_length = sequence_length # Future horizon
+        self.history_length = history_length   # Past context
         
         self.episodes = [] # List of (episode_path, start_idx, length)
         self.global_entries = [] # Map global_idx -> (episode_idx, local_idx)
@@ -33,6 +37,8 @@ class VLADataset(Dataset):
         for ep_dir in episode_dirs:
             self._load_episode(ep_dir)
             
+        print(f"Loaded {len(self.global_entries)} samples from {len(self.episodes)} episodes in {dataset_path}")
+
     def _load_episode(self, ep_dir):
         jsonl_path = ep_dir / "data.jsonl"
         if not jsonl_path.exists():
@@ -50,6 +56,8 @@ class VLADataset(Dataset):
             return
             
         # Ensure enough frames for sequence
+        # We need history_length frames before, and sequence_length frames after
+        # But we can pad the start.
         valid_samples = max(0, len(entries) - self.sequence_length + 1)
         if valid_samples == 0:
             return
@@ -70,6 +78,27 @@ class VLADataset(Dataset):
         for i in range(valid_samples):
             self.global_entries.append((ep_idx, i))
 
+    def _load_image(self, path):
+        if not path.exists():
+            return np.zeros((224, 224, 3), dtype=np.uint8)
+        img = cv2.imread(str(path))
+        if img is None:
+             return np.zeros((224, 224, 3), dtype=np.uint8)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (224, 224))
+        return img
+
+    def _get_qpos(self, entry):
+        qpos_map = entry.get("qpos", {})
+        return np.array([
+            qpos_map.get('shoulder_pan', 0),
+            qpos_map.get('shoulder_lift', 0),
+            qpos_map.get('elbow_flex', 0),
+            qpos_map.get('wrist_flex', 0),
+            qpos_map.get('wrist_roll', 0),
+            qpos_map.get('gripper', 0)
+        ], dtype=np.float32)
+
     def __len__(self):
         return len(self.global_entries)
 
@@ -78,55 +107,58 @@ class VLADataset(Dataset):
         episode = self.episodes[ep_idx]
         entries = episode["entries"]
         
-        # Current observation
-        entry = entries[local_idx]
+        # 1. Load History (Images & State)
+        # Shape: [History, C, H, W] for images, [History, ActionDim] for state
+        images_hist = []  # List of [2, C, H, W] (cameras) -> will act as channels
+        state_hist = []
         
-        # Load Images
-        img_main_path = str(episode["images_main"] / entry["image_main"])
-        img_main = cv2.imread(img_main_path)
-        if img_main is None:
-             img_main = np.zeros((224, 224, 3), dtype=np.uint8)
-        else:
-             img_main = cv2.cvtColor(img_main, cv2.COLOR_BGR2RGB)
+        for k in range(self.history_length):
+            # history calculates backwards: current idx minus (history_len - 1 - k)
+            # e.g. len=2. k=0 -> idx-1. k=1 -> idx.
+            hist_idx = local_idx - (self.history_length - 1 - k)
+            hist_idx = max(0, hist_idx) # Clamp to 0
+            
+            entry = entries[hist_idx]
+            
+            # Load Main Camera
+            img_main_path = episode["images_main"] / entry.get("image_main", "")
+            img_main = self._load_image(img_main_path)
+            
+            # Load Wrist Camera (Check if exists, else blank)
+            img_wrist_path = episode["images_wrist"] / entry.get("image_wrist", "")
+            img_wrist = self._load_image(img_wrist_path)
+            
+            # Normalize
+            img_main_t = torch.from_numpy(img_main).permute(2, 0, 1).float() / 255.0
+            img_wrist_t = torch.from_numpy(img_wrist).permute(2, 0, 1).float() / 255.0
+            
+            # Stack cameras channel-wise or list?
+            # Model expects [NumCameras, History, C, H, W]
+            images_hist.append(torch.stack([img_main_t, img_wrist_t]))
+            
+            # State
+            qpos = self._get_qpos(entry)
+            state_hist.append(torch.from_numpy(qpos))
+
+        # Stack History: [History, NumCams, C, H, W] -> Permute to [NumCams, History, C, H, W]
+        images_hist = torch.stack(images_hist).permute(1, 0, 2, 3, 4)
+        state_hist = torch.stack(state_hist) # [History, ActionDim]
         
-        img_main = cv2.resize(img_main, (224, 224))
-        img_main_t = torch.from_numpy(img_main).permute(2, 0, 1).float() / 255.0
-        
-        # Get Joint State (Current)
-        qpos_map = entry["qpos"]
-        qpos = np.array([
-            qpos_map.get('shoulder_pan', 0),
-            qpos_map.get('shoulder_lift', 0),
-            qpos_map.get('elbow_flex', 0),
-            qpos_map.get('wrist_flex', 0),
-            qpos_map.get('wrist_roll', 0),
-            qpos_map.get('gripper', 0)
-        ], dtype=np.float32)
-        qpos_t = torch.from_numpy(qpos)
-        
-        # Get Action Chunk (Future positions)
+        # 2. Load Action Chunk (Future positions)
         actions = []
         for i in range(self.sequence_length):
             future_idx = local_idx + i
             if future_idx < len(entries):
-                future_entry = entries[future_idx]
-                future_qpos_map = future_entry["qpos"]
-                future_qpos = np.array([
-                    future_qpos_map.get('shoulder_pan', 0),
-                    future_qpos_map.get('shoulder_lift', 0),
-                    future_qpos_map.get('elbow_flex', 0),
-                    future_qpos_map.get('wrist_flex', 0),
-                    future_qpos_map.get('wrist_roll', 0),
-                    future_qpos_map.get('gripper', 0)
-                ], dtype=np.float32)
-                actions.append(future_qpos)
+                entry = entries[future_idx]
+                actions.append(self._get_qpos(entry))
             else:
-                actions.append(actions[-1])
+                # Pad with last action
+                actions.append(actions[-1] if actions else np.zeros(6, dtype=np.float32))
                 
-        actions_t = torch.from_numpy(np.array(actions))
+        actions_t = torch.from_numpy(np.array(actions)) # [Horizon, ActionDim]
         
         return {
-            "image_main": img_main_t,
-            "qpos": qpos_t,
+            "images": images_hist,
+            "state": state_hist,
             "actions": actions_t
         }
