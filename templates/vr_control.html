@@ -12,25 +12,13 @@
 <div style="position: relative; height: 100%; border-radius: 12px; overflow: hidden; background: #000;"
     class="vr-restricted">
 
-    <div class="vr-only-overlay">
-        <div class="mobile-restricted-icon">🥽</div>
-        <div class="vr-restricted-title">VR Mode</div>
-
-        <!-- Task Name Input -->
-        <div
-            style="position: absolute; top: 20px; right: 20px; z-index: 2001; display: flex; align-items: center; gap: 10px;">
-            <label style="font-size: 0.8em; color: #888; text-transform: uppercase;">Task:</label>
-            <input type="text" id="vrTaskName" placeholder="optional_task_name" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); 
-                          padding: 6px 12px; border-radius: 6px; color: white; font-size: 0.9em; 
-                          width: 150px; outline: none; transition: all 0.2s;">
-        </div>
-
-        <p class="vr-restricted-msg">
-            This mode is designed for <strong>Standalone VR Headsets</strong> (e.g., Meta Quest) via the onboard
-            browser, or Desktop WebXR.
-            <br><br>
-            <span style="font-size: 0.8em; opacity: 0.7;">Mobile phone control is not currently supported.</span>
-        </p>
+    <!-- Task Name Input (Top Right) -->
+    <div
+        style="position: absolute; top: 20px; right: 20px; z-index: 2001; display: flex; align-items: center; gap: 10px;">
+        <label style="font-size: 0.8em; color: #888; text-transform: uppercase; font-family: sans-serif;">Task</label>
+        <input type="text" id="vrTaskName" placeholder="optional" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); 
+                      padding: 6px 12px; border-radius: 6px; color: white; font-size: 0.9em; 
+                      width: 150px; outline: none; transition: all 0.2s;">
     </div>
 
     <div id="statusPanel" class="status-panel"
@@ -212,14 +200,17 @@
                 btn.style.display = 'none';
                 document.getElementById('statusPanel').style.display = 'none';
                 // Hide inputs when in VR
-                document.querySelector('.vr-only-overlay').style.display = 'none';
-            });
-            scene.addEventListener('exit-vr', () => {
-                btn.style.display = 'block';
-                document.getElementById('statusPanel').style.display = 'block';
-                document.querySelector('.vr-only-overlay').style.display = 'flex';
+                scene.addEventListener('enter-vr', () => {
+                    btn.style.display = 'none';
+                    document.getElementById('statusPanel').style.display = 'none';
+                    document.getElementById('vrTaskName').parentElement.style.display = 'none';
+                });
+                scene.addEventListener('exit-vr', () => {
+                    btn.style.display = 'block';
+                    document.getElementById('statusPanel').style.display = 'block';
+                    document.getElementById('vrTaskName').parentElement.style.display = 'flex';
+                });
             });
         });
-    });
 </script>
 {% endblock %}
