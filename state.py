@@ -145,7 +145,23 @@ class RobotState:
                 except Exception as e:
                     print(f"Error creating detector: {e}")
                     return None
+                    self.detector = ObstacleDetector()
+                except Exception as e:
+                    print(f"Error creating detector: {e}")
+                    return None
             return self.detector
+
+    def get_vla_system(self):
+        """Get or create VLA System."""
+        with self.lock:
+             if not hasattr(self, 'vla_system') or self.vla_system is None:
+                 try:
+                     from vla.system import VLASystem
+                     self.vla_system = VLASystem()
+                 except Exception as e:
+                     print(f"Error creating VLA System: {e}")
+                     return None
+             return self.vla_system
     
     def set_wheel_speed(self, speed):
         """Set manual wheel speed."""

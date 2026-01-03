@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}VLA Training Center{% endblock %}
+
+{% block head %}
+<style>
+    .vla-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        height: calc(100vh - 100px);
+    }
+
+    .video-panel {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .main-feed {
+        width: 100%;
+        background: #000;
+        border-radius: 8px;
+        aspect-ratio: 16/9;
+        object-fit: contain;
+        position: relative;
+    }
+
+    .secondary-feeds {
+        display: flex;
+        gap: 16px;
+        height: 150px;
+    }
+
+    .secondary-feed {
+        width: 200px;
+        background: #000;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+
+    .control-panel {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        overflow-y: auto;
+    }
+
+    .status-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .status-header {
+        font-size: 0.9em;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-value {
+        font-size: 1.4em;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .record-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .input-field {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        color: white;
+        font-family: inherit;
+    }
+
+    .btn.record {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn.record:hover {
+        background: #dc2626;
+    }
+
+    .btn.record.recording {
+        background: #fee2e2;
+        color: #ef4444;
+        animation: pulse 2s infinite;
+    }
+
+    .btn.discard {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .dataset-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .dataset-item {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+        border-radius: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9em;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+
+    .recording-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: red;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 12px;
+        display: none;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .recording-indicator::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vla-container">
+    <div class="video-panel">
+        <div style="position: relative;">
+            <img src="/video_feed" class="main-feed" alt="Main Camera">
+            <div id="recording-badge" class="recording-indicator">REC</div>
+        </div>
+        <div class="secondary-feeds">
+            <img src="/video_feed_right" class="secondary-feed" alt="Wrist Camera">
+            <!-- Add depth/other sensors later -->
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="status-card">
+            <div class="status-header">System Status</div>
+            <div class="status-value" id="system-status">Ready</div>
+        </div>
+
+        <div class="record-controls">
+            <div class="status-header">Data Collection</div>
+
+            <div class="input-group">
+                <label>Dataset Name</label>
+                <input type="text" id="dataset-name" class="input-field" placeholder="task_name_01">
+            </div>
+
+            <button id="record-btn" class="btn record" onclick="toggleRecording()">
+                Start Recording
+            </button>
+
+            <button id="discard-btn" class="btn discard" onclick="discardRecording()" style="display: none;">
+                Discard & Retry
+            </button>
+
+            <div style="font-size: 0.9em; color: var(--text-secondary); text-align: center; margin-top: 8px;">
+                Frame Count: <span id="frame-count">0</span>
+            </div>
+        </div>
+
+        <div class="dataset-list">
+            <div class="status-header">Recent Datasets</div>
+            <!-- Populated by JS -->
+            <div id="dataset-list-content"></div>
+        </div>
+
+        <div class="dataset-list">
+            <div class="status-header">Training</div>
+
+            <div class="input-group">
+                <label>Select Dataset</label>
+                <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Model Name</label>
+                <input type="text" id="model-name" class="input-field" placeholder="policy_v1">
+            </div>
+
+            <button id="train-btn" class="btn record" style="background: #2563eb;" onclick="startTraining()">
+                Start Training
+            </button>
+            <button id="stop-train-btn" class="btn discard" style="display:none;" onclick="stopTraining()">
+                Stop Training
+            </button>
+        </div>
+
+        <div class="dataset-list">
+            <div class="status-header">Execution</div>
+
+            <div class="input-group">
+                <label>Select Model</label>
+                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1);">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
+                Run Model
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let isRecording = false;
+    let isTraining = false;
+    let isExecuting = false;
+    let pollInterval = null;
+
+    async function updateStatus() {
+        try {
+            const response = await fetch('/api/vla/status');
+            const data = await response.json();
+
+            if (data.recorder) {
+                const rec = data.recorder;
+                isRecording = rec.recording;
+                document.getElementById('frame-count').textContent = rec.frames;
+
+                const btn = document.getElementById('record-btn');
+                const badge = document.getElementById('recording-badge');
+                const discardBtn = document.getElementById('discard-btn');
+
+                if (isRecording) {
+                    btn.textContent = 'Stop Recording';
+                    btn.classList.add('recording');
+                    badge.style.display = 'flex';
+                    discardBtn.style.display = 'block';
+                    document.getElementById('system-status').textContent = 'Recording ' + rec.dataset;
+                } else {
+                    btn.textContent = 'Start Recording';
+                    btn.classList.remove('recording');
+                    badge.style.display = 'none';
+                    discardBtn.style.display = 'none';
+                    if (!isTraining && !isExecuting) {
+                        document.getElementById('system-status').textContent = 'Ready';
+                    }
+                }
+            }
+
+            if (data.training) {
+                isTraining = true;
+                document.getElementById('system-status').textContent = 'TRAINING IN PROGRESS...';
+                document.getElementById('train-btn').style.display = 'none';
+                document.getElementById('stop-train-btn').style.display = 'block';
+            } else {
+                isTraining = false;
+                document.getElementById('train-btn').style.display = 'block';
+                document.getElementById('stop-train-btn').style.display = 'none';
+            }
+
+            if (data.execution) {
+                isExecuting = true;
+                document.getElementById('system-status').textContent = 'EXECUTING MODEL...';
+                const execBtn = document.getElementById('exec-btn');
+                execBtn.textContent = 'Stop Execution';
+                execBtn.style.background = '#dc2626';
+            } else {
+                isExecuting = false;
+                const execBtn = document.getElementById('exec-btn');
+                execBtn.textContent = 'Run Model';
+                execBtn.style.background = '#059669';
+            }
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadDatasets() {
+        try {
+            const res = await fetch('/api/vla/datasets');
+            const data = await res.json();
+            const list = document.getElementById('dataset-list-content');
+            const select = document.getElementById('train-dataset');
+
+            list.innerHTML = '';
+            select.innerHTML = '';
+
+            data.datasets.forEach(name => {
+                const item = document.createElement('div');
+                item.className = 'dataset-item';
+                item.textContent = name;
+                list.appendChild(item);
+
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+
+            if (data.datasets.length === 0) {
+                list.innerHTML = '<div style="color: grey; padding: 10px;">No datasets found</div>';
+                select.innerHTML = '<option value="">No datasets</option>';
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadModels() {
+        try {
+            const res = await fetch('/api/vla/models');
+            const data = await res.json();
+            const select = document.getElementById('exec-model');
+            select.innerHTML = '';
+
+            data.models.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+
+            if (data.models.length === 0) {
+                select.innerHTML = '<option value="">No models found</option>';
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function toggleExecution() {
+        if (!isExecuting) {
+            const model = document.getElementById('exec-model').value;
+            if (!model) return alert("Select a model");
+
+            const res = await fetch('/api/vla/execute/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: model })
+            });
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                alert('Error: ' + data.error);
+            }
+        } else {
+            await fetch('/api/vla/execute/stop', { method: 'POST' });
+        }
+        updateStatus();
+    }
+
+    async function startTraining() {
+        const dataset = document.getElementById('train-dataset').value;
+        const model = document.getElementById('model-name').value;
+
+        if (!dataset) return alert("Select a dataset");
+        if (!model) return alert("Enter model name");
+
+        const res = await fetch('/api/vla/train', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset: dataset, model: model, epochs: 10 })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            alert('Training started! Check console logs for progress.');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    }
+
+    async function stopTraining() {
+        await fetch('/api/vla/train/stop', { method: 'POST' });
+    }
+
+    async function toggleRecording() {
+        const btn = document.getElementById('record-btn');
+        const nameInput = document.getElementById('dataset-name');
+
+        if (!isRecording) {
+            const name = nameInput.value;
+            const res = await fetch('/api/vla/record/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                alert('Error: ' + data.error);
+            }
+        } else {
+            const res = await fetch('/api/vla/record/stop', { method: 'POST' });
+            setTimeout(loadDatasets, 1000);
+        }
+        updateStatus();
+    }
+
+    async function discardRecording() {
+        if (confirm('Are you sure you want to discard this recording?')) {
+            await fetch('/api/vla/record/discard', { method: 'POST' });
+            updateStatus();
+        }
+    }
+
+    // Start polling
+    setInterval(updateStatus, 1000);
+    updateStatus();
+    loadDatasets();
+    loadModels();
+</script>
+{% endblock %}

@@ -529,3 +529,132 @@ def vr_status():
         'arm_connected': state.arm_connected
     })
 
+
+# VLA Routes
+
+@bp.route('/vla')
+def vla_page():
+    return render_template('vla.html')
+
+@bp.route('/api/vla/status')
+def vla_status():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'error': 'VLA System not available'})
+    return jsonify(vla.get_status())
+
+@bp.route('/api/vla/record/start', methods=['POST'])
+def vla_record_start():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    data = request.json
+    name = data.get('name')
+    success, result = vla.start_recording(name)
+    if success:
+        return jsonify({'status': 'ok', 'dataset': result})
+    return jsonify({'status': 'error', 'error': result})
+
+@bp.route('/api/vla/record/stop', methods=['POST'])
+def vla_record_stop():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    success, count = vla.stop_recording()
+    if success:
+        return jsonify({'status': 'ok', 'frames': count})
+    return jsonify({'status': 'error', 'error': count})
+
+@bp.route('/api/vla/record/discard', methods=['POST'])
+def vla_record_discard():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    success = vla.recorder.discard_current()
+    success = vla.recorder.discard_current()
+    if success:
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': 'Failed to discard'})
+
+@bp.route('/api/vla/datasets')
+def vla_datasets():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'datasets': []})
+    
+    # List directories in dataset root
+    root = vla.recorder.dataset_root
+    if not root.exists():
+        return jsonify({'datasets': []})
+        
+    datasets = [d.name for d in root.iterdir() if d.is_dir()]
+    return jsonify({'datasets': datasets})
+
+@bp.route('/api/vla/train', methods=['POST'])
+def vla_train():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    data = request.json
+    dataset = data.get('dataset')
+    model = data.get('model')
+    epochs = data.get('epochs', 5)
+    
+    if not dataset or not model:
+        return jsonify({'status': 'error', 'error': 'Missing dataset or model name'})
+        
+    success, msg = vla.train_model(dataset, model, epochs)
+    if success:
+        return jsonify({'status': 'ok', 'message': msg})
+    return jsonify({'status': 'error', 'error': msg})
+
+@bp.route('/api/vla/train/stop', methods=['POST'])
+def vla_train_stop():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+    vla.stop_training()
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/vla/models')
+def vla_models():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'models': []})
+        
+    root = vla.executor.models_dir
+    if not root.exists():
+        return jsonify({'models': []})
+        
+    models_list = [f.stem for f in root.glob("*.pth")]
+    return jsonify({'models': models_list})
+
+@bp.route('/api/vla/execute/start', methods=['POST'])
+def vla_execute_start():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    data = request.json
+    model = data.get('model')
+    
+    if not model:
+        return jsonify({'status': 'error', 'error': 'Missing model name'})
+        
+    success, msg = vla.start_execution(model)
+    if success:
+        return jsonify({'status': 'ok', 'message': msg})
+    return jsonify({'status': 'error', 'error': msg})
+
+@bp.route('/api/vla/execute/stop', methods=['POST'])
+def vla_execute_stop():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+    vla.stop_execution()
+    return jsonify({'status': 'ok'})
+
