@@ -44,21 +44,37 @@ class VLAExecutor:
             return False, "Model not found"
             
         # Try load stats
-        stats_path = self.models_dir / f"{model_name}_stats.json"
-        if stats_path.exists():
-            try:
-                with open(stats_path, 'r') as f:
-                    self.stats = json.load(f)
-                # Convert to numpy
-                self.stats["qpos_min"] = np.array(self.stats["qpos_min"], dtype=np.float32)
-                self.stats["qpos_max"] = np.array(self.stats["qpos_max"], dtype=np.float32)
-                logger.info(f"Loaded normalization stats for {model_name}")
-            except Exception as e:
-                logger.error(f"Failed to load stats: {e}")
-                self.stats = None
-        else:
-            logger.warning("No normalization stats found! Using raw output (likely unpredictable).")
+        # Try load stats
+        # logic: 1. Try exact match "{model_name}_stats.json"
+        #        2. Try stripping epoch suffix (e.g. "_ep50")
+        stats_candidates = [
+            self.models_dir / f"{model_name}_stats.json"
+        ]
+        
+        # Regex to strip _epXX
+        import re
+        base_name = re.sub(r'_ep\d+$', '', model_name)
+        if base_name != model_name:
+            stats_candidates.append(self.models_dir / f"{base_name}_stats.json")
+            
+        loaded_stats = False
+        for stats_path in stats_candidates:
+            if stats_path.exists():
+                try:
+                    with open(stats_path, 'r') as f:
+                        self.stats = json.load(f)
+                    # Convert to numpy
+                    self.stats["qpos_min"] = np.array(self.stats["qpos_min"], dtype=np.float32)
+                    self.stats["qpos_max"] = np.array(self.stats["qpos_max"], dtype=np.float32)
+                    logger.info(f"Loaded normalization stats from {stats_path.name}")
+                    loaded_stats = True
+                    break
+                except Exception as e:
+                    logger.error(f"Failed to load stats from {stats_path}: {e}")
+        
+        if not loaded_stats:
             self.stats = None
+            logger.warning(f"No normalization stats found! Checked: {[p.name for p in stats_candidates]}")
 
         try:
             # Re-init model structure
