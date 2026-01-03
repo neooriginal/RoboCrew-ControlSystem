@@ -181,14 +181,17 @@ class VRArmController:
         if not self.servo_controller:
             return
         try:
-            self.servo_controller.set_arm_position({
+            positions = {
                 'shoulder_pan': float(angles[0]),
                 'shoulder_lift': float(angles[1]),
                 'elbow_flex': float(angles[2]),
                 'wrist_flex': float(angles[3]),
                 'wrist_roll': float(angles[4]),
                 'gripper': float(angles[5])
-            })
+            }
+            self.servo_controller.set_arm_position(positions)
+            # CRITICAL: Sync to state so VLA recorder captures real positions
+            state.update_arm_positions(positions)
         except Exception as e:
             logger.error(f"Arm error: {e}")
     

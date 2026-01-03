@@ -97,8 +97,16 @@ class VLADataset(Dataset):
         qpos_min = all_qpos.min(axis=0)
         qpos_max = all_qpos.max(axis=0)
         
-        # Avoid division by zero if max == min (add epsilon)
-        # Or pad slightly
+        # Validate Stats
+        qpos_range = qpos_max - qpos_min
+        if np.any(qpos_range < 1e-6):
+            logger.error(f"Invalid Dataset Stats! Min: {qpos_min}, Max: {qpos_max}")
+            raise ValueError(
+                "Dataset contains no movement for some joints (Min == Max). "
+                "Normalization failed. Please check your training data."
+            )
+
+        # Avoid division by zero if max == min (add epsilon) -> Should catch above, but keep as safety
         range_eps = 1e-4
         qpos_max = np.maximum(qpos_max, qpos_min + range_eps)
         
