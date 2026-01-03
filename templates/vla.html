@@ -350,10 +350,8 @@
             const res = await fetch('/api/vla/datasets');
             const data = await res.json();
             const list = document.getElementById('dataset-list-content');
-            // const select = document.getElementById('train-dataset');
 
             list.innerHTML = '';
-            select.innerHTML = '';
 
             data.datasets.forEach(name => {
                 const item = document.createElement('div');
@@ -375,7 +373,6 @@
 
             if (data.datasets.length === 0) {
                 list.innerHTML = '<div style="color: grey; padding: 10px;">No datasets found</div>';
-                select.innerHTML = '<option value="">No datasets</option>';
             }
         } catch (e) {
             console.error(e);
