@@ -33,11 +33,11 @@ The VLA system enables the robot to learn complex tasks through imitation learni
 ### 2. Training (Offboard)
 1.  In the VLA UI, find your dataset in the list and click **⬇️ ZIP**.
 2.  Transfer the ZIP to your training PC.
-3.  Use the `standalone_trainer` (see its `README.md`):
-    ```bash
-    python train.py --dataset my_task.zip --model_name my_task_policy
-    ```
-4.  This generates a `.pth` model file (e.g., `models/my_task_policy_ep50.pth`).
+3.  **Run the Trainer**:
+    *   **Windows**: Double-click `run_training.bat`.
+    *   **Linux/Mac**: Run `./run_training.sh`.
+4.  Follow the on-screen prompts to select your ZIP file and name your model.
+5.  This generates a `.pth` model file (e.g., `models/my_task_policy_ep50.pth`).
 
 ### 3. Execution
 1.  In the VLA UI, go to the **Execution** section.

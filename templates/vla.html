@@ -267,10 +267,14 @@
 
             <div class="input-group">
                 <label>Select Model</label>
-                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1);">
+                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
                     <option value="">Loading...</option>
                 </select>
-                <!-- Add a little downward arrow hint if default appearance is hidden, or just rely on generic select style -->
+                <button class="btn discard"
+                    style="width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                    title="Delete Model" onclick="deleteModel()">
+                    🗑️
+                </button>
             </div>
 
             <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
@@ -365,9 +369,20 @@
                 dlLink.textContent = '⬇️ ZIP';
                 dlLink.style.color = '#60a5fa';
                 dlLink.style.textDecoration = 'none';
+                dlLink.style.marginRight = '10px';
+
+                const delBtn = document.createElement('span');
+                delBtn.textContent = '🗑️';
+                delBtn.style.cursor = 'pointer';
+                delBtn.title = 'Delete Dataset';
+                delBtn.onclick = () => deleteDataset(name);
+
+                const actions = document.createElement('div');
+                actions.appendChild(dlLink);
+                actions.appendChild(delBtn);
 
                 item.appendChild(nameSpan);
-                item.appendChild(dlLink);
+                item.appendChild(actions);
                 list.appendChild(item);
             });
 

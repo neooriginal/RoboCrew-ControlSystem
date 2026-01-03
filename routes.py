@@ -604,33 +604,55 @@ def vla_datasets():
     datasets = [d.name for d in root.iterdir() if d.is_dir()]
     return jsonify({'datasets': datasets})
 
+@bp.route('/api/vla/dataset/delete', methods=['POST'])
+def vla_delete_dataset():
+    data = request.json
+    name = data.get('name')
+    if not name:
+        return jsonify({"error": "Missing dataset name"}), 400
+        
+    dataset_path = state.vla_system.recorder.dataset_root / name
+    if not dataset_path.exists():
+        return jsonify({"error": "Dataset not found"}), 404
+        
+    try:
+        import shutil
+        shutil.rmtree(dataset_path)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/vla/model/delete', methods=['POST'])
+def vla_delete_model():
+    data = request.json
+    name = data.get('name')
+    if not name:
+        return jsonify({"error": "Missing model name"}), 400
+        
+    model_path = state.vla_system.executor.models_dir / f"{name}.pth"
+    if not model_path.exists():
+        return jsonify({"error": "Model not found"}), 404
+        
+    try:
+        model_path.unlink()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @bp.route('/api/vla/dataset/<name>/download')
 def vla_download_dataset(name):
-    # Zip the dataset folder and serve it
     dataset_path = state.vla_system.recorder.dataset_root / name
     if not dataset_path.exists():
          return jsonify({"error": "Dataset not found"}), 404
-         
-    # Create zip in-memory or temp? 
-    # Use shutil to make zip in temp
+    
     import shutil
     import tempfile
-    from flask import send_file, current_app as app # Import app for route decorator
-    
-    # We will create a zip file in a temp directory
-    # Note: This might be slow for large datasets.
-    # For now, synchronous is okay but ideally background job.
+    from flask import send_file, current_app as app 
     
     try:
-        # Create a zip of the directory
-        # We assume the name is safe because it comes from our list
-        
-        # Output filename without extension
         base_name = tempfile.mktemp() 
         shutil.make_archive(base_name, 'zip', dataset_path)
-        
         zip_file = base_name + ".zip"
-        
         return send_file(zip_file, as_attachment=True, download_name=f"{name}.zip")
     except Exception as e:
         return jsonify({"error": str(e)}), 500

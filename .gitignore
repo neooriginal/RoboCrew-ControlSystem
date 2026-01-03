@@ -153,3 +153,4 @@ robocrew_memory.db
 /standalone_trainer/extracted_datasets
 /standalone_trainer/models
 /standalone_trainer/__pycache__
+/standalone_trainer/venv
