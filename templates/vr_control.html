@@ -159,58 +159,73 @@
 
         const scene = document.querySelector('a-scene');
 
-        if (!navigator.xr) return;
+        // Always create the button, don't hide it behind capability checks
+        // This ensures it appears even on non-VR devices (acting as fullscreen/preview)
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary';
+        btn.style.position = 'absolute';
+        btn.style.bottom = '30px';
+        btn.style.left = '50%';
+        btn.style.transform = 'translateX(-50%)';
+        btn.style.zIndex = '2000';
+        btn.style.fontSize = '1.2rem';
+        btn.style.padding = '15px 30px';
 
-        Promise.all([
-            navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
-            navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
-        ]).then(([ar, vr]) => {
-            if (!ar && !vr) return;
+        btn.textContent = '🥽 Enter VR';
 
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.style.position = 'absolute';
-            btn.style.bottom = '30px';
-            btn.style.left = '50%';
-            btn.style.transform = 'translateX(-50%)';
-            btn.style.zIndex = '2000';
-            btn.style.fontSize = '1.2rem';
-            btn.style.padding = '15px 30px';
-
-            btn.textContent = '🥽 Enter VR';
-
-            // Hide overlay content when button is present (it's handled by CSS usually, but let's be safe)
-            // Actually the overlay is the content.
-
-            btn.onclick = async () => {
-                btn.textContent = 'Starting...';
-                btn.disabled = true;
-                try {
-                    await document.querySelector('a-scene').enterVR(true);
-                } catch (e) {
-                    btn.textContent = '🥽 Enter VR';
-                    btn.disabled = false;
-                    alert('VR Entry Failed: ' + e);
+        // Check compatibility just for info, but don't block
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                if (!supported) {
+                    console.log("WebXR VR not natively supported, button will attempt fallback");
                 }
-            };
-
-            document.querySelector('.content-wrapper > div').appendChild(btn);
-
-            scene.addEventListener('enter-vr', () => {
-                btn.style.display = 'none';
-                document.getElementById('statusPanel').style.display = 'none';
-                // Hide inputs when in VR
-                scene.addEventListener('enter-vr', () => {
-                    btn.style.display = 'none';
-                    document.getElementById('statusPanel').style.display = 'none';
-                    document.getElementById('vrTaskName').parentElement.style.display = 'none';
-                });
-                scene.addEventListener('exit-vr', () => {
-                    btn.style.display = 'block';
-                    document.getElementById('statusPanel').style.display = 'block';
-                    document.getElementById('vrTaskName').parentElement.style.display = 'flex';
-                });
             });
+        }
+
+        btn.onclick = async () => {
+            btn.textContent = 'Starting...';
+            btn.disabled = true;
+            try {
+                // Try entering VR mode (A-Frame handles the distinction)
+                await scene.enterVR();
+            } catch (e) {
+                console.error("VR Entry error:", e);
+                btn.textContent = '🥽 Enter VR';
+                btn.disabled = false;
+                alert('VR Entry Failed: ' + e);
+            }
+        };
+
+        // Append to the main restriction container
+        const container = document.querySelector('.vr-restricted');
+        if (container) {
+            container.appendChild(btn);
+        } else {
+            console.error("Could not find .vr-restricted container");
+            document.body.appendChild(btn); // Fallback
+        }
+
+        // Handle VR mode changes to hide/show UI
+        scene.addEventListener('enter-vr', () => {
+            btn.style.display = 'none';
+            const statusPanel = document.getElementById('statusPanel');
+            if (statusPanel) statusPanel.style.display = 'none';
+
+            const taskNameContainer = document.getElementById('vrTaskName')?.parentElement;
+            if (taskNameContainer) taskNameContainer.style.display = 'none';
         });
+
+        scene.addEventListener('exit-vr', () => {
+            btn.style.display = 'block';
+            btn.textContent = '🥽 Enter VR';
+            btn.disabled = false;
+
+            const statusPanel = document.getElementById('statusPanel');
+            if (statusPanel) statusPanel.style.display = 'block';
+
+            const taskNameContainer = document.getElementById('vrTaskName')?.parentElement;
+            if (taskNameContainer) taskNameContainer.style.display = 'flex';
+        });
+    });
 </script>
 {% endblock %}
