@@ -16,6 +16,71 @@ AFRAME.registerComponent('vr-controller-updater', {
 
         this.connectSocket();
         this.setupEvents();
+        this.setupRecording();
+    },
+
+    setupRecording: function () {
+        const btn = document.querySelector('#vrRecordBtn');
+        const status = document.querySelector('#vrRecordStatus');
+        if (!btn) return;
+
+        this.recording = false;
+
+        btn.addEventListener('click', async () => {
+            if (this.recording) {
+                // Stop
+                try {
+                    await fetch('/api/vla/record/stop', { method: 'POST' });
+                    this.recording = false;
+                    btn.setAttribute('color', '#059669');
+                    btn.querySelector('a-text').setAttribute('value', 'Record');
+                    if (status) status.setAttribute('value', 'Saved');
+                } catch (e) {
+                    console.error(e);
+                }
+            } else {
+                // Start
+                try {
+                    const taskName = "vr_demo"; // Default for VR
+                    await fetch('/api/vla/record/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: taskName })
+                    });
+                    this.recording = true;
+                    btn.setAttribute('color', '#dc2626');
+                    btn.querySelector('a-text').setAttribute('value', 'Stop');
+                    if (status) status.setAttribute('value', 'Recording...');
+                } catch (e) {
+                    console.error(e);
+                    if (status) status.setAttribute('value', 'Error');
+                }
+            }
+        });
+
+        // Poll status to sync with web UI
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/vla/status');
+                const data = await res.json();
+                if (data.recorder) {
+                    const wasRecording = this.recording;
+                    this.recording = data.recorder.recording;
+
+                    if (this.recording !== wasRecording) {
+                        if (this.recording) {
+                            btn.setAttribute('color', '#dc2626');
+                            btn.querySelector('a-text').setAttribute('value', 'Stop');
+                            if (status) status.setAttribute('value', 'Recording...');
+                        } else {
+                            btn.setAttribute('color', '#059669');
+                            btn.querySelector('a-text').setAttribute('value', 'Record');
+                            if (status) status.setAttribute('value', 'Ready');
+                        }
+                    }
+                }
+            } catch (e) { }
+        }, 1000);
     },
 
     connectSocket: function () {

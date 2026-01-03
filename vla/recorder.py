@@ -23,6 +23,7 @@ class VLARecorder:
         
         self.recording = False
         self.current_dataset_path = None
+        self.current_task_name = None
         self.frame_count = 0
         self.record_thread = None
         self.lock = threading.Lock()
@@ -41,11 +42,14 @@ class VLARecorder:
             # Sanitize name
             dataset_name = "".join(c for c in dataset_name if c.isalnum() or c in ('_', '-'))
             
-            self.current_dataset_path = self.dataset_root / dataset_name
+            # Create task directory if not exists
+            task_dir = self.dataset_root / dataset_name
+            task_dir.mkdir(parents=True, exist_ok=True)
             
-            if self.current_dataset_path.exists():
-                return False, f"Dataset '{dataset_name}' already exists"
-                
+            # Create unique episode directory
+            episode_name = f"episode_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            self.current_dataset_path = task_dir / episode_name
+            
             try:
                 self.current_dataset_path.mkdir(parents=True)
                 (self.current_dataset_path / "images_main").mkdir()
@@ -55,12 +59,13 @@ class VLARecorder:
                 
             self.recording = True
             self.frame_count = 0
+            self.current_task_name = dataset_name # Track this for status
             
             self.record_thread = threading.Thread(target=_record_loop, args=(self,), daemon=True)
             self.record_thread.start()
             
-            logger.info(f"Started recording dataset: {dataset_name}")
-            return True, dataset_name
+            logger.info(f"Started recording episode: {dataset_name}/{episode_name}")
+            return True, f"{dataset_name}/{episode_name}"
 
     def stop_recording(self):
         with self.lock:
@@ -79,7 +84,8 @@ class VLARecorder:
     def get_status(self):
         return {
             "recording": self.recording,
-            "dataset": self.current_dataset_path.name if self.current_dataset_path else None,
+            "dataset": self.current_task_name if self.current_task_name else None,
+            "episode": self.current_dataset_path.name if self.current_dataset_path else None,
             "frames": self.frame_count
         }
         
@@ -96,6 +102,25 @@ class VLARecorder:
                 return True
             except Exception as e:
                 logger.error(f"Failed to discard dataset: {e}")
+                return False
+        return False
+
+    def delete_last_episode(self):
+        """Delete the most recently recorded episode if it exists."""
+        # 1. If currently recording, discard it.
+        if self.recording:
+            return self.discard_current()
+            
+        # 2. If valid dataset path (episode) is set, delete it.
+        if self.current_dataset_path and self.current_dataset_path.exists():
+             try:
+                shutil.rmtree(self.current_dataset_path)
+                logger.info(f"Deleted last episode: {self.current_dataset_path.name}")
+                self.current_dataset_path = None
+                self.frame_count = 0
+                return True
+             except Exception as e:
+                logger.error(f"Failed to delete episode: {e}")
                 return False
         return False
 

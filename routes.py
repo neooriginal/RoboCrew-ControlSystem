@@ -579,6 +579,17 @@ def vla_record_discard():
         return jsonify({'status': 'ok'})
     return jsonify({'status': 'error', 'error': 'Failed to discard'})
 
+@bp.route('/api/vla/record/delete_last', methods=['POST'])
+def vla_record_delete_last():
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    success = vla.recorder.delete_last_episode()
+    if success:
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': 'Failed to delete'})
+
 @bp.route('/api/vla/datasets')
 def vla_datasets():
     vla = state.get_vla_system()

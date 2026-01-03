@@ -192,20 +192,20 @@
             <div class="status-header">Data Collection</div>
 
             <div class="input-group">
-                <label>Dataset Name</label>
-                <input type="text" id="dataset-name" class="input-field" placeholder="task_name_01">
+                <label>Task Name</label>
+                <input type="text" id="dataset-name" class="input-field" placeholder="pickup_cup">
             </div>
 
             <button id="record-btn" class="btn record" onclick="toggleRecording()">
                 Start Recording
             </button>
 
-            <button id="discard-btn" class="btn discard" onclick="discardRecording()" style="display: none;">
-                Discard & Retry
+            <button id="discard-btn" class="btn discard" onclick="deleteLastEpisode()">
+                Delete Last Episode
             </button>
 
             <div style="font-size: 0.9em; color: var(--text-secondary); text-align: center; margin-top: 8px;">
-                Frame Count: <span id="frame-count">0</span>
+                Curent Episode Frames: <span id="frame-count">0</span>
             </div>
         </div>
 
@@ -281,13 +281,17 @@
                     btn.textContent = 'Stop Recording';
                     btn.classList.add('recording');
                     badge.style.display = 'flex';
+                    discardBtn.textContent = 'Discard Current Episode';
                     discardBtn.style.display = 'block';
-                    document.getElementById('system-status').textContent = 'Recording ' + rec.dataset;
+                    document.getElementById('system-status').textContent = 'Recording ' + rec.dataset + ' / ' + rec.episode;
                 } else {
                     btn.textContent = 'Start Recording';
                     btn.classList.remove('recording');
                     badge.style.display = 'none';
-                    discardBtn.style.display = 'none';
+
+                    discardBtn.textContent = 'Delete Last Episode';
+                    discardBtn.style.display = 'block';
+
                     if (!isTraining && !isExecuting) {
                         document.getElementById('system-status').textContent = 'Ready';
                     }
@@ -442,10 +446,17 @@
         updateStatus();
     }
 
-    async function discardRecording() {
-        if (confirm('Are you sure you want to discard this recording?')) {
-            await fetch('/api/vla/record/discard', { method: 'POST' });
-            updateStatus();
+    async function deleteLastEpisode() {
+        if (isRecording) {
+            if (confirm('Discard CURRENT recording in progress?')) {
+                await fetch('/api/vla/record/delete_last', { method: 'POST' });
+                updateStatus();
+            }
+        } else {
+            if (confirm('Delete the LAST recorded episode?')) {
+                await fetch('/api/vla/record/delete_last', { method: 'POST' });
+                updateStatus();
+            }
         }
     }
 

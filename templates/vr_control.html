@@ -67,11 +67,27 @@
                 <a-text value="Camera" position="0 0.5 0" align="center" scale="0.1 0.1 0.1" color="#00d2ff"></a-text>
             </a-entity>
 
+            <!-- Record Button Panel -->
+            <a-entity position="-0.9 -0.5 0.5" rotation="-15 15 0" id="recordControls">
+                <a-box id="vrRecordBtn" width="0.3" height="0.15" depth="0.05" color="#059669" class="clickable"
+                    position="0 0 0"
+                    animation__click="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: click; dur: 200">
+                    <a-text value="Record" align="center" position="0 0 0.03" scale="0.4 0.4 0.4"
+                        color="white"></a-text>
+                </a-box>
+                <a-text id="vrRecordStatus" value="Ready" position="0 -0.15 0" align="center" scale="0.3 0.3 0.3"
+                    color="#ccc"></a-text>
+            </a-entity>
+
         </a-entity>
 
         <a-entity id="rightHand" oculus-touch-controls="hand: right">
             <a-text id="rightHandInfo" value="Ready" position="0 0.04 -0.05" scale="0.05 0.05 0.05" color="white"
                 align="center"></a-text>
+
+            <!-- Raycaster for interacting with buttons -->
+            <a-entity raycaster="objects: .clickable; showLine: true; far: 2" position="0 0 0" rotation="0 0 0"
+                line="color: white; opacity: 0.5"></a-entity>
 
             <a-entity id="gripperVisual" position="0 0 0" rotation="0 0 0">
                 <a-box width="0.04" height="0.04" depth="0.06" color="#333" position="0 0 -0.05"></a-box>

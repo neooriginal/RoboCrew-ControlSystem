@@ -21,6 +21,9 @@ class VLASystem:
     def stop_recording(self):
         return self.recorder.stop_recording()
 
+    def delete_last_episode(self):
+        return self.recorder.delete_last_episode()
+
     def train_model(self, dataset_name, model_name, epochs=10):
         if self.trainer.training:
              return False, "Already training"
