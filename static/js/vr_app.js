@@ -66,81 +66,66 @@ AFRAME.registerComponent('vr-controller-updater', {
             if (this.socket?.connected) this.socket.emit('vr_data', { triggerReleased: true });
         });
 
-        if (this.socket?.connected) this.socket.emit('vr_data', { triggerReleased: true });
-    });
+        this.rightHand.addEventListener('thumbstickmoved', e => {
+            this.rightStick = { x: e.detail.x, y: e.detail.y };
+        });
 
-// VLA Recording Toggle (A Button)
-this.rightHand.addEventListener('abuttondown', () => {
-    fetch('/api/vla/record/toggle', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            console.log('Recording toggled:', data);
-            // Provide haptic feedback if possible
-            // this.rightHand.components.haptics.pulse(1.0, 200); // requires haptics component
-        })
-        .catch(e => console.error('Toggle error:', e));
-});
+        this.leftHand.addEventListener('thumbstickmoved', e => {
+            this.leftStick = { x: e.detail.x, y: e.detail.y };
+        });
 
-this.rightHand.addEventListener('thumbstickmoved', e => {
-    this.rightStick = { x: e.detail.x, y: e.detail.y };
-});
-
-this.leftHand.addEventListener('thumbstickmoved', e => {
-    this.leftStick = { x: e.detail.x, y: e.detail.y };
-});
-
-this.leftHand.addEventListener('gripdown', () => this.leftGripDown = true);
-this.leftHand.addEventListener('gripup', () => this.leftGripDown = false);
+        this.leftHand.addEventListener('gripdown', () => this.leftGripDown = true);
+        this.leftHand.addEventListener('gripup', () => this.leftGripDown = false);
     },
 
-tick: function () {
-    if (!this.rightHand || !this.socket?.connected) return;
+    tick: function () {
+        if (!this.rightHand || !this.socket?.connected) return;
 
-    const now = Date.now();
-    if (now - this.lastSend < this.sendInterval) return;
-    this.lastSend = now;
+        const now = Date.now();
+        if (now - this.lastSend < this.sendInterval) return;
+        this.lastSend = now;
 
-    const right = {
-        position: null, quaternion: null,
-        gripActive: this.rightGripDown,
-        trigger: this.rightTriggerDown ? 1 : 0
-    };
+        const right = {
+            position: null, quaternion: null,
+            gripActive: this.rightGripDown,
+            trigger: this.rightTriggerDown ? 1 : 0
+        };
 
-    if (this.rightHand.object3D.visible) {
-        const p = this.rightHand.object3D.position;
-        const q = this.rightHand.object3D.quaternion;
-        right.position = { x: p.x, y: p.y, z: p.z };
-        right.quaternion = { x: q.x, y: q.y, z: q.z, w: q.w };
+        if (this.rightHand.object3D.visible) {
+            const p = this.rightHand.object3D.position;
+            const q = this.rightHand.object3D.quaternion;
+            right.position = { x: p.x, y: p.y, z: p.z };
+            right.quaternion = { x: q.x, y: q.y, z: q.z, w: q.w };
 
-        if (this.rightInfo) {
-            this.rightInfo.setAttribute('value',
-                this.rightGripDown ? 'GRIP' : (this.rightTriggerDown ? 'CLOSE' : 'Ready')
+            if (this.rightInfo) {
+                this.rightInfo.setAttribute('value',
+                    this.rightGripDown ? 'GRIP' : (this.rightTriggerDown ? 'CLOSE' : 'Ready')
+                );
+            }
+        }
+
+        if (this.leftInfo) {
+            const { x, y } = this.leftStick;
+            this.leftInfo.setAttribute('value',
+                (Math.abs(x) > 0.1 || Math.abs(y) > 0.1) ? 'Moving' : 'Move'
             );
         }
-    }
 
-    if (this.leftInfo) {
-        const { x, y } = this.leftStick;
-        this.leftInfo.setAttribute('value',
-            (Math.abs(x) > 0.1 || Math.abs(y) > 0.1) ? 'Moving' : 'Move'
-        );
-    }
+        const hasInput = right.gripActive || right.trigger > 0 ||
+            Math.abs(this.leftStick.x) > 0.1 || Math.abs(this.leftStick.y) > 0.1 ||
+            Math.abs(this.rightStick.x) > 0.1 || Math.abs(this.rightStick.y) > 0.1;
 
-    const hasInput = right.gripActive || right.trigger > 0 ||
-        Math.abs(this.leftStick.x) > 0.1 || Math.abs(this.leftStick.y) > 0.1 ||
-        Math.abs(this.rightStick.x) > 0.1 || Math.abs(this.rightStick.y) > 0.1;
-
-    if (hasInput && right.position) {
-        this.socket.emit('vr_data', {
-            rightController: {
-                ...right,
-                thumbstick: this.rightStick
-            },
-            leftController: {
-                thumbstick: this.leftStick,
-                gripActive: this.leftGripDown
-            }
-        });
+        if (hasInput && right.position) {
+            this.socket.emit('vr_data', {
+                rightController: {
+                    ...right,
+                    thumbstick: this.rightStick
+                },
+                leftController: {
+                    thumbstick: this.leftStick,
+                    gripActive: this.leftGripDown
+                }
+            });
+        }
     }
-}
 });

@@ -562,27 +562,10 @@ def vla_record_stop():
     if not vla:
         return jsonify({'status': 'error', 'error': 'VLA System not available'})
         
-    success, frames = vla.stop_recording()
+    success, count = vla.stop_recording()
     if success:
-        return jsonify({'status': 'ok', 'frames': frames})
-    return jsonify({'status': 'error', 'error': 'Failed to stop or not recording'})
-
-@bp.route('/api/vla/record/toggle', methods=['POST'])
-def vla_record_toggle():
-    vla = state.get_vla_system()
-    if not vla: return jsonify({'status': 'error'})
-    
-    if vla.recorder.recording:
-        success, frames = vla.stop_recording()
-        return jsonify({'status': 'ok', 'action': 'stopped', 'frames': frames})
-    else:
-        # Generate default name
-        import datetime
-        name = f"vr_record_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        success, ds_name = vla.start_recording(name)
-        if success:
-            return jsonify({'status': 'ok', 'action': 'started', 'dataset': ds_name})
-        return jsonify({'status': 'error', 'error': ds_name})
+        return jsonify({'status': 'ok', 'frames': count})
+    return jsonify({'status': 'error', 'error': count})
 
 @bp.route('/api/vla/record/discard', methods=['POST'])
 def vla_record_discard():
@@ -674,20 +657,4 @@ def vla_execute_stop():
         return jsonify({'status': 'error', 'error': 'VLA System not available'})
     vla.stop_execution()
     return jsonify({'status': 'ok'})
-
-@bp.route('/api/vla/delete/dataset', methods=['POST'])
-def vla_delete_dataset():
-    vla = state.get_vla_system()
-    if not vla: return jsonify({'status': 'error'})
-    data = request.json
-    success, msg = vla.delete_dataset(data.get('name'))
-    return jsonify({'status': 'ok' if success else 'error', 'message': msg})
-
-@bp.route('/api/vla/delete/model', methods=['POST'])
-def vla_delete_model():
-    vla = state.get_vla_system()
-    if not vla: return jsonify({'status': 'error'})
-    data = request.json
-    success, msg = vla.delete_model(data.get('name'))
-    return jsonify({'status': 'ok' if success else 'error', 'message': msg})
 
