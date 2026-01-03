@@ -267,14 +267,16 @@
 
             <div class="input-group">
                 <label>Select Model</label>
-                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
-                    <option value="">Loading...</option>
-                </select>
-                <button class="btn discard"
-                    style="width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                    title="Delete Model" onclick="deleteModel()">
-                    🗑️
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
+                        <option value="">Loading...</option>
+                    </select>
+                    <button class="btn discard"
+                        style="width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                        title="Delete Model" onclick="deleteModel()">
+                        🗑️
+                    </button>
+                </div>
             </div>
 
             <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
@@ -505,6 +507,52 @@
                 await fetch('/api/vla/record/delete_last', { method: 'POST' });
                 updateStatus();
             }
+        }
+    }
+
+    async function deleteDataset(name) {
+        if (!confirm(`Are you sure you want to delete dataset "${name}"? This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch('/api/vla/dataset/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                loadDatasets();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Delete failed');
+        }
+    }
+
+    async function deleteModel() {
+        const select = document.getElementById('exec-model');
+        const name = select.value;
+        if (!name) return;
+
+        if (!confirm(`Are you sure you want to delete model "${name}"? This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch('/api/vla/model/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                loadModels();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Delete failed');
         }
     }
 
