@@ -148,3 +148,5 @@ robocrew_memory.db
 .env
 ./logs.sh
 /vla/__pycache__
+
+./datasets
