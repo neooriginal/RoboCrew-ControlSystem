@@ -691,9 +691,11 @@ def vla_models():
         
     root = vla.executor.models_dir
     if not root.exists():
+        print(f"DEBUG: Models dir {root} missing")
         return jsonify({'models': []})
         
     models_list = [f.stem for f in root.glob("*.pth")]
+    print(f"DEBUG: Checked {root}, Found: {models_list}")
     return jsonify({'models': models_list})
 
 @bp.route('/api/vla/execute/start', methods=['POST'])
