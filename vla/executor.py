@@ -1,6 +1,7 @@
 """
 VLA Executor
 Handles model inference and robot control using Diffusion Policy.
+Includes Normalization (MinMax) and Safety Limits (Speed Clamping).
 """
 
 import time
@@ -9,6 +10,7 @@ import numpy as np
 import cv2
 import threading
 import logging
+import json
 from pathlib import Path
 from collections import deque
 
@@ -25,6 +27,12 @@ class VLAExecutor:
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
+        # Normalization Stats
+        self.stats = None
+        
+        # Safety / Smoothing
+        self.max_delta = 0.1 # Max radians change per step (~2.0 rad/s at 20Hz). Lower = safer/smoother.
+        
         # History Buffer
         # Stores last N obs: (img_main, img_wrist, qpos)
         self.history_len = 2
@@ -35,6 +43,23 @@ class VLAExecutor:
         if not model_path.exists():
             return False, "Model not found"
             
+        # Try load stats
+        stats_path = self.models_dir / f"{model_name}_stats.json"
+        if stats_path.exists():
+            try:
+                with open(stats_path, 'r') as f:
+                    self.stats = json.load(f)
+                # Convert to numpy
+                self.stats["qpos_min"] = np.array(self.stats["qpos_min"], dtype=np.float32)
+                self.stats["qpos_max"] = np.array(self.stats["qpos_max"], dtype=np.float32)
+                logger.info(f"Loaded normalization stats for {model_name}")
+            except Exception as e:
+                logger.error(f"Failed to load stats: {e}")
+                self.stats = None
+        else:
+            logger.warning("No normalization stats found! Using raw output (likely unpredictable).")
+            self.stats = None
+
         try:
             # Re-init model structure
             self.model = DiffusionPolicy().to(self.device)
@@ -45,6 +70,24 @@ class VLAExecutor:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             return False, str(e)
+
+    def _normalize_qpos(self, qpos):
+        if self.stats is None:
+            return qpos
+        mn = self.stats["qpos_min"]
+        mx = self.stats["qpos_max"]
+        # Scale to [-1, 1]
+        norm = (qpos - mn) / (mx - mn)
+        return norm * 2 - 1
+
+    def _unnormalize_qpos(self, qpos_norm):
+        if self.stats is None:
+            return qpos_norm
+        mn = self.stats["qpos_min"]
+        mx = self.stats["qpos_max"]
+        # Scale from [-1, 1] back to [0, 1] then to Range
+        norm = (qpos_norm + 1) / 2
+        return norm * (mx - mn) + mn
 
     def start_execution(self, model_name):
         if self.running:
@@ -125,20 +168,17 @@ class VLAExecutor:
                     continue
                     
                 # 2. Tensorize History
-                # history is list of tuples (img_main, img_wrist, qpos)
-                # Need:
-                # images: [1, 2, History, 3, 224, 224] (Batch, Cams, Hist, C, H, W)
-                # state: [1, History, 6]
-                
                 imgs_main_list = []
                 imgs_wrist_list = []
                 qpos_list = []
                 
                 for item in self.history:
-                    # Items are HWC uint8 numpy
+                    # item[2] is raw qpos. Need to normalize it.
+                    norm_qpos = self._normalize_qpos(item[2])
+                    
                     img_m_t = torch.from_numpy(item[0]).permute(2,0,1).float() / 255.0
                     img_w_t = torch.from_numpy(item[1]).permute(2,0,1).float() / 255.0
-                    qpos_t = torch.from_numpy(item[2])
+                    qpos_t = torch.from_numpy(norm_qpos)
                     
                     imgs_main_list.append(img_m_t)
                     imgs_wrist_list.append(img_w_t)
@@ -157,23 +197,34 @@ class VLAExecutor:
                 batch_state = t_qpos.unsqueeze(0).to(self.device)
                 
                 # 3. Diffusion Inference
-                # Returns [1, 10, 6] (Action Chunk)
+                # Returns [1, 10, 6] (Normalized Action Chunk)
                 actions_chunk = self.model.sample(batch_images, batch_state)
-                actions_np = actions_chunk.cpu().numpy()[0] # [10, 6]
+                norm_actions_np = actions_chunk.cpu().numpy()[0] # [10, 6]
                 
                 # 4. Execute (Receding Horizon)
-                # Execute only the first action (33ms - 50ms) for high reactivity
                 if self.running:
-                    action = actions_np[0]
+                    # Take first action
+                    norm_action = norm_actions_np[0]
                     
-                    # Target Dict
+                    # Un-normalize
+                    target_action = self._unnormalize_qpos(norm_action)
+                    
+                    # Safety: Clamp max delta from current position
+                    # We know current position is obs[2] (raw)
+                    current_pos = obs[2]
+                    delta = target_action - current_pos
+                    
+                    # Clamp magnitude
+                    delta = np.clip(delta, -self.max_delta, self.max_delta)
+                    safe_action = current_pos + delta
+                    
                     target_pos = {
-                        'shoulder_pan': float(action[0]),
-                        'shoulder_lift': float(action[1]),
-                        'elbow_flex': float(action[2]),
-                        'wrist_flex': float(action[3]),
-                        'wrist_roll': float(action[4]),
-                        'gripper': float(action[5])
+                        'shoulder_pan': float(safe_action[0]),
+                        'shoulder_lift': float(safe_action[1]),
+                        'elbow_flex': float(safe_action[2]),
+                        'wrist_flex': float(safe_action[3]),
+                        'wrist_roll': float(safe_action[4]),
+                        'gripper': float(safe_action[5])
                     }
                     
                     if state.controller:

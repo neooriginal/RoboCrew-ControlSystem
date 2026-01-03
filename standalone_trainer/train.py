@@ -16,10 +16,19 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from pathlib import Path
 import multiprocessing
+import json
+import numpy as np
 
 # Local imports
 from dataset import VLADataset
 from model import DiffusionPolicy
+
+# Helper to serialize numpy
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 def train(dataset_path, model_name, epochs=50, batch_size=16):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -31,11 +40,14 @@ def train(dataset_path, model_name, epochs=50, batch_size=16):
     
     # 2. Load Data
     print(f"Loading dataset from {dataset_path}...")
-    # Using history_length=2, sequence_length=10 (Standard Diffusion setup)
     dataset = VLADataset(dataset_path, sequence_length=10, history_length=2)
     
-    # Lower batch size? Diffusion models are VRAM hungry. 
-    # Use 16 or 32 depending on GPU.
+    # Save Normalization Stats
+    stats_path = output_dir / f"{model_name}_stats.json"
+    with open(stats_path, 'w') as f:
+        json.dump(dataset.stats, f, cls=NumpyEncoder)
+    print(f"Saved dataset stats to {stats_path}")
+    
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     print(f"Found {len(dataset)} samples.")
     
@@ -48,8 +60,6 @@ def train(dataset_path, model_name, epochs=50, batch_size=16):
     ).to(device)
     
     optimizer = optim.AdamW(model.parameters(), lr=1e-4) # Standard diffusion LR
-    
-    # Diffusion model forward() returns the loss directly
     
     # 4. Loop
     for epoch in range(epochs):
@@ -96,7 +106,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", required=True, help="Path to unzipped dataset folder")
     parser.add_argument("--model_name", default="policy", help="Name of output model")
     parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--batch", type=int, default=16) # Reduced default batch size for safety
+    parser.add_argument("--batch", type=int, default=16) 
     
     args = parser.parse_args()
     

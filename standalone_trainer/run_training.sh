@@ -29,8 +29,8 @@ read -r DATASET_PATH
 # Remove single/double quotes
 DATASET_PATH=$(echo "$DATASET_PATH" | tr -d "'\"")
 
-if [ ! -f "$DATASET_PATH" ]; then
-    echo "[ERROR] File not found: $DATASET_PATH"
+if [ ! -e "$DATASET_PATH" ]; then
+    echo "[ERROR] File/Directory not found: $DATASET_PATH"
     exit 1
 fi
 
@@ -58,7 +58,7 @@ if [ $? -eq 0 ]; then
     echo "==================================================="
     echo "Training Complete!"
     echo "Your model is in the 'models' folder."
-    echo "Please upload '${MODEL_NAME}_ep${EPOCHS}.pth' to the Robot UI."
+    echo "Please upload '${MODEL_NAME}_ep${EPOCHS}.pth' AND '${MODEL_NAME}_stats.json' to the Robot UI."
     echo "==================================================="
 else
     echo ""
