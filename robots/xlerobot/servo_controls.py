@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import json
+import threading
 from pathlib import Path
 from typing import Dict, Mapping, Optional
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
@@ -75,6 +76,9 @@ class ServoControler:
         self._arm_enabled = False
         self.wheel_bus = None
         self.head_bus = None
+        
+        # Thread lock for bus access safety
+        self.lock = threading.RLock()
 
         if right_arm_wheel_usb:
             motors = {
@@ -197,19 +201,23 @@ class ServoControler:
     # Wheel control
 
     def _wheels_write(self, action: str) -> Dict[int, int]:
-        from state import state
-        # Enforce Approach Mode Speed Limit (10%) ONLY for AI
-        effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
-        
-        multipliers = self.action_map[action.lower()]
-        payload = {wid: int(effective_speed * factor) for wid, factor in multipliers.items()}
-        self.wheel_bus.sync_write("Goal_Velocity", payload)
-        return payload
+        with self.lock:
+            from state import state
+            # Enforce Approach Mode Speed Limit (10%) ONLY for AI
+            effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
+            
+            multipliers = self.action_map[action.lower()]
+            payload = {wid: int(effective_speed * factor) for wid, factor in multipliers.items()}
+            if self.wheel_bus:
+                self.wheel_bus.sync_write("Goal_Velocity", payload)
+            return payload
 
     def _wheels_stop(self) -> Dict[int, int]:
-        payload = {wid: 0 for wid in self._wheel_ids}
-        self.wheel_bus.sync_write("Goal_Velocity", payload)
-        return payload
+        with self.lock:
+            payload = {wid: 0 for wid in self._wheel_ids}
+            if self.wheel_bus:
+                self.wheel_bus.sync_write("Goal_Velocity", payload)
+            return payload
 
     def _wheels_run(self, action: str, duration: float) -> Dict[int, int]:
         if duration <= 0:
@@ -246,40 +254,46 @@ class ServoControler:
             lateral: Lateral/Slide component (-1.0 to 1.0, + is Left)
             rotation: Rotation component (-1.0 to 1.0, + is Left)
         """
-        up_vec = self.action_map['up']
-        slide_vec = self.action_map['slide_left']
-        rot_vec = self.action_map['left']
-        
-        from state import state
-        # Enforce Approach Mode Speed Limit (10%) ONLY for AI
-        effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
+        with self.lock:
+            up_vec = self.action_map['up']
+            slide_vec = self.action_map['slide_left']
+            rot_vec = self.action_map['left']
+            
+            from state import state
+            # Enforce Approach Mode Speed Limit (10%) ONLY for AI
+            effective_speed = 1000 if (state.approach_mode and state.ai_enabled) else self.speed
 
-        payload = {}
-        for wid in self._wheel_ids:
-            # Calculate combined motor factor
-            u_val = up_vec.get(wid, 0)
-            s_val = slide_vec.get(wid, 0)
-            r_val = rot_vec.get(wid, 0)
+            payload = {}
+            for wid in self._wheel_ids:
+                # Calculate combined motor factor
+                u_val = up_vec.get(wid, 0)
+                s_val = slide_vec.get(wid, 0)
+                r_val = rot_vec.get(wid, 0)
+                
+                combined_factor = (forward * u_val) + (lateral * s_val) + (rotation * r_val)
+                
+                # Scale by effective speed
+                payload[wid] = int(effective_speed * combined_factor)
             
-            combined_factor = (forward * u_val) + (lateral * s_val) + (rotation * r_val)
-            
-            # Scale by effective speed
-            payload[wid] = int(effective_speed * combined_factor)
-            
-        self.wheel_bus.sync_write("Goal_Velocity", payload)
-        return payload
+            if self.wheel_bus:
+                self.wheel_bus.sync_write("Goal_Velocity", payload)
+            return payload
 
     def apply_wheel_modes(self) -> None:
-        for wid in self._wheel_ids:
-            self.wheel_bus.write("Operating_Mode", wid, OperatingMode.VELOCITY.value)
-        self.wheel_bus.enable_torque()
+        if not self.wheel_bus:
+            return
+        with self.lock:
+            for wid in self._wheel_ids:
+                self.wheel_bus.write("Operating_Mode", wid, OperatingMode.VELOCITY.value)
+            self.wheel_bus.enable_torque()
 
     def get_wheel_loads(self) -> Dict[int, int]:
         """Read the current load (0-1000) from wheel motors."""
         if not self.wheel_bus:
             return {}
         try:
-            return self.wheel_bus.sync_read("Present_Load", list(self._wheel_ids))
+            with self.lock:
+                return self.wheel_bus.sync_read("Present_Load", list(self._wheel_ids))
         except Exception:
             return {}
 
@@ -288,30 +302,34 @@ class ServoControler:
     def apply_head_modes(self) -> None:
         if not self.head_bus:
             return
-        for sid in self._head_ids:
-            self.head_bus.write("Operating_Mode", sid, OperatingMode.POSITION.value)
-        self.head_bus.enable_torque()
+        with self.lock:
+            for sid in self._head_ids:
+                self.head_bus.write("Operating_Mode", sid, OperatingMode.POSITION.value)
+            self.head_bus.enable_torque()
 
     def turn_head_yaw(self, degrees: float) -> Dict[int, float]:
         if not self.head_bus:
             return {}
-        payload = {HEAD_SERVO_MAP["yaw"]: float(degrees)}
-        self.head_bus.sync_write("Goal_Position", payload)
-        self._head_positions.update(payload)
-        return payload
+        with self.lock:
+            payload = {HEAD_SERVO_MAP["yaw"]: float(degrees)}
+            self.head_bus.sync_write("Goal_Position", payload)
+            self._head_positions.update(payload)
+            return payload
 
     def turn_head_pitch(self, degrees: float) -> Dict[int, float]:
         if not self.head_bus:
             return {}
-        payload = {HEAD_SERVO_MAP["pitch"]: float(degrees)}
-        self.head_bus.sync_write("Goal_Position", payload)
-        self._head_positions.update(payload)
-        return payload
+        with self.lock:
+            payload = {HEAD_SERVO_MAP["pitch"]: float(degrees)}
+            self.head_bus.sync_write("Goal_Position", payload)
+            self._head_positions.update(payload)
+            return payload
 
     def get_head_position(self) -> Dict[int, float]:
         if not self.head_bus:
             return {}
-        return self.head_bus.sync_read("Present_Position", list(self._head_ids))
+        with self.lock:
+            return self.head_bus.sync_read("Present_Position", list(self._head_ids))
     
     def turn_head_to_vla_position(self, pitch_deg=45) -> str:
         self.turn_head_pitch(pitch_deg)
@@ -329,7 +347,8 @@ class ServoControler:
         """Write to a servo with retries."""
         for attempt in range(retries):
             try:
-                bus.write(command, motor_id, value)
+                with self.lock:
+                    bus.write(command, motor_id, value)
                 return True
             except Exception as e:
                 if attempt == retries - 1:
@@ -346,13 +365,15 @@ class ServoControler:
         for motor_id in self._arm_ids:
             self._write_with_retry(self.wheel_bus, "Operating_Mode", motor_id, OperatingMode.POSITION.value)
         # Re-enable torque for all motors on the bus
-        self.wheel_bus.enable_torque()
+        with self.lock:
+            self.wheel_bus.enable_torque()
 
     def get_arm_position(self) -> Dict[str, float]:
         if not self._arm_enabled:
             return {}
         try:
-            raw = self.wheel_bus.sync_read("Present_Position", list(self._arm_ids))
+            with self.lock:
+                raw = self.wheel_bus.sync_read("Present_Position", list(self._arm_ids))
         except Exception:
             # Return empty on read failure to avoid crashing loop
             return {}
@@ -377,7 +398,8 @@ class ServoControler:
         
         if payload:
             try:
-                self.wheel_bus.sync_write("Goal_Position", payload)
+                with self.lock:
+                    self.wheel_bus.sync_write("Goal_Position", payload)
             except Exception as e:
                 print(f"Failed to write arm positions: {e}")
                 
@@ -400,7 +422,8 @@ class ServoControler:
         if not self.head_bus:
             return {}
         try:
-            return self.head_bus.sync_read("Present_Load", list(self._head_ids))
+            with self.lock:
+                return self.head_bus.sync_read("Present_Load", list(self._head_ids))
         except Exception:
             return {}
 
@@ -410,15 +433,19 @@ class ServoControler:
             return {}
         try:
             # Remap from motor_id to joint_name or just return motor_id map
-            return self.wheel_bus.sync_read("Present_Load", list(self._arm_ids))
+            with self.lock:
+                return self.wheel_bus.sync_read("Present_Load", list(self._arm_ids))
         except Exception:
             return {}
 
-    def check_stall(self, threshold: int = 600) -> Optional[str]:
+    def check_stall(self, threshold: int = 1200) -> Optional[str]:
         """
         Check for stalled motors (load > threshold).
         If stalled, disabling torque for safety.
         Returns description of stall or None.
+        
+        Note: Threshold raised to 1200 (was 600/1000) to suppress false positives
+        during heavy VR usage.
         """
         warnings = []
         
@@ -445,10 +472,11 @@ class ServoControler:
 
     def disconnect(self) -> None:
         self._wheels_stop()
-        if self.wheel_bus:
-            self.wheel_bus.disconnect()
-        if self.head_bus:
-            self.head_bus.disconnect()
+        with self.lock:
+            if self.wheel_bus:
+                self.wheel_bus.disconnect()
+            if self.head_bus:
+                self.head_bus.disconnect()
 
     def __del__(self) -> None:
         if hasattr(self, "wheel_bus") and self.wheel_bus and self.wheel_bus.is_connected:
