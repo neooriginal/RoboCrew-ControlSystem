@@ -666,7 +666,7 @@ def vla_upload_model():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
         
-    if file and file.filename.endswith('.pth'):
+    if file and (file.filename.endswith('.pth') or file.filename.endswith('.json')):
         try:
             # Save to models dir
             models_dir = state.vla_system.executor.models_dir
@@ -681,7 +681,7 @@ def vla_upload_model():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
             
-    return jsonify({"error": "Invalid file type (must be .pth)"}), 400
+    return jsonify({"error": "Invalid file type (must be .pth or .json)"}), 400
 
 @bp.route('/api/vla/models')
 def vla_models():

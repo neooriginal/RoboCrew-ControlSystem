@@ -253,9 +253,9 @@
             <div class="status-header">Execution</div>
 
             <div class="input-group">
-                <label>Upload Model (.pth)</label>
+                <label>Upload Model (.pth) AND Stats (.json)</label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="file" id="model-upload-input" accept=".pth" style="display: none;"
+                    <input type="file" id="model-upload-input" accept=".pth, .json" style="display: none;"
                         onchange="uploadModel()">
                     <button class="btn discard" style="flex: 1; background: #333;"
                         onclick="document.getElementById('model-upload-input').click()">
