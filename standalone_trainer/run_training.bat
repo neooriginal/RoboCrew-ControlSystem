@@ -34,8 +34,12 @@ set /p DATASET_PATH="> "
 :: Remove quotes if present
 set DATASET_PATH=%DATASET_PATH:"=%
 
+:: Remove trailing backslash if present (common drag-drop issue for folders)
+if "%DATASET_PATH:~-1%"=="\" set DATASET_PATH=%DATASET_PATH:~0,-1%
+
+:: Check if file exists (using quotes to handle spaces)
 if not exist "%DATASET_PATH%" (
-    echo [ERROR] File not found: %DATASET_PATH%
+    echo [ERROR] File not found: "%DATASET_PATH%"
     pause
     exit /b
 )
