@@ -88,6 +88,8 @@ if __name__ == "__main__":
         print(f"Error: Dataset path {dataset_path} does not exist.")
         exit(1)
 
+    cleanup_dir = None
+
     # Handle ZIP files
     if dataset_path.suffix == '.zip':
         print(f"Detected ZIP file: {dataset_path}")
@@ -101,8 +103,16 @@ if __name__ == "__main__":
                 zip_ref.extractall(extract_dir)
             print("Extraction complete.")
         else:
-            print(f"Using existing extracted data at {extract_dir} (delete folder to re-extract)")
+            print(f"Using existing extracted data at {extract_dir}")
             
         dataset_path = extract_dir
+        cleanup_dir = extract_dir
         
-    train(dataset_path, args.model_name, args.epochs, args.batch)
+    try:
+        train(dataset_path, args.model_name, args.epochs, args.batch)
+    finally:
+        if cleanup_dir and cleanup_dir.exists():
+            print(f"Cleaning up extracted data at {cleanup_dir}...")
+            import shutil
+            shutil.rmtree(cleanup_dir)
+            print("Cleanup complete.")
