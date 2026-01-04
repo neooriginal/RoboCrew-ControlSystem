@@ -71,15 +71,31 @@ class LeRobotTrainer:
             dataset_name = Path(dataset_path).name
             model_name = Path(output_path).name
             
+            # Determine repo_ids based on login status to support Hub usage
+            repo_id_dataset = dataset_name
+            repo_id_policy = model_name
+            push_to_hub = "False"
+            
+            try:
+                from huggingface_hub import whoami
+                user = whoami()['name']
+                # Use User/Name format for Hub
+                repo_id_dataset = f"{user}/{dataset_name}"
+                repo_id_policy = f"{user}/{model_name}"
+                push_to_hub = "True"
+            except Exception:
+                # Fallback to local logic if not logged in
+                repo_id_dataset = f"local/{dataset_name}"
+                repo_id_policy = f"local/{model_name}"
+                
             # Build lerobot training command
-            # Do NOT use local/ prefix if providing absolute root - LeRobot will look in root/name
             cmd = [
                 "lerobot-train",
-                f"--dataset.repo_id={dataset_name}",
+                f"--dataset.repo_id={repo_id_dataset}",
                 f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
-                f"--policy.repo_id={model_name}",
-                "--policy.push_to_hub=False",
+                f"--policy.repo_id={repo_id_policy}",
+                f"--policy.push_to_hub={push_to_hub}",
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
