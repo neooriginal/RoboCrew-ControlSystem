@@ -90,21 +90,35 @@ class LeRobotRecorder:
         if not LEROBOT_AVAILABLE:
             return False, "LeRobot not installed on this system"
             
-        dataset_path = self.datasets_dir / name
-        
-        if dataset_path.exists():
-            return False, f"Dataset '{name}' already exists"
-            
         try:
-            # Create LeRobot dataset
+            # Determine repo_id (Standard LeRobot/Hub format: user/dataset)
+            repo_id = f"local/{name}" # Fallback
+            dataset_rel_path = name # Fallback path
+            
+            try:
+                from huggingface_hub import whoami
+                user = whoami()['name']
+                repo_id = f"{user}/{name}"
+                dataset_rel_path = f"{user}/{name}"
+            except Exception:
+                logger.warning("Not logged in to Hugging Face, using local/ prefix")
+            
+            # Standard Path: datasets_root / user / name
+            target_path = self.datasets_dir / dataset_rel_path
+            
+            if target_path.exists():
+                 return False, f"Dataset '{repo_id}' already exists at {target_path}"
+            
             # Ensure root exists
             self.datasets_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create LeRobot dataset
-            # Use specific dataset directory as root (LeRobot 0.4 requirement for creation)
+            # Create LeRobot dataset using Standard Logic
+            # root = Parent Folder (datasets)
+            # repo_id = user/name
+            # Result -> datasets/user/name
             self.dataset = LeRobotDataset.create(
-                repo_id=name,
-                root=str(dataset_path.resolve()),
+                repo_id=repo_id,
+                root=str(self.datasets_dir.resolve()),
                 fps=30,
                 features=self.FEATURES,
             )

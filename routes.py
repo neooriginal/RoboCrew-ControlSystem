@@ -596,12 +596,23 @@ def vla_datasets():
     if not vla:
         return jsonify({'datasets': []})
     
-    # List directories in dataset root
+    # List directories in dataset root, supporting standard user/dataset structure
     root = vla.recorder.dataset_root
     if not root.exists():
         return jsonify({'datasets': []})
         
-    datasets = [d.name for d in root.iterdir() if d.is_dir()]
+    datasets = []
+    for d in root.iterdir():
+        if d.is_dir():
+            # Check if direct dataset (Legacy)
+            if (d / "meta").exists() or (d / "data").exists():
+                datasets.append(d.name)
+            else:
+                # Check for user/dataset structure
+                for sub in d.iterdir():
+                    if sub.is_dir() and ((sub / "meta").exists() or (sub / "data").exists()):
+                        datasets.append(f"{d.name}/{sub.name}")
+                        
     return jsonify({'datasets': datasets})
 
 @bp.route('/api/vla/dataset/delete', methods=['POST'])

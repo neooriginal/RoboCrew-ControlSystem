@@ -67,34 +67,27 @@ class LeRobotTrainer:
         try:
             # Extract paths
             # LeRobot requires absolute path for local root to function correctly without Hub
-            dataset_dir = str(Path(dataset_path).resolve())
+            # For Standard Structure (root/user/name), root is the parent of the passed 'dataset_path' 
+            # (assuming dataset_path was calculated as root/name, but we want root to be 'datasets')
+            dataset_dir = str(Path(dataset_path).parent.resolve())
             dataset_name = Path(dataset_path).name
             model_name = Path(output_path).name
             
             # Determine repo_ids based on login status to support Hub usage
-            repo_id_dataset = dataset_name
-            repo_id_policy = model_name
-            push_to_hub = "False"
-            
             try:
                 from huggingface_hub import whoami
                 user = whoami()['name']
                 
-                # Policy goes to Hub
+                # Standard LeRobot ID: user/dataset
+                repo_id_dataset = f"{user}/{dataset_name}"
                 repo_id_policy = f"{user}/{model_name}"
                 push_to_hub = "True"
                 
-                # For dataset: Prefer local path if it exists to avoid Hub 404s
-                if Path(dataset_path).exists():
-                    repo_id_dataset = dataset_name
-                else:
-                    repo_id_dataset = f"{user}/{dataset_name}"
             except Exception:
                 # Fallback to local logic if not logged in
-                repo_id_dataset = dataset_name # Assuming resolved recorder fix uses plain name
-                if not Path(dataset_path).exists():
-                     repo_id_dataset = f"local/{dataset_name}" # Legacy fallback
+                repo_id_dataset = f"local/{dataset_name}"
                 repo_id_policy = f"local/{model_name}"
+                push_to_hub = "False"
                 
             # Build lerobot training command
             cmd = [
