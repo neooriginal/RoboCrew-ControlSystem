@@ -66,18 +66,17 @@ class LeRobotTrainer:
         
         try:
             # Extract paths
-            dataset_dir = str(Path(dataset_path).parent)  # e.g., "datasets"
-            dataset_name = Path(dataset_path).name  # e.g., "Ttest"
+            # Resolution: Use absolute path for dataset repo_id to force local loading
+            # This bypasses Hub version check and "local/" prefix issues
+            dataset_abs_path = str(Path(dataset_path).resolve())
             model_name = Path(output_path).name
             
             # Build lerobot training command
-            # Use local/ prefix for repo_ids to match how they are created and avoid Hub lookup
             cmd = [
                 "lerobot-train",
-                f"--dataset.repo_id=local/{dataset_name}",
-                f"--dataset.root={dataset_dir}",
+                f"--dataset.repo_id={dataset_abs_path}",
                 f"--policy.type={policy_type}",
-                f"--policy.repo_id=local/{model_name}",
+                f"--policy.repo_id={model_name}",
                 "--policy.push_to_hub=False",
             ]
             
@@ -85,12 +84,18 @@ class LeRobotTrainer:
             logger.info(f"Starting training: {' '.join(cmd)}")
             self.status_message = "Training in progress..."
             
+            # Set offline mode to explicitly block any Hub connection attempts
+            import os
+            env = os.environ.copy()
+            env["HF_HUB_OFFLINE"] = "1"
+            
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             
             # Stream output
