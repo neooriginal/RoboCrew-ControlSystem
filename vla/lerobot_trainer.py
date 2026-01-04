@@ -65,18 +65,12 @@ class LeRobotTrainer:
         """Background training thread."""
         
         try:
-            # Calculate max_steps from epochs (rough estimate: 100 steps per epoch)
-            max_steps = num_epochs * 100
-            
-            # Build lerobot training command using CLI tool (lerobot-train)
+            # Build lerobot training command - use minimal args, let lerobot use defaults
+            # The CLI arg structure varies by lerobot version, so keep it simple
             cmd = [
                 "lerobot-train",
                 f"--dataset.repo_id=local:{dataset_path}",
                 f"--policy.type={policy_type}",
-                f"--policy.batch_size={batch_size}",
-                f"--policy.max_steps={max_steps}",
-                f"--policy.output_dir={output_path}",
-                f"--policy.save_steps={max(50, max_steps // 10)}",
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
