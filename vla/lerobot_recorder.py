@@ -167,7 +167,10 @@ class LeRobotRecorder:
             self.dataset.save_episode()
             self.episode_count += 1
             
-            logger.info(f"Episode saved. Total: {self.episode_count}, Frames: {self.frame_count}")
+            # Consolidate to ensure availability
+            self.dataset.consolidate()
+            
+            logger.info(f"Episode saved and consolidated. Total: {self.episode_count}, Frames: {self.frame_count}")
             return True, f"Episode saved ({self.frame_count} frames)"
             
         except Exception as e:
