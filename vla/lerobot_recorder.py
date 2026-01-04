@@ -99,7 +99,7 @@ class LeRobotRecorder:
             # Create LeRobot dataset
             self.dataset = LeRobotDataset.create(
                 repo_id=name,
-                root=str(self.datasets_dir.resolve()),
+                root=str(dataset_path.resolve()),
                 fps=30,
                 features=self.FEATURES,
             )
