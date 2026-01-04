@@ -65,12 +65,15 @@ class LeRobotTrainer:
         """Background training thread."""
         
         try:
-            # Build lerobot training command - use minimal args, let lerobot use defaults
-            # The CLI arg structure varies by lerobot version, so keep it simple
+            # Extract model name from output path
+            model_name = Path(output_path).name
+            
+            # Build lerobot training command
             cmd = [
                 "lerobot-train",
                 f"--dataset.repo_id=local:{dataset_path}",
                 f"--policy.type={policy_type}",
+                f"--policy.repo_id=local:{model_name}",  # Local save, no hub push
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
