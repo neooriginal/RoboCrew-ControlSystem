@@ -15,13 +15,23 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# LeRobot imports (may fail on Windows but works on robot)
+# LeRobot dataset imports - try multiple paths
+LEROBOT_AVAILABLE = False
+LeRobotDataset = None
+
 try:
+    # Try standard path first
     from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
     LEROBOT_AVAILABLE = True
 except ImportError:
-    LEROBOT_AVAILABLE = False
-    logger.warning("LeRobot not installed - recording will use legacy format")
+    try:
+        # Try alternative path
+        from lerobot.datasets import LeRobotDataset
+        LEROBOT_AVAILABLE = True
+    except ImportError:
+        # LeRobot datasets module not available
+        # Note: lerobot.motors may still work (servo controls use that)
+        logger.warning("LeRobot dataset API not available - recording disabled")
 
 
 class LeRobotRecorder:

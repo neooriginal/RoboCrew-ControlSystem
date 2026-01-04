@@ -326,29 +326,6 @@
             <div class="status-header">Execution</div>
 
             <div class="input-group">
-                <label>Upload New Model</label>
-                <div
-                    style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 0.8em; color: #aaa; display: block; margin-bottom: 4px;">1. Model File
-                            (.pth)</label>
-                        <input type="file" id="upload-pth" accept=".pth" class="input-field"
-                            style="width: 100%; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 0.8em; color: #aaa; display: block; margin-bottom: 4px;">2. Stats File
-                            (.json)</label>
-                        <input type="file" id="upload-json" accept=".json" class="input-field"
-                            style="width: 100%; box-sizing: border-box;">
-                    </div>
-                    <button id="upload-submit-btn" class="btn discard"
-                        style="width: 100%; background: #333; justify-content: center;" onclick="uploadModelTuple()">
-                        Upload Files
-                    </button>
-                </div>
-            </div>
-
-            <div class="input-group">
                 <label>Select Model</label>
                 <div style="display: flex; gap: 8px;">
                     <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
@@ -600,54 +577,6 @@
         } else {
             btn.textContent = 'Start Training';
             btn.style.background = '#2563eb';
-        }
-    }
-
-    async function uploadModelTuple() {
-        const pthInput = document.getElementById('upload-pth');
-        const jsonInput = document.getElementById('upload-json');
-
-        if (!pthInput.files.length) {
-            return alert("Please select a .pth model file.");
-        }
-
-        const btn = document.getElementById('upload-submit-btn');
-        const originalText = btn.textContent;
-        btn.disabled = true;
-
-        const uploadFile = async (file) => {
-            const formData = new FormData();
-            formData.append('file', file);
-            const res = await fetch('/api/vla/model/upload', {
-                method: 'POST',
-                body: formData
-            });
-            return await res.json();
-        };
-
-        try {
-            // 1. Upload Model
-            btn.textContent = "Uploading Model...";
-            const res1 = await uploadFile(pthInput.files[0]);
-            if (res1.status !== 'ok') throw new Error("Model upload failed: " + res1.error);
-
-            // 2. Upload Stats (if present)
-            if (jsonInput.files.length) {
-                btn.textContent = "Uploading Stats...";
-                const res2 = await uploadFile(jsonInput.files[0]);
-                if (res2.status !== 'ok') throw new Error("Stats upload failed: " + res2.error);
-            }
-
-            alert("Upload complete!");
-            pthInput.value = '';
-            jsonInput.value = '';
-            loadModels(); // Refresh list
-        } catch (e) {
-            console.error(e);
-            alert(e.message);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
         }
     }
 
