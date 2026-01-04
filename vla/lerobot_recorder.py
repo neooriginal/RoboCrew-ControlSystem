@@ -15,23 +15,29 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# LeRobot dataset imports - try multiple paths
+# LeRobot dataset imports - try multiple paths for different versions
 LEROBOT_AVAILABLE = False
 LeRobotDataset = None
 
 try:
-    # Try standard path first
-    from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+    # LeRobot 0.4+ path
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
     LEROBOT_AVAILABLE = True
+    logger.info("LeRobot dataset API loaded (v0.4+ path)")
 except ImportError:
     try:
-        # Try alternative path
-        from lerobot.datasets import LeRobotDataset
+        # Older LeRobot path
+        from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
         LEROBOT_AVAILABLE = True
+        logger.info("LeRobot dataset API loaded (legacy path)")
     except ImportError:
-        # LeRobot datasets module not available
-        # Note: lerobot.motors may still work (servo controls use that)
-        logger.warning("LeRobot dataset API not available - recording disabled")
+        try:
+            # Alternative path
+            from lerobot.datasets import LeRobotDataset
+            LEROBOT_AVAILABLE = True
+            logger.info("LeRobot dataset API loaded (alternative path)")
+        except ImportError as e:
+            logger.warning(f"LeRobot dataset API not available: {e}")
 
 
 class LeRobotRecorder:
