@@ -79,13 +79,21 @@ class LeRobotTrainer:
             try:
                 from huggingface_hub import whoami
                 user = whoami()['name']
-                # Use User/Name format for Hub
-                repo_id_dataset = f"{user}/{dataset_name}"
+                
+                # Policy goes to Hub
                 repo_id_policy = f"{user}/{model_name}"
                 push_to_hub = "True"
+                
+                # For dataset: Prefer local path if it exists to avoid Hub 404s
+                if Path(dataset_path).exists():
+                    repo_id_dataset = dataset_name
+                else:
+                    repo_id_dataset = f"{user}/{dataset_name}"
             except Exception:
                 # Fallback to local logic if not logged in
-                repo_id_dataset = f"local/{dataset_name}"
+                repo_id_dataset = dataset_name # Assuming resolved recorder fix uses plain name
+                if not Path(dataset_path).exists():
+                     repo_id_dataset = f"local/{dataset_name}" # Legacy fallback
                 repo_id_policy = f"local/{model_name}"
                 
             # Build lerobot training command
