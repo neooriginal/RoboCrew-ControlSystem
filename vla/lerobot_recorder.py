@@ -101,11 +101,10 @@ class LeRobotRecorder:
             self.datasets_dir.mkdir(parents=True, exist_ok=True)
             
             # Create LeRobot dataset
-            # Use PARENT directory as root. 
-            # LeRobot will create {root}/{repo_id} -> datasets/New
+            # Use specific dataset directory as root (LeRobot 0.4 requirement for creation)
             self.dataset = LeRobotDataset.create(
                 repo_id=name,
-                root=str(self.datasets_dir.resolve()),
+                root=str(dataset_path.resolve()),
                 fps=30,
                 features=self.FEATURES,
             )
