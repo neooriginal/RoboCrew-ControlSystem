@@ -260,90 +260,101 @@
         </div>
     </div>
 
-    <div class="control-panel">
-        <div class="status-card">
-            <div class="status-header">System Status</div>
-            <div class="status-value" id="system-status">Ready</div>
+    <div class="status-card">
+        <div class="status-header">System Status</div>
+        <div class="status-value" id="system-status">Ready</div>
+    </div>
+
+    <div class="status-card">
+        <div class="status-header">Hugging Face Settings</div>
+        <div style="margin-bottom: 8px; font-size: 0.9em; color: var(--text-secondary);">
+            Status: <span id="hf-status" style="color: grey;">Checking...</span>
         </div>
-
-        <div class="record-controls">
-            <div class="status-header">Data Collection</div>
-
-            <div class="input-group">
-                <label>Task Name</label>
-                <input type="text" id="dataset-name" class="input-field" placeholder="pickup_cup">
-            </div>
-
-            <button id="record-btn" class="btn record" onclick="toggleRecording()">
-                Start Recording
-            </button>
-
-            <button id="discard-btn" class="btn discard" onclick="deleteLastEpisode()">
-                Delete Last Episode
-            </button>
-
-            <div style="font-size: 0.9em; color: var(--text-secondary); text-align: center; margin-top: 8px;">
-                Curent Episode Frames: <span id="frame-count">0</span>
-            </div>
-        </div>
-
-        <div class="dataset-list">
-            <div class="status-header">Recent Datasets</div>
-            <!-- Populated by JS -->
-            <div id="dataset-list-content"></div>
-        </div>
-
-        <!-- LeRobot Training -->
-        <div class="training-panel status-card">
-            <div class="status-header">Train ACT Policy</div>
-
-            <div class="input-group">
-                <label>Dataset</label>
-                <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
-                    <option value="">Select dataset...</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label>Model Name</label>
-                <input type="text" id="train-model-name" class="input-field" placeholder="my_policy">
-            </div>
-
-            <div class="input-group">
-                <label>Epochs</label>
-                <input type="number" id="train-epochs" class="input-field" value="100" min="10" max="500">
-            </div>
-
-            <progress id="train-progress" value="0" max="100"></progress>
-            <div id="train-status" style="font-size: 0.85em; color: #888; text-align: center;">Ready</div>
-
-            <button id="train-btn" class="btn" style="background: #2563eb;" onclick="toggleTraining()">
-                Start Training
-            </button>
-        </div>
-
-        <div class="dataset-list">
-            <div class="status-header">Execution</div>
-
-            <div class="input-group">
-                <label>Select Model</label>
-                <div style="display: flex; gap: 8px;">
-                    <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
-                        <option value="">Loading...</option>
-                    </select>
-                    <button class="btn discard"
-                        style="width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"
-                        title="Delete Model" onclick="deleteModel()">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-
-            <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
-                Run Model
-            </button>
+        <div id="hf-login-form">
+            <input type="password" id="hf-token" class="input-field" placeholder="hf_..." style="margin-bottom: 5px;">
+            <button class="btn" style="background: var(--bg-tertiary); margin-top: 5px;"
+                onclick="hfLogin()">Login</button>
         </div>
     </div>
+
+    <div class="record-controls">
+        <div class="status-header">Data Collection</div>
+
+        <div class="input-group">
+            <label>Task Name</label>
+            <input type="text" id="dataset-name" class="input-field" placeholder="pickup_cup">
+        </div>
+
+        <button id="record-btn" class="btn record" onclick="toggleRecording()">
+            Start Recording
+        </button>
+
+        <button id="discard-btn" class="btn discard" onclick="deleteLastEpisode()">
+            Delete Last Episode
+        </button>
+
+        <div style="font-size: 0.9em; color: var(--text-secondary); text-align: center; margin-top: 8px;">
+            Curent Episode Frames: <span id="frame-count">0</span>
+        </div>
+    </div>
+
+    <div class="dataset-list">
+        <div class="status-header">Recent Datasets</div>
+        <!-- Populated by JS -->
+        <div id="dataset-list-content"></div>
+    </div>
+
+    <!-- LeRobot Training -->
+    <div class="training-panel status-card">
+        <div class="status-header">Train ACT Policy</div>
+
+        <div class="input-group">
+            <label>Dataset</label>
+            <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
+                <option value="">Select dataset...</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Model Name</label>
+            <input type="text" id="train-model-name" class="input-field" placeholder="my_policy">
+        </div>
+
+        <div class="input-group">
+            <label>Epochs</label>
+            <input type="number" id="train-epochs" class="input-field" value="100" min="10" max="500">
+        </div>
+
+        <progress id="train-progress" value="0" max="100"></progress>
+        <div id="train-status" style="font-size: 0.85em; color: #888; text-align: center;">Ready</div>
+
+        <button id="train-btn" class="btn" style="background: #2563eb;" onclick="toggleTraining()">
+            Start Training
+        </button>
+    </div>
+
+    <div class="dataset-list">
+        <div class="status-header">Execution</div>
+
+        <div class="input-group">
+            <label>Select Model</label>
+            <div style="display: flex; gap: 8px;">
+                <select id="exec-model" class="input-field" style="background: rgba(255,255,255,0.1); flex: 1;">
+                    <option value="">Loading...</option>
+                </select>
+                <button class="btn discard"
+                    style="width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                    title="Delete Model" onclick="deleteModel()">
+                    🗑️
+                </button>
+            </div>
+        </div>
+
+        <button id="exec-btn" class="btn record" style="background: #059669;" onclick="toggleExecution()">
+            Run Model
+        </button>
+    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -651,7 +662,51 @@
         }
     }
 
+    // Hugging Face Login
+    async function checkHfStatus() {
+        const el = document.getElementById('hf-status');
+        try {
+            const res = await fetch('/api/vla/login/status');
+            const data = await res.json();
+            if (data.logged_in) {
+                el.textContent = `Logged in as ${data.user} ✅`;
+                el.style.color = '#4ade80';
+                document.getElementById('hf-login-form').style.display = 'none';
+            } else {
+                el.textContent = 'Not logged in ❌';
+                el.style.color = '#f87171';
+                document.getElementById('hf-login-form').style.display = 'block';
+            }
+        } catch {
+            el.textContent = 'Error checking status';
+        }
+    }
+
+    async function hfLogin() {
+        const token = document.getElementById('hf-token').value;
+        if (!token) return alert('Please enter a token');
+
+        try {
+            const res = await fetch('/api/vla/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('Login successful!');
+                checkHfStatus();
+                document.getElementById('hf-token').value = '';
+            } else {
+                alert('Login failed: ' + data.error);
+            }
+        } catch (e) {
+            alert('Error: ' + e);
+        }
+    }
+
     // Start polling
+    checkHfStatus();
     setInterval(updateStatus, 1000);
     updateStatus();
     loadDatasets();

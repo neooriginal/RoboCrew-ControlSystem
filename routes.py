@@ -720,3 +720,30 @@ def vla_train_status():
     if not vla:
         return jsonify({'training': False, 'progress': 0, 'status': 'System unavailable'})
     return jsonify(vla.get_training_status())
+
+@bp.route('/api/vla/login', methods=['POST'])
+def vla_login():
+    """Login to Hugging Face Hub."""
+    from flask import request
+    data = request.json
+    token = data.get('token')
+    
+    if not token:
+        return jsonify({'error': 'Token required'}), 400
+        
+    try:
+        from huggingface_hub import login
+        login(token=token)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/vla/login/status')
+def vla_login_status():
+    """Check Hugging Face login status."""
+    try:
+        from huggingface_hub import whoami
+        user = whoami()
+        return jsonify({'logged_in': True, 'user': user['name']})
+    except:
+        return jsonify({'logged_in': False})
