@@ -622,51 +622,7 @@ def vla_delete_dataset():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@bp.route('/api/vla/dataset/upload_hub', methods=['POST'])
-def vla_upload_dataset_hub():
-    """Upload a local dataset to Hugging Face Hub."""
-    data = request.json
-    name = data.get('name')
-    if not name:
-        return jsonify({"error": "Missing dataset name"}), 400
-        
-    try:
-        from huggingface_hub import whoami
-        try:
-            user_info = whoami()
-            username = user_info['name']
-        except:
-            return jsonify({"error": "Not logged in to Hugging Face"}), 401
 
-        # Use the helper script logic or direct import
-        try:
-            try:
-                from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
-            except ImportError:
-                from lerobot.datasets.lerobot_dataset import LeRobotDataset
-        except ImportError:
-             return jsonify({"error": "LeRobot not found"}), 500
-            
-        # FIXED: Use absolute path for root to ensure LeRobot finds it locally
-        dataset_root = state.vla_system.recorder.dataset_root.resolve()
-        
-        # Try loading (try local/Name first as per format)
-        ds = None
-        try:
-            ds = LeRobotDataset(f"local/{name}", root=dataset_root)
-        except:
-            try:
-                ds = LeRobotDataset(name, root=dataset_root)
-            except Exception as e:
-                return jsonify({"error": f"Could not load dataset locally: {str(e)}"}), 404
-                
-        target_repo = f"{username}/{name}"
-        ds.push_to_hub(target_repo, private=True)
-        
-        return jsonify({"status": "ok", "repo_id": target_repo})
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @bp.route('/api/vla/model/delete', methods=['POST'])
 def vla_delete_model():

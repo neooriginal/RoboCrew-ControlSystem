@@ -98,8 +98,8 @@ class LeRobotRecorder:
         try:
             # Create LeRobot dataset
             self.dataset = LeRobotDataset.create(
-                repo_id=f"local/{name}",
-                root=str(dataset_path),
+                repo_id=name,
+                root=str(self.datasets_dir),
                 fps=30,
                 features=self.FEATURES,
             )
@@ -164,14 +164,30 @@ class LeRobotRecorder:
             
         try:
             # Save the episode
+            # Save the episode
             self.dataset.save_episode()
             self.episode_count += 1
             
             # Consolidate to ensure availability
             self.dataset.consolidate()
             
-            logger.info(f"Episode saved and consolidated. Total: {self.episode_count}, Frames: {self.frame_count}")
-            return True, f"Episode saved ({self.frame_count} frames)"
+            msg = f"Saved ({self.frame_count} frames)"
+            
+            # Auto-upload if logged in
+            try:
+                from huggingface_hub import whoami
+                user = whoami()['name']
+                target_repo = f"{user}/{self.dataset_name}"
+                
+                logger.info(f"Auto-uploading to {target_repo}...")
+                self.dataset.push_to_hub(target_repo, private=True)
+                msg += f" & Uploaded to {target_repo} ☁️"
+            except Exception as e_hub:
+                logger.warning(f"Auto-upload skipped: {e_hub}")
+                msg += " (Local only)"
+            
+            logger.info(f"Episode saved/consolidated. {msg}")
+            return True, msg
             
         except Exception as e:
             logger.error(f"Failed to save episode: {e}")

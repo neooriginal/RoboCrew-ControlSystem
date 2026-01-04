@@ -445,15 +445,7 @@
                 delBtn.title = 'Delete Dataset';
                 delBtn.onclick = () => deleteDataset(name);
 
-                const upBtn = document.createElement('span');
-                upBtn.textContent = '☁️';
-                upBtn.style.cursor = 'pointer';
-                upBtn.style.marginLeft = '10px';
-                upBtn.title = 'Upload to Hugging Face Hub';
-                upBtn.onclick = () => uploadDataset(name);
-
                 item.appendChild(nameSpan);
-                item.appendChild(upBtn);
                 item.appendChild(delBtn);
                 list.appendChild(item);
             });
@@ -623,30 +615,6 @@
                 await fetch('/api/vla/record/delete_last', { method: 'POST' });
                 updateStatus();
             }
-        }
-    }
-
-    async function uploadDataset(name) {
-        if (!confirm(`Upload "${name}" to Hugging Face Hub?\nThis requires you to be logged in.`)) return;
-
-        // Show loading state or alert
-        alert(`Starting upload for ${name}... This may take a while.`);
-
-        try {
-            const res = await fetch('/api/vla/dataset/upload_hub', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name })
-            });
-            const data = await res.json();
-
-            if (data.status === 'ok') {
-                alert(`Success! Uploaded to ${data.repo_id}`);
-            } else {
-                alert('Upload failed: ' + data.error);
-            }
-        } catch (e) {
-            alert('Error: ' + e);
         }
     }
 
