@@ -647,7 +647,8 @@ def vla_upload_dataset_hub():
         except ImportError:
              return jsonify({"error": "LeRobot not found"}), 500
             
-        dataset_root = state.vla_system.recorder.dataset_root
+        # FIXED: Use absolute path for root to ensure LeRobot finds it locally
+        dataset_root = state.vla_system.recorder.dataset_root.resolve()
         
         # Try loading (try local/Name first as per format)
         ds = None
