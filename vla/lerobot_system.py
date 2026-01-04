@@ -50,8 +50,15 @@ class LeRobotVLASystem:
         """Load existing dataset."""
         return self.recorder.load_dataset(name)
         
-    def start_recording(self):
-        """Start recording an episode."""
+    def start_recording(self, dataset_name: str = None):
+        """Start recording an episode. Creates or loads dataset if name provided."""
+        if dataset_name:
+            # Try to load existing dataset, create if doesn't exist
+            success, msg = self.recorder.load_dataset(dataset_name)
+            if not success:
+                success, msg = self.recorder.create_dataset(dataset_name)
+                if not success:
+                    return False, msg
         return self.recorder.start_recording()
         
     def stop_recording(self):
