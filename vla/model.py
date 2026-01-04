@@ -22,6 +22,11 @@ class VisionEncoder(nn.Module):
 
     def forward(self, x):
         # x shape: [Batch, Channels, Height, Width]
+        # Apply ImageNet normalization (ResNet pretrained expects this)
+        mean = torch.tensor([0.485, 0.456, 0.406], device=x.device).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=x.device).view(1, 3, 1, 1)
+        x = (x - mean) / std
+        
         features = self.backbone(x) # [B, 512, 1, 1]
         features = torch.flatten(features, 1) # [B, 512]
         return features
@@ -186,7 +191,7 @@ class ConditionalUnet1D(nn.Module):
 class DiffusionPolicy(nn.Module):
     def __init__(self, action_dim=6, action_horizon=10, 
                  num_cameras=2, history_len=2,
-                 train_noise_steps=100, inference_steps=10):
+                 train_noise_steps=100, inference_steps=50):
         super().__init__()
         
         self.action_dim = action_dim
@@ -325,10 +330,14 @@ class DiffusionPolicy(nn.Module):
             # Predict x0 (clean action)
             pred_x0 = (noisy_actions - torch.sqrt(1 - alpha_t) * noise_pred) / torch.sqrt(alpha_t)
             
+            # CRITICAL: Clamp pred_x0 to valid range to prevent numerical explosion
+            pred_x0 = torch.clamp(pred_x0, -1.0, 1.0)
+            
             # Direction pointing to x_t
             dir_xt = torch.sqrt(1 - alpha_t_prev - sigma_t**2) * noise_pred
             
             # Update
             noisy_actions = torch.sqrt(alpha_t_prev) * pred_x0 + dir_xt
             
-        return noisy_actions
+        # Final clamp before returning
+        return torch.clamp(noisy_actions, -1.0, 1.0)
