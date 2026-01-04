@@ -50,8 +50,8 @@ echo [3/3] Configuration
 set /p MODEL_NAME="Enter a name for your model (e.g., pick_cup_v1): "
 if "%MODEL_NAME%"=="" set MODEL_NAME=my_policy
 
-set /p EPOCHS="Enter number of epochs [default: 50]: "
-if "%EPOCHS%"=="" set EPOCHS=50
+set /p EPOCHS="Enter number of epochs [default: 100]: "
+if "%EPOCHS%"=="" set EPOCHS=100
 
 :: 5. Train
 echo.
@@ -61,7 +61,7 @@ echo Model:   %MODEL_NAME%
 echo Epochs:  %EPOCHS%
 echo.
 
-python train.py --dataset "%DATASET_PATH%" --model_name "%MODEL_NAME%" --epochs %EPOCHS%
+python train.py --dataset "%DATASET_PATH%" --model_name "%MODEL_NAME%" --epochs %EPOCHS% --batch 8
 
 if %errorlevel% neq 0 (
     echo.
@@ -71,7 +71,9 @@ if %errorlevel% neq 0 (
     echo ===================================================
     echo Training Complete! 
     echo Your model is in the 'models' folder.
-    echo Please upload '%MODEL_NAME%_ep%EPOCHS%.pth' to the Robot UI.
+    echo Please upload BOTH files to the Robot UI:
+    echo   - %MODEL_NAME%_ep%EPOCHS%.pth
+    echo   - %MODEL_NAME%_stats.json
     echo ===================================================
 )
 

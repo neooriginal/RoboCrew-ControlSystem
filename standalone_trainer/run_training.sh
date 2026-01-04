@@ -40,8 +40,8 @@ echo "[3/3] Configuration"
 read -p "Enter a name for your model (e.g., pick_cup_v1): " MODEL_NAME
 MODEL_NAME=${MODEL_NAME:-my_policy}
 
-read -p "Enter number of epochs [default: 50]: " EPOCHS
-EPOCHS=${EPOCHS:-50}
+read -p "Enter number of epochs [default: 100]: " EPOCHS
+EPOCHS=${EPOCHS:-100}
 
 # 5. Train
 echo ""
