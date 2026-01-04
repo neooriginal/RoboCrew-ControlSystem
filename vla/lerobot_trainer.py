@@ -65,15 +65,18 @@ class LeRobotTrainer:
         """Background training thread."""
         
         try:
-            # Extract model name from output path
+            # Extract paths
+            dataset_dir = str(Path(dataset_path).parent)  # e.g., "datasets"
+            dataset_name = Path(dataset_path).name  # e.g., "Ttest"
             model_name = Path(output_path).name
             
             # Build lerobot training command
+            # Use --dataset.root for local path and just dataset name for repo_id
             cmd = [
                 "lerobot-train",
-                f"--dataset.repo_id=local:{dataset_path}",
+                f"--dataset.repo_id={dataset_name}",
+                f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
-                f"--policy.repo_id=local:{model_name}",  # Local save, no hub push
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
