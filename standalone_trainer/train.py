@@ -123,7 +123,13 @@ if __name__ == "__main__":
         extract_root = Path("extracted_datasets")
         extract_dir = extract_root / dataset_path.stem
         
-        if not extract_dir.exists():
+        # Check if already extracted AND has actual content
+        has_content = extract_dir.exists() and any(extract_dir.rglob("data.jsonl"))
+        
+        if not has_content:
+            if extract_dir.exists():
+                import shutil
+                shutil.rmtree(extract_dir)  # Remove empty/incomplete extraction
             print(f"Extracting to {extract_dir}...")
             import zipfile
             with zipfile.ZipFile(dataset_path, 'r') as zip_ref:
