@@ -78,23 +78,18 @@ class LeRobotTrainer:
                 f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
                 f"--policy.repo_id={model_name}",
+                "--policy.push_to_hub=False",  # Skip hub validation
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
             self.status_message = "Training in progress..."
-            
-            # Set offline mode to avoid HuggingFace Hub calls
-            import os
-            env = os.environ.copy()
-            env["HF_HUB_OFFLINE"] = "1"
             
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1,
-                env=env
+                bufsize=1
             )
             
             # Stream output

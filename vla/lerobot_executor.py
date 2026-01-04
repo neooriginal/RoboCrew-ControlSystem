@@ -51,7 +51,12 @@ class LeRobotExecutor:
             return False, f"Model not found: {model_name}"
             
         try:
-            from lerobot.common.policies.factory import make_policy
+            try:
+                from lerobot.common.policies.factory import make_policy
+            except ImportError:
+                # Fallback for other versions
+                from lerobot.policies.factory import make_policy
+                
             from omegaconf import OmegaConf
             
             # Load config if exists
