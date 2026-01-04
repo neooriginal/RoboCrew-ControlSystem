@@ -71,16 +71,17 @@ class LeRobotTrainer:
             model_name = Path(output_path).name
             
             # Build lerobot training command
-            # Use --dataset.root for local path and just dataset name for repo_id
+            # Use local/ prefix for repo_ids to match how they are created and avoid Hub lookup
             cmd = [
                 "lerobot-train",
-                f"--dataset.repo_id={dataset_name}",
+                f"--dataset.repo_id=local/{dataset_name}",
                 f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
-                f"--policy.repo_id={model_name}",
-                "--policy.push_to_hub=False",  # Skip hub validation
+                f"--policy.repo_id=local/{model_name}",
+                "--policy.push_to_hub=False",
             ]
             
+            print(f"DEBUG: Executing Training Command: {' '.join(cmd)}")
             logger.info(f"Starting training: {' '.join(cmd)}")
             self.status_message = "Training in progress..."
             
