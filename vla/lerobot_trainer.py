@@ -77,6 +77,7 @@ class LeRobotTrainer:
                 f"--dataset.repo_id={dataset_name}",
                 f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
+                f"--policy.repo_id={model_name}",
             ]
             
             logger.info(f"Starting training: {' '.join(cmd)}")
