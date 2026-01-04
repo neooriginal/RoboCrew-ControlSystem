@@ -118,8 +118,10 @@ class LeRobotTrainer:
                 self.progress = 100
                 logger.info(f"Training complete: {output_path}")
             else:
+                # Log last few lines for debugging
+                last_lines = '\n'.join(self.log_lines[-10:])
                 self.status_message = f"Training failed (code {self.process.returncode})"
-                logger.error(f"Training failed: {self.process.returncode}")
+                logger.error(f"Training failed with code {self.process.returncode}. Last output:\n{last_lines}")
                 
         except Exception as e:
             self.status_message = f"Error: {e}"

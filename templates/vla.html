@@ -426,25 +426,14 @@
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = name;
 
-                const dlLink = document.createElement('a');
-                dlLink.href = `/api/vla/dataset/${name}/download`;
-                dlLink.textContent = '⬇️ ZIP';
-                dlLink.style.color = '#60a5fa';
-                dlLink.style.textDecoration = 'none';
-                dlLink.style.marginRight = '10px';
-
                 const delBtn = document.createElement('span');
                 delBtn.textContent = '🗑️';
                 delBtn.style.cursor = 'pointer';
                 delBtn.title = 'Delete Dataset';
                 delBtn.onclick = () => deleteDataset(name);
 
-                const actions = document.createElement('div');
-                actions.appendChild(dlLink);
-                actions.appendChild(delBtn);
-
                 item.appendChild(nameSpan);
-                item.appendChild(actions);
+                item.appendChild(delBtn);
                 list.appendChild(item);
             });
 
