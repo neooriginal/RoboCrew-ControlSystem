@@ -109,16 +109,16 @@ class LeRobotRecorder:
             if target_path.exists():
                  return False, f"Dataset '{repo_id}' already exists at {target_path}"
             
-            # Ensure root exists
-            self.datasets_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure root exists (mkdir on target_path ensures parent structure too)
+            target_path.mkdir(parents=True, exist_ok=True)
             
-            # Create LeRobot dataset using Standard Logic
-            # root = Parent Folder (datasets)
+            # Create LeRobot dataset using Dedicated Root (to avoid File exists crash)
             # repo_id = user/name
-            # Result -> datasets/user/name
+            # root = datasets/user/name
+            # Result -> datasets/user/name/user/name (Nested but valid/safe)
             self.dataset = LeRobotDataset.create(
                 repo_id=repo_id,
-                root=str(self.datasets_dir.resolve()),
+                root=str(target_path.resolve()),
                 fps=30,
                 features=self.FEATURES,
             )
