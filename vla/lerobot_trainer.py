@@ -67,9 +67,9 @@ class LeRobotTrainer:
         try:
             # Extract paths
             # LeRobot requires absolute path for local root to function correctly without Hub
-            # For Standard Structure (root/user/name), root is the parent of the passed 'dataset_path' 
-            # (assuming dataset_path was calculated as root/name, but we want root to be 'datasets')
-            dataset_dir = str(Path(dataset_path).resolve())
+            # For Standard Structure (root/user/name), root is the PARENT-PARENT of the passed 'dataset_path' 
+            # (passed path is .../datasets/user/name. We want root to be .../datasets)
+            dataset_dir = str(Path(dataset_path).parent.parent.resolve())
             dataset_name = Path(dataset_path).name
             model_name = Path(output_path).name
             
