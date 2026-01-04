@@ -293,7 +293,34 @@
             <div id="dataset-list-content"></div>
         </div>
 
-        <!-- Training Removed -->
+        <!-- LeRobot Training -->
+        <div class="training-panel status-card">
+            <div class="status-header">Train ACT Policy</div>
+
+            <div class="input-group">
+                <label>Dataset</label>
+                <select id="train-dataset" class="input-field" style="background: rgba(255,255,255,0.1);">
+                    <option value="">Select dataset...</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Model Name</label>
+                <input type="text" id="train-model-name" class="input-field" placeholder="my_policy">
+            </div>
+
+            <div class="input-group">
+                <label>Epochs</label>
+                <input type="number" id="train-epochs" class="input-field" value="100" min="10" max="500">
+            </div>
+
+            <progress id="train-progress" value="0" max="100"></progress>
+            <div id="train-status" style="font-size: 0.85em; color: #888; text-align: center;">Ready</div>
+
+            <button id="train-btn" class="btn" style="background: #2563eb;" onclick="toggleTraining()">
+                Start Training
+            </button>
+        </div>
 
         <div class="dataset-list">
             <div class="status-header">Execution</div>
@@ -493,8 +520,88 @@
         }
         updateStatus();
     }
+    // Training functions
+    let isTraining = false;
 
-    // Training functions removed
+    async function loadTrainableDatasets() {
+        try {
+            const res = await fetch('/api/vla/datasets');
+            const data = await res.json();
+            const select = document.getElementById('train-dataset');
+            select.innerHTML = '<option value="">Select dataset...</option>';
+
+            data.datasets.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load trainable datasets:', e);
+        }
+    }
+
+    async function toggleTraining() {
+        if (!isTraining) {
+            const dataset = document.getElementById('train-dataset').value;
+            const modelName = document.getElementById('train-model-name').value || 'act_policy';
+            const epochs = parseInt(document.getElementById('train-epochs').value) || 100;
+
+            if (!dataset) return alert('Select a dataset first');
+
+            const res = await fetch('/api/vla/train/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dataset, model_name: modelName, epochs })
+            });
+
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                alert('Error: ' + data.error);
+            } else {
+                isTraining = true;
+                pollTrainStatus();
+            }
+        } else {
+            await fetch('/api/vla/train/stop', { method: 'POST' });
+            isTraining = false;
+        }
+        updateTrainingUI();
+    }
+
+    async function pollTrainStatus() {
+        if (!isTraining) return;
+
+        try {
+            const res = await fetch('/api/vla/train/status');
+            const data = await res.json();
+
+            document.getElementById('train-progress').value = data.progress || 0;
+            document.getElementById('train-status').textContent = data.status || 'Training...';
+
+            if (data.training) {
+                isTraining = true;
+                setTimeout(pollTrainStatus, 2000);
+            } else {
+                isTraining = false;
+                loadModels(); // Refresh models after training
+            }
+        } catch (e) {
+            console.error('Poll error:', e);
+        }
+        updateTrainingUI();
+    }
+
+    function updateTrainingUI() {
+        const btn = document.getElementById('train-btn');
+        if (isTraining) {
+            btn.textContent = 'Stop Training';
+            btn.style.background = '#dc2626';
+        } else {
+            btn.textContent = 'Start Training';
+            btn.style.background = '#2563eb';
+        }
+    }
 
     async function uploadModelTuple() {
         const pthInput = document.getElementById('upload-pth');
@@ -631,5 +738,6 @@
     updateStatus();
     loadDatasets();
     loadModels();
+    loadTrainableDatasets();
 </script>
 {% endblock %}

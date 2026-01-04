@@ -152,14 +152,14 @@ class RobotState:
             return self.detector
 
     def get_vla_system(self):
-        """Get or create VLA System."""
+        """Get or create VLA System (LeRobot-native)."""
         with self.lock:
              if not hasattr(self, 'vla_system') or self.vla_system is None:
                  try:
-                     from vla.system import VLASystem
-                     self.vla_system = VLASystem()
+                     from vla.lerobot_system import LeRobotVLASystem
+                     self.vla_system = LeRobotVLASystem()
                  except Exception as e:
-                     print(f"Error creating VLA System: {e}")
+                     print(f"Error creating LeRobot VLA System: {e}")
                      return None
              return self.vla_system
     

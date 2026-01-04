@@ -721,3 +721,47 @@ def vla_execute_stop():
     vla.stop_execution()
     return jsonify({'status': 'ok'})
 
+
+# ── Training Routes ──
+
+@bp.route('/api/vla/train/start', methods=['POST'])
+def vla_train_start():
+    """Start training an ACT policy."""
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    data = request.json
+    dataset_name = data.get('dataset')
+    model_name = data.get('model_name', 'act_policy')
+    epochs = data.get('epochs', 100)
+    
+    if not dataset_name:
+        return jsonify({'status': 'error', 'error': 'Missing dataset name'})
+        
+    success, msg = vla.start_training(dataset_name, model_name, epochs)
+    if success:
+        return jsonify({'status': 'ok', 'message': msg})
+    return jsonify({'status': 'error', 'error': msg})
+
+
+@bp.route('/api/vla/train/stop', methods=['POST'])
+def vla_train_stop():
+    """Stop ongoing training."""
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'status': 'error', 'error': 'VLA System not available'})
+        
+    success, msg = vla.stop_training()
+    if success:
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error', 'error': msg})
+
+
+@bp.route('/api/vla/train/status')
+def vla_train_status():
+    """Get training status."""
+    vla = state.get_vla_system()
+    if not vla:
+        return jsonify({'training': False, 'progress': 0, 'status': 'System unavailable'})
+    return jsonify(vla.get_training_status())
