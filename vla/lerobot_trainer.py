@@ -66,18 +66,19 @@ class LeRobotTrainer:
         
         try:
             # Extract paths
-            dataset_dir = str(Path(dataset_path).parent)  # e.g., "datasets"
-            dataset_name = Path(dataset_path).name  # e.g., "Ttest"
+            # LeRobot requires absolute path for local root to function correctly without Hub
+            dataset_dir = str(Path(dataset_path).parent.resolve())
+            dataset_name = Path(dataset_path).name
             model_name = Path(output_path).name
             
             # Build lerobot training command
-            # Use local/ prefix for repo_ids to match how they are created and avoid Hub lookup
+            # Do NOT use local/ prefix if providing absolute root - LeRobot will look in root/name
             cmd = [
                 "lerobot-train",
-                f"--dataset.repo_id=local/{dataset_name}",
+                f"--dataset.repo_id={dataset_name}",
                 f"--dataset.root={dataset_dir}",
                 f"--policy.type={policy_type}",
-                f"--policy.repo_id=local/{model_name}",
+                f"--policy.repo_id={model_name}",
                 "--policy.push_to_hub=False",
             ]
             
