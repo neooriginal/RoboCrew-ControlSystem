@@ -71,9 +71,10 @@ class LeRobotTrainer:
             dataset_abs_path = str(Path(dataset_path).resolve())
             model_name = Path(output_path).name
             
-            # Build lerobot training command
+            # Build lerobot training command using our patched script
+            # This bypasses Hub validation for absolute paths
             cmd = [
-                "lerobot-train",
+                "python", "vla/train_local.py",
                 f"--dataset.repo_id={dataset_abs_path}",
                 f"--policy.type={policy_type}",
                 f"--policy.repo_id={model_name}",
@@ -84,7 +85,7 @@ class LeRobotTrainer:
             logger.info(f"Starting training: {' '.join(cmd)}")
             self.status_message = "Training in progress..."
             
-            # Set offline mode to explicitly block any Hub connection attempts
+            # Use offline environment still, just in case
             import os
             env = os.environ.copy()
             env["HF_HUB_OFFLINE"] = "1"
