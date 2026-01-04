@@ -198,6 +198,52 @@
         background-color: #2563eb;
         border-radius: 5px;
     }
+
+    /* Mobile Responsive */
+    @media (max-width: 900px) {
+        .vla-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            gap: 12px;
+        }
+
+        .video-panel {
+            padding: 12px;
+        }
+
+        .main-feed {
+            aspect-ratio: 4/3;
+        }
+
+        .secondary-feeds {
+            height: auto;
+            flex-wrap: wrap;
+        }
+
+        .secondary-feed {
+            width: 100%;
+            max-width: 200px;
+            height: 120px;
+        }
+
+        .control-panel {
+            padding: 16px;
+            gap: 16px;
+        }
+
+        .status-card {
+            padding: 12px;
+        }
+
+        .btn {
+            padding: 14px 16px;
+            font-size: 1em;
+        }
+
+        .input-field {
+            padding: 14px;
+        }
+    }
 </style>
 {% endblock %}
 

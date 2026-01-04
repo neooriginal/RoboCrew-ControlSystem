@@ -60,6 +60,7 @@ def create_app():
     app = Flask(__name__)
     app.register_blueprint(routes.bp)
     app.config['SECRET_KEY'] = 'robocrew-vr-secret'
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB max upload
     return app
 
 # Global SocketIO instance
