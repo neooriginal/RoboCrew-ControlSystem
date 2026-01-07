@@ -33,9 +33,17 @@ class PolicyExecutor:
             else:
                 device = "cpu"
         
+        # Check if local path exists
+        if policy_path.exists():
+            load_source = str(policy_path.absolute())
+            logger.info(f"Loading local policy from {load_source} on {device}")
+        else:
+            # Assume it's a HuggingFace Hub ID
+            load_source = policy_name
+            logger.info(f"Local path not found. Attempting to load '{policy_name}' from HuggingFace Hub on {device}")
+
         try:
-            logger.info(f"Loading policy from {policy_path} on {device}")
-            self.policy = ACTPolicy.from_pretrained(str(policy_path.absolute()))
+            self.policy = ACTPolicy.from_pretrained(load_source)
             self.policy.to(device)
             self.policy.eval()
             self.current_policy_name = policy_name

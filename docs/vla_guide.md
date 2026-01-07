@@ -1,45 +1,38 @@
 # Vision-Language-Action (VLA) Guide
 
-The RoboCrew system integrates **LeRobot** to enable Imitation Learning. This allows you to teach the robot tasks by demonstration (VR) and then train a policy to execute them autonomously.
+ARCS integrates **LeRobot** for Imitation Learning. Teach the robot tasks by VR demonstration, then train a policy to execute them autonomously.
 
 ## 1. Data Collection (VR)
-**Files**: `core/dataset_recorder.py`, `templates/vr_control.html`
-
-To train a policy, you first need a high-quality dataset of human demonstrations.
 
 1.  **Enter VR**: Go to `/vr` on your Quest headset.
-2.  **Set Name**: Enter a dataset name (e.g., `PourCoffee_v1`) in the UI overlay.
-3.  **Record Episode**:
-    *   Position the robot at the start state.
-    *   Press **(A)** on the Right Controller (or "Record" on UI).
-    *   **Red "REC" indicator** appears on the virtual screen.
-    *   Perform the task smoothly.
-    *   Press **(A)** again to stop.
-4.  **Repeat**: Recording with the same name *appends* a new episode. Record 50-100 episodes for robust results.
+2.  **Set Name**: Enter a dataset name (e.g., `PourCoffee_v1`).
+3.  **Record**: Press **(A)** to start/stop recording. Red "REC" indicator appears.
+4.  **Repeat**: Same name appends episodes. Aim for 50-100 episodes.
 
 > [!IMPORTANT]
-> **Data Sync**: Each time you stop recording, the episode is saved locally (`logs/datasets/`) AND automatically pushed to your **HuggingFace Hub** account (if logged in).
+> Episodes sync to **HuggingFace Hub** automatically if logged in.
 
-## 2. Training (Imitate)
-**Files**: `core/training_manager.py`, `templates/training.html`
+## 2. Training
 
-Once you have data, train an **ACT (Action Chunking with Transformers)** policy.
-
+### Local Training
 1.  Navigate to **Training > Imitate**.
-2.  **Select Dataset**: Find your dataset in the list.
-3.  **Job Name**: Enter a unique name for this training run (e.g., `policy_pour_001`).
-4.  **Hardware**: The system auto-detects your accelerator:
-    *   **NVIDIA**: Uses `cuda` (Fastest)
-    *   **Mac**: Uses `mps` (Fast)
-    *   **Other**: Uses `cpu` (Slow)
-5.  **Monitor**: View the live training logs in the dashboard.
-6.  **Manage**: You can delete datasets (Local + Remote) using the 🗑️ icon.
+2.  **Select Dataset** and enter a **Job Name**.
+3.  Click **Train ACT**. Hardware auto-detects (CUDA > MPS > CPU).
 
-## 3. Evaluation (Policy Execution)
-**Files**: `core/policy_executor.py`
+### Remote Training (Recommended)
+Use a powerful Windows/Mac PC for faster training:
 
-1.  In the **Trained Policies** list, click **Run**.
-2.  The robot will take over control and attempt to replicate the task using visual feedback.
+1.  **Download Worker**: Click **📥 Windows** or **📥 macOS** in the "Remote Workers" panel.
+2.  **Run on PC**: Double-click the downloaded file. Enter the Robot's URL when prompted.
+3.  **Train**: The Dashboard detects your PC. Click **Train ACT** and the job runs remotely with live logs.
+
+> [!TIP]  
+> The worker auto-reconnects, so you can run it at PC startup.
+
+## 3. Policy Execution
+
+1.  In **Trained Policies**, click **Run**.
+2.  The robot executes the learned behavior using camera input.
 
 > [!NOTE]
-> Ensure the environment matches the training conditions (lighting, object positions) for best results.
+> Match the environment to training conditions for best results.

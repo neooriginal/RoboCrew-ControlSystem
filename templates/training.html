@@ -118,6 +118,21 @@
                 Checking login status...
             </div>
 
+            <h2>Remote Workers <span id="workerCount" class="status-badge" style="display:none">0</span></h2>
+            <div id="workerPanel" style="background:#252525; padding:10px; border-radius:4px; margin-bottom:15px;">
+                <div style="color:#aaa; font-size:0.9em; margin-bottom:10px;">Connect a powerful PC to speed up
+                    training.</div>
+                <div id="workerList" style="margin-bottom:10px;"></div>
+                <div style="display:flex; gap:8px;">
+                    <a href="/static/train_remote.bat" download
+                        style="flex:1; background:#007acc; color:#fff; padding:8px 12px; border-radius:4px; text-align:center; text-decoration:none; font-size:0.9em;">📥
+                        Windows</a>
+                    <a href="/static/train_remote.sh" download
+                        style="flex:1; background:#444; color:#fff; padding:8px 12px; border-radius:4px; text-align:center; text-decoration:none; font-size:0.9em;">📥
+                        macOS</a>
+                </div>
+            </div>
+
             <h2>Reference Datasets (Local)</h2>
             <div class="train-controls">
                 <label>Job Name (Required)</label>
@@ -145,9 +160,10 @@
 <script>
     let isTraining = false;
     let logInterval = null;
+    let policyInterval = null;
 
     async function loadData() {
-        checkAuthStatus(); // Check login
+        checkAuthStatus();
 
         // Load Datasets
         try {
@@ -191,7 +207,7 @@
                 row.className = 'item-row';
                 row.innerHTML = `
                     <span style="font-weight: bold; color: #0f0;">🧠 ${name}</span>
-                    <button class="btn btn-sm" onclick="runPolicy('${name}')" style="background:#444;">Run (TODO)</button>
+                    <button class="btn btn-sm btn-success" onclick="runPolicy('${name}')">Run Policy</button>
                 `;
                 container.appendChild(row);
             });
@@ -211,13 +227,11 @@
             const data = await res.json();
             if (data.status === 'ok') {
                 alert("Renamed: " + data.message);
-                loadData(); // Refresh list
+                loadData();
             } else {
                 alert("Error: " + data.message);
             }
-        } catch (e) {
-            alert("Req error: " + e);
-        }
+        } catch (e) { alert("Req error: " + e); }
     }
 
     async function deleteDataset(name) {
@@ -232,13 +246,11 @@
             const data = await res.json();
             if (data.status === 'ok') {
                 alert("Deleted: " + data.message);
-                loadData(); // Refresh list
+                loadData();
             } else {
                 alert("Error: " + data.message);
             }
-        } catch (e) {
-            alert("Req error: " + e);
-        }
+        } catch (e) { alert("Req error: " + e); }
     }
 
     async function requestTrain(datasetName) {
@@ -255,7 +267,20 @@
             return;
         }
 
-        if (!confirm(`Start ACT training on dataset '${datasetName}'?\nJob: ${jobName}`)) return;
+        let device = 'auto';
+
+        // Remote Worker Logic
+        if (window.activeWorkers && window.activeWorkers.length > 0) {
+            device = 'remote';
+            if (window.activeWorkers.length === 1) {
+                let w = window.activeWorkers[0];
+                if (!confirm(`🚀 Train on ${w.gpu}?\n\nDataset: ${datasetName}\nJob: ${jobName}`)) return;
+            } else {
+                let info = window.activeWorkers.map((w, i) => `${i + 1}. ${w.gpu}`).join('\n');
+                let choice = prompt(`Select Worker:\n${info}`);
+                if (!choice) return;
+            }
+        }
 
         try {
             const res = await fetch('/api/training/start', {
@@ -264,7 +289,7 @@
                 body: JSON.stringify({
                     dataset: datasetName,
                     job_name: jobName,
-                    device: 'auto'
+                    device: device
                 })
             });
             const data = await res.json();
@@ -274,33 +299,61 @@
             } else {
                 alert("Error: " + data.error);
             }
-        } catch (e) {
-            alert("Req error: " + e);
-        }
+        } catch (e) { alert("Req error: " + e); }
     }
 
+    async function pollWorkers() {
+        try {
+            const res = await fetch('/api/training/worker_status');
+            const data = await res.json();
+            window.activeWorkers = data.workers || [];
+
+            const list = document.getElementById('workerList');
+            const badge = document.getElementById('workerCount');
+
+            if (window.activeWorkers.length > 0) {
+                badge.innerText = window.activeWorkers.length;
+                badge.style.display = 'inline-block';
+                badge.style.background = '#00d2ff';
+                badge.style.color = '#000';
+
+                list.innerHTML = window.activeWorkers.map(w => `
+                    <div style="background:#333; padding:5px; margin-bottom:5px; border-left:3px solid #0f0; font-size:0.9em;">
+                        🖥️ <strong>${w.gpu}</strong><br>
+                        Status: ${w.status}
+                    </div>
+                `).join('');
+            } else {
+                badge.style.display = 'none';
+                list.innerHTML = '<div style="color:#666; font-size:0.8em;">No workers connected...</div>';
+            }
+        } catch (e) { }
+    }
+
+    // Poll workers
+    setInterval(pollWorkers, 3000);
+
+    // ---- Execution Monitoring ----
+
     async function stopTraining() {
-        if (!confirm("Are you sure you want to kill the training process?")) return;
+        if (!confirm("Stop training process?")) return;
         await fetch('/api/training/stop', { method: 'POST' });
     }
 
     async function startMonitoring() {
-        document.getElementById('activeJobPanel').style.display = 'block';
-        document.getElementById('trainingLogs').innerHTML = '';
+        showPanel("training");
         isTraining = true;
-
         if (logInterval) clearInterval(logInterval);
-        logInterval = setInterval(pollStatus, 1000);
+        logInterval = setInterval(pollTrainingStatus, 1000);
     }
 
-    async function pollStatus() {
+    async function pollTrainingStatus() {
         try {
             const res = await fetch('/api/training/status');
             const data = await res.json();
-
             isTraining = data.status.is_training;
 
-            // Update Logs
+            // Logs
             const logPanel = document.getElementById('trainingLogs');
             if (data.logs && data.logs.length > 0) {
                 data.logs.forEach(line => {
@@ -311,87 +364,129 @@
                 logPanel.scrollTop = logPanel.scrollHeight;
             }
 
-            // Update Job Info
             if (data.status.current_job) {
                 document.getElementById('jobName').innerText = data.status.current_job.name;
             }
 
-            // Check completion
             if (!isTraining) {
                 clearInterval(logInterval);
-                logInterval = null;
                 document.getElementById('activeJobPanel').style.display = 'none';
-                loadData(); // Refresh lists
+                loadData();
                 if (data.status.current_job && data.status.current_job.status === 'completed') {
                     alert("Training Completed Successfully!");
                 }
             }
-
-        } catch (e) {
-            console.error("Poll fail", e);
-        }
+        } catch (e) { }
     }
 
-    // Determine default device
-    document.addEventListener('DOMContentLoaded', () => {
-        // Simple heuristic: if mac, assume mps default? 
-        // JS can't know for sure, but user can change it.
-        // Let's default to cpu if unknown, or keep cuda.
-        // Actually, let's keep cuda default as code assumes nvidia mostly, but users can switch.
-        loadData();
-        // Check if already running on load
-        pollStatus();
-    });
+    // ---- Policy Execution ----
 
     async function runPolicy(name) {
-        // Simple toggle for now, or open modal
-        // For v1, let's just load and run
-        const device = document.getElementById('deviceSelect').value;
-        if (!confirm(`Load and RUN policy '${name}' on ${device}?`)) return;
+        if (!confirm(`Run policy '${name}' on Robot?`)) return;
 
-        // Load
         try {
-            document.getElementById('jobName').innerText = "Loading Policy...";
-            document.getElementById('activeJobPanel').style.display = 'block';
+            showPanel("policy", name); // Optimistic UI
 
+            // 1. Load
             let res = await fetch('/api/policies/load', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ policy_name: name, device: device })
+                body: JSON.stringify({ policy_name: name, device: 'auto' })
             });
             let data = await res.json();
-
             if (data.status !== 'ok') {
                 alert("Load Failed: " + data.error);
-                document.getElementById('activeJobPanel').style.display = 'none';
+                hidePanel();
                 return;
             }
 
-            // Run
+            // 2. Run
             res = await fetch('/api/policies/run', { method: 'POST' });
             data = await res.json();
-
             if (data.status === 'ok') {
-                document.getElementById('jobName').innerText = `Running Policy: ${name}`;
-                alert("Policy is RUNNING! Check VR/Video stream. Click Stop Training/Policy to abort.");
-                // Reuse stop button but make sure it calls policy stop if not training?
-                // Currently 'stopTraining' calls /api/training/stop. We need a stopPolicy or shared stop.
-                // For now, let's update the stop button action dynamically or separate UI.
-                // Hack for v1:
-                document.querySelector('#activeJobPanel button').onclick = stopPolicy;
+                startPolicyMonitoring(name);
             } else {
                 alert("Run Failed: " + data.error);
-                document.getElementById('activeJobPanel').style.display = 'none';
+                hidePanel();
             }
+        } catch (e) {
+            console.error(e);
+            alert("Error starting policy");
+            hidePanel();
+        }
+    }
 
-        } catch (e) { console.error(e); }
+    function startPolicyMonitoring(name) {
+        if (policyInterval) clearInterval(policyInterval);
+        policyInterval = setInterval(pollPolicyStatus, 1000);
+        showPanel("policy", name);
+    }
+
+    async function pollPolicyStatus() {
+        try {
+            const res = await fetch('/api/policies/status');
+            const data = await res.json();
+
+            if (!data.is_running) {
+                clearInterval(policyInterval);
+                hidePanel();
+                // Check if it just stopped?
+            } else {
+                // Ensure panel is correct (in case refresh)
+                showPanel("policy", data.current_policy);
+            }
+        } catch (e) { }
     }
 
     async function stopPolicy() {
         await fetch('/api/policies/stop', { method: 'POST' });
-        document.getElementById('activeJobPanel').style.display = 'none';
-        alert("Policy Stopped");
+        hidePanel();
     }
+
+    // ---- Shared UI ----
+
+    function showPanel(type, name = "") {
+        const panel = document.getElementById('activeJobPanel');
+        panel.style.display = 'block';
+
+        const title = panel.querySelector('h3');
+        const btn = panel.querySelector('button');
+        const list = panel.querySelector('#trainingLogs');
+
+        if (type === 'training') {
+            title.innerHTML = `🏃 Active Training Job: <span id="jobName" style="color: #00d2ff;">${name || '...'}</span>`;
+            btn.innerText = "Stop Training";
+            btn.onclick = stopTraining;
+            btn.className = "btn btn-danger";
+            list.style.display = 'block';
+        } else {
+            title.innerHTML = `🤖 Running Policy: <span style="color: #0f0;">${name}</span>`;
+            btn.innerText = "Stop Policy";
+            btn.onclick = stopPolicy;
+            btn.className = "btn btn-danger";
+            list.style.display = 'none'; // No logs for inference
+        }
+    }
+
+    function hidePanel() {
+        document.getElementById('activeJobPanel').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        pollWorkers();
+
+        // Restore state if page refresh
+        fetch('/api/training/status').then(r => r.json()).then(d => {
+            if (d.status.is_training) startMonitoring();
+        });
+
+        fetch('/api/policies/status').then(r => r.json()).then(d => {
+            if (d.is_running) startPolicyMonitoring(d.current_policy);
+        });
+    });
+
+    // ---- Auth ----
 
     async function checkAuthStatus() {
         try {
@@ -420,9 +515,7 @@
     async function hfLogin() {
         const token = document.getElementById('hfToken').value.trim();
         if (!token) return alert("Please enter a token");
-
         document.getElementById('hfAuthPanel').innerHTML = "Logging in...";
-
         try {
             const res = await fetch('/api/training/auth/login', {
                 method: 'POST',
@@ -435,7 +528,7 @@
                 checkAuthStatus();
             } else {
                 alert("Login Failed: " + data.message);
-                checkAuthStatus(); // Reset UI
+                checkAuthStatus();
             }
         } catch (e) { alert("Error: " + e); checkAuthStatus(); }
     }

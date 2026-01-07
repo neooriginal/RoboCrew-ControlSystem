@@ -33,6 +33,152 @@ class TrainingManager:
         self.current_job = None
         self.job_history = []
         self._monitor_thread = None
+        
+        # Remote Worker State
+        self.workers = {} # {id: {last_seen: float, gpu: str, status: str, ...}}
+        self.pending_jobs = queue.Queue()
+        self.worker_logs = {} # {job_name: [logs]}
+
+    def register_worker_heartbeat(self, data: dict) -> dict:
+        """Process heartbeat, return pending job if any."""
+        wid = data['worker_id']
+        now = time.time()
+        
+        if data.get('status') == 'offline':
+             if wid in self.workers:
+                 # If working, fail the job
+                 if self.workers[wid].get("status") == "working":
+                     job_name = self.workers[wid].get("job_name")
+                     if job_name:
+                         logger.warning(f"Worker {wid} disconnected while working on {job_name}")
+                         self.remote_complete({"worker_id": wid, "job_name": job_name, "status": "failed", "error": "Worker disconnected"})
+                 del self.workers[wid]
+             return {"job_available": False}
+
+        # Update Worker Info
+        self.workers[wid] = {
+            "last_seen": now,
+            "gpu": data.get("gpu", "Unknown"),
+            "platform": data.get("platform", "?"),
+            "status": data.get("status", "idle"),
+            "job_name": data.get("job_name")
+        }
+        
+        # Assign job if idle
+        if self.workers[wid]['status'] == 'idle' and not self.pending_jobs.empty():
+            try:
+                job = self.pending_jobs.get_nowait()
+                self.current_job = job
+                self.is_training = True
+                self.workers[wid]['status'] = 'assigning'
+                self.workers[wid]['job_name'] = job['name']
+                return {"job_available": True, "job": job}
+            except queue.Empty:
+                pass
+                
+        return {"job_available": False}
+
+    def cleanup_stale_workers(self, timeout: int = 300):
+        """Remove workers/fail jobs if no heartbeat for timeout seconds.
+           Increased to 300s to prevent dropouts during heavy logging."""
+        now = time.time()
+        to_remove = []
+        for wid, info in self.workers.items():
+            if now - info['last_seen'] > timeout:
+                to_remove.append(wid)
+                
+        for wid in to_remove:
+            info = self.workers[wid]
+            if info.get('status') == 'working':
+                job_name = info.get("job_name")
+                if job_name:
+                    logger.warning(f"Worker {wid} timed out while working on {job_name}")
+                    self.remote_complete({"worker_id": wid, "job_name": job_name, "status": "failed", "error": "Worker timed out"})
+            if wid in self.workers:
+                del self.workers[wid]
+
+    def get_worker_status(self):
+        """Get list of active workers + trigger cleanup."""
+        self.cleanup_stale_workers()
+        params = []
+        now = time.time()
+        for wid, info in self.workers.items():
+            params.append({
+                "id": wid,
+                "gpu": info['gpu'],
+                "status": info['status'],
+                "last_seen": int(now - info['last_seen'])
+            })
+        return params
+
+    def remote_log(self, data: dict):
+        job_name = data.get('job_name')
+        wid = data.get('worker_id')
+        line = data.get('log', '')
+        
+        # Refresh last seen for this worker
+        if wid and wid in self.workers:
+            self.workers[wid]['last_seen'] = time.time()
+            self.workers[wid]['status'] = 'working'
+            
+        if self.current_job and self.current_job['name'] == job_name:
+            self.logs_queue.put(line)
+            logger.info(f"[REMOTE] {line}")
+        else:
+             logger.debug(f"[REMOTE IGNORED] {job_name}: {line}")
+
+    def remote_complete(self, data: dict):
+        job_name = data.get('job_name')
+        status = data.get('status')
+        if self.current_job and self.current_job['name'] == job_name:
+            self.is_training = False
+            self.current_job['status'] = status
+            logger.info(f"Remote job {job_name} finished: {status}")
+            self.job_history.append(self.current_job)
+            self.current_job = None
+
+    def queue_remote_training(self, dataset_name: str, job_name: str):
+        """Queue a job for a remote worker."""
+        if self.is_training:
+            return False, "Training in progress"
+            
+        hf_user = get_hf_username()
+        if not hf_user:
+            return False, "Not logged in to HF"
+        
+        repo_id = f"{hf_user}/{dataset_name}"
+        policy_repo = f"{hf_user}/{job_name}"
+        
+        # Using lerobot.scripts.lerobot_train based on pip show file list
+        # Reduced steps for real-world small datasets (prevents massive overfit)
+        cmd = (
+            f"python -m lerobot.scripts.lerobot_train "
+            f"--dataset.repo_id={repo_id} "
+            f"--policy.type=act "
+            f"--policy.repo_id={policy_repo} "
+            f"--job_name={job_name} "
+            f"--policy.device=cuda "
+            f"--steps=2000 "
+            f"--save_freq=500 "
+            f"--eval_freq=10000 "
+            f"--log_freq=50 "
+            f"--wandb.enable=false"
+        )
+        
+        job = {
+            "name": job_name,
+            "dataset": dataset_name,
+            "command": cmd,
+            "status": "pending",
+            "start_time": time.time(),
+            "mode": "remote"
+        }
+        
+        self.pending_jobs.put(job)
+        # Set training state immediately so UI doesn't flicker
+        self.is_training = True
+        self.current_job = job
+        return True, "Job Queued. Waiting for Worker..."
 
     def list_datasets(self) -> List[str]:
         if not DATASET_ROOT.exists():

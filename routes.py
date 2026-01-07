@@ -576,7 +576,7 @@ def recording_status():
         'is_recording': is_recording,
         'dataset_name': recorder.dataset_name if recorder else None,
         'episode_idx': recorder.episode_idx if recorder else 0,
-        'frame_count': len(recorder.episode_data['timestamp']) if recorder and is_recording else 0
+        'frame_count': recorder.frame_idx if recorder and is_recording else 0
     })
 
 
@@ -609,7 +609,14 @@ def start_training():
     if not job_name:
         return jsonify({'status': 'error', 'error': 'Job Name required'}), 400
 
-    success, msg = training_manager.start_training(dataset, job_name, device)
+    if not job_name:
+        return jsonify({'status': 'error', 'error': 'Job Name required'}), 400
+
+    if device == 'remote':
+         success, msg = training_manager.queue_remote_training(dataset, job_name)
+    else:
+         success, msg = training_manager.start_training(dataset, job_name, device)
+         
     if success:
         return jsonify({'status': 'ok', 'job_name': msg})
     else:
@@ -620,6 +627,32 @@ def stop_training_job():
     if training_manager.stop_training():
         return jsonify({'status': 'ok'})
     return jsonify({'status': 'error', 'error': 'No active training'}), 400
+
+# ---- Worker Routes ----
+@bp.route('/api/worker/heartbeat', methods=['POST'])
+def worker_heartbeat():
+    return jsonify(training_manager.register_worker_heartbeat(request.json))
+
+@bp.route('/api/worker/update', methods=['POST'])
+def worker_update():
+    # Update status (e.g. working / offline)
+    training_manager.register_worker_heartbeat(request.json)
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/worker/log', methods=['POST'])
+def worker_log():
+    training_manager.remote_log(request.json)
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/worker/complete', methods=['POST'])
+def worker_complete():
+    training_manager.remote_complete(request.json)
+    return jsonify({'status': 'ok'})
+
+@bp.route('/api/training/worker_status', methods=['GET'])
+def get_worker_status():
+    return jsonify({'workers': training_manager.get_worker_status()})
+
 
 @bp.route('/api/training/status')
 def training_status():
