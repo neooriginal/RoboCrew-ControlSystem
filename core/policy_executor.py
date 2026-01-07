@@ -16,6 +16,7 @@ POLICY_ROOT = Path("logs/policies")
 class PolicyExecutor:
     def __init__(self):
         self.policy: Optional[ACTPolicy] = None
+        self.device = "cpu"
         self.is_running = False
         self.thread = None
         self.current_policy_name = None
@@ -47,6 +48,7 @@ class PolicyExecutor:
             self.policy.to(device)
             self.policy.eval()
             self.current_policy_name = policy_name
+            self.device = device
             logger.info("Policy loaded successfully")
             return True
         except Exception as e:
@@ -81,59 +83,67 @@ class PolicyExecutor:
 
     def _inference_loop(self):
         dt = 0.05 # 20Hz
-        self.policy.reset() 
+        try:
+            self.policy.reset() 
+        except:
+            pass # Some policies don't need reset
         
         while self.is_running:
             loop_start = time.time()
             
-            if not state.robot_system:
-                time.sleep(0.1)
-                continue
+            try:
+                if not state.robot_system:
+                    time.sleep(0.1)
+                    continue
 
-            frame_main = state.robot_system.get_frame()
-            if frame_main is None:
-                continue
+                frame_main = state.robot_system.get_frame()
+                if frame_main is None:
+                    continue
+                    
+                img_tensor = torch.from_numpy(frame_main).permute(2, 0, 1).float() / 255.0
+                img_tensor = img_tensor.unsqueeze(0).to(self.device)
                 
-            img_tensor = torch.from_numpy(frame_main).permute(2, 0, 1).float() / 255.0
-            img_tensor = img_tensor.unsqueeze(0).to(self.policy.device)
-            
-            if not state.controller:
-                 continue
-                 
-            arm_pos = state.controller.get_arm_position()
-            current_joints = [
-                arm_pos.get('shoulder_pan', 0),
-                arm_pos.get('shoulder_lift', 0),
-                arm_pos.get('elbow_flex', 0),
-                arm_pos.get('wrist_flex', 0),
-                arm_pos.get('wrist_roll', 0),
-                arm_pos.get('gripper', 0)
-            ]
-            state_tensor = torch.tensor(current_joints, dtype=torch.float32).unsqueeze(0).to(self.policy.device)
+                if not state.controller:
+                     continue
+                     
+                arm_pos = state.controller.get_arm_position()
+                current_joints = [
+                    arm_pos.get('shoulder_pan', 0),
+                    arm_pos.get('shoulder_lift', 0),
+                    arm_pos.get('elbow_flex', 0),
+                    arm_pos.get('wrist_flex', 0),
+                    arm_pos.get('wrist_roll', 0),
+                    arm_pos.get('gripper', 0)
+                ]
+                state_tensor = torch.tensor(current_joints, dtype=torch.float32).unsqueeze(0).to(self.device)
 
-            batch = {
-                "observation.images.main": img_tensor,
-                "observation.state": state_tensor
-            }
+                batch = {
+                    "observation.images.main": img_tensor,
+                    "observation.state": state_tensor
+                }
+                
+                with torch.inference_mode():
+                    # select_action handles temporal ensembling internally
+                    action_chunk = self.policy.select_action(batch) 
+                
+                action = action_chunk.squeeze(0).cpu().numpy()
+                
+                target_pos = {
+                    'shoulder_pan': action[0],
+                    'shoulder_lift': action[1],
+                    'elbow_flex': action[2],
+                    'wrist_flex': action[3],
+                    'wrist_roll': action[4],
+                    'gripper': action[5]
+                }
+                
+                if state.controller:
+                    state.controller.set_arm_position(target_pos)
             
-            with torch.inference_mode():
-                # select_action handles temporal ensembling internally
-                action_chunk = self.policy.select_action(batch) 
-            
-            action = action_chunk.squeeze(0).cpu().numpy()
-            
-            target_pos = {
-                'shoulder_pan': action[0],
-                'shoulder_lift': action[1],
-                'elbow_flex': action[2],
-                'wrist_flex': action[3],
-                'wrist_roll': action[4],
-                'gripper': action[5]
-            }
-            
-            if state.controller:
-                state.controller.set_arm_position(target_pos)
-            
+            except Exception as e:
+                logger.error(f"Inference Loop Error: {e}")
+                time.sleep(1.0) # Prevent tight loop error spam
+
             elapsed = time.time() - loop_start
             sleep_time = max(0, dt - elapsed)
             time.sleep(sleep_time)
