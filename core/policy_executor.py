@@ -73,13 +73,13 @@ class PolicyExecutor:
             return True
 
     def stop_execution(self):
+        self.is_running = False
+        if self.thread:
+            self.thread.join(timeout=2.0)
         with self._lock:
-            self.is_running = False
-            if self.thread:
-                self.thread.join(timeout=1.0)
             state.ai_enabled = False
             state.stop_all_movement()
-            return True
+        return True
 
     def _inference_loop(self):
         dt = 0.05 # 20Hz

@@ -58,8 +58,7 @@ def create_save_note():
         from core.memory_store import memory_store
         from state import state as robot_state
         
-        location = robot_state.pose.copy() if robot_state.pose else None
-        note_id = memory_store.save_note(category, content, location)
+        note_id = memory_store.save_note(category, content, None)
         print(f"[TOOL] save_note({category}, {content[:50]}...) -> id={note_id}")
         return f"Note saved: [{category}] {content}"
     return save_note

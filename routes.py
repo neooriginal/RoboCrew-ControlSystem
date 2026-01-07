@@ -326,6 +326,7 @@ def emergency_stop():
     state.ai_enabled = False
     state.precision_mode = False
     state.stop_all_movement()
+    policy_executor.stop_execution()
     if state.robot_system:
         state.robot_system.emergency_stop()
     state.add_ai_log("EMERGENCY STOP TRIGGERED")
