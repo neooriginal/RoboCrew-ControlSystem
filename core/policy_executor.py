@@ -103,6 +103,13 @@ class PolicyExecutor:
                 img_tensor = torch.from_numpy(frame_main).permute(2, 0, 1).float() / 255.0
                 img_tensor = img_tensor.unsqueeze(0).to(self.device)
                 
+                # Check for right camera
+                frame_right = state.robot_system.get_right_frame()
+                img_right_tensor = None
+                if frame_right is not None:
+                    img_right_tensor = torch.from_numpy(frame_right).permute(2, 0, 1).float() / 255.0
+                    img_right_tensor = img_right_tensor.unsqueeze(0).to(self.device)
+                
                 if not state.controller:
                      continue
                      
@@ -121,6 +128,9 @@ class PolicyExecutor:
                     "observation.images.main": img_tensor,
                     "observation.state": state_tensor
                 }
+                
+                if img_right_tensor is not None:
+                    batch["observation.images.right"] = img_right_tensor
                 
                 with torch.inference_mode():
                     # select_action handles temporal ensembling internally

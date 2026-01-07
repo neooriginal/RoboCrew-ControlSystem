@@ -89,6 +89,12 @@ class RobotSystem:
                 return frame
             return None
 
+    def get_right_frame(self):
+        """Get the latest frame from the right camera."""
+        if hasattr(state, 'latest_frame_right') and state.latest_frame_right is not None:
+             return state.latest_frame_right
+        return None
+
     def cleanup(self):
         """Release resources."""
         self.running = False
