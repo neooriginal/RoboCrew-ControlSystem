@@ -190,9 +190,25 @@ class TrainingManager:
         return [d.name for d in DATASET_ROOT.iterdir() if d.is_dir()]
 
     def list_policies(self) -> List[str]:
-        if not POLICY_ROOT.exists():
-            return []
-        return [d.name for d in POLICY_ROOT.iterdir() if d.is_dir()]
+        policies = []
+        # Local
+        if POLICY_ROOT.exists():
+             policies.extend([d.name for d in POLICY_ROOT.iterdir() if d.is_dir()])
+             
+        # Remote (HuggingFace)
+        try:
+             hf_user = get_hf_username()
+             if hf_user:
+                 api = HfApi()
+                 models = api.list_models(author=hf_user, sort="lastModified", direction=-1, limit=10) 
+                 # Limit to 10 most recent to avoid massive list? Or maybe 20.
+                 for m in models:
+                     policies.append(m.modelId)
+        except Exception as e:
+             logger.warning(f"Failed to list HF models: {e}")
+             
+        # Dedup? Local "test" vs Remote "user/test". They are distinct strings.
+        return policies
 
     def push_dataset_to_hub(self, dataset_name: str) -> tuple:
         """Attempt to upload local dataset to Hub."""
