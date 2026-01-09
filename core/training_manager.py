@@ -328,6 +328,57 @@ class TrainingManager:
 
         return True, " | ".join(msgs)
 
+    def _rename_local_policy(self, old_name: str, new_name: str) -> tuple[bool, str]:
+        old_path = POLICY_ROOT / old_name
+        new_path = POLICY_ROOT / new_name
+        
+        if not old_path.exists():
+            return False, f"Policy '{old_name}' not found locally."
+        if new_path.exists():
+            return False, f"Destination '{new_name}' already exists."
+
+        try:
+            old_path.rename(new_path)
+            return True, f"Renamed local policy folder to {new_name}."
+        except Exception as e:
+            return False, f"Failed to rename local policy folder: {e}"
+
+    def rename_policy(self, old_name: str, new_name: str) -> tuple[bool, str]:
+        """Rename policy locally and on HuggingFace Hub."""
+        hf_username = get_hf_username()
+        msgs = []
+
+        # Local Rename
+        if (POLICY_ROOT / old_name).exists():
+            success_local, msg_local = self._rename_local_policy(old_name, new_name)
+            msgs.append(msg_local)
+            if not success_local:
+                return False, msg_local
+        else:
+            msgs.append("Local policy not found (skipped).")
+
+        # Remote Rename
+        if hf_username:
+            old_repo_id = f"{hf_username}/{old_name}"
+            new_repo_id = f"{hf_username}/{new_name}"
+            try:
+                api = HfApi()
+                try:
+                    api.model_info(old_repo_id)
+                    api.move_repo(from_id=old_repo_id, to_id=new_repo_id, repo_type="model")
+                    msgs.append(f"Renamed remote model to {new_repo_id}.")
+                except Exception as e:
+                     if "404" in str(e):
+                        msgs.append("Remote model not found (skipped).")
+                     else:
+                        msgs.append(f"Failed to rename remote model: {e}")
+            except Exception as e:
+                 msgs.append(f"Hub error: {e}")
+        else:
+            msgs.append("Hub rename skipped (not logged in).")
+
+        return True, " | ".join(msgs)
+
     def start_training(self, dataset_name: str, job_name: str, device: str = "auto", steps: int = 2000):
         if self.is_training:
             return False, "Training already in progress"

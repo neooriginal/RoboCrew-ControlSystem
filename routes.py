@@ -778,6 +778,21 @@ def list_training_policies():
     policies = training_manager.list_policies()
     return jsonify({'policies': policies})
 
+@bp.route('/api/training/policies/rename', methods=['POST'])
+def rename_policy():
+    data = request.json
+    old_name = data.get('old_name')
+    new_name = data.get('new_name')
+    
+    if not old_name or not new_name:
+        return jsonify({'status': 'error', 'message': 'Both old_name and new_name are required'}), 400
+        
+    success, msg = training_manager.rename_policy(old_name, new_name)
+    if success:
+        return jsonify({'status': 'ok', 'message': msg})
+    else:
+        return jsonify({'status': 'error', 'message': msg})
+
 @bp.route('/api/training/start', methods=['POST'])
 def start_training():
     data = request.json
