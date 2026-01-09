@@ -48,26 +48,19 @@ if (Test-Path $InstallDir) {
 }
 
 Write-Host ""
-Write-Host "[1/5] Cloning ARCS repository..." -ForegroundColor Cyan
+Write-Host "[1/4] Cloning ARCS repository..." -ForegroundColor Cyan
 git clone --depth 1 https://github.com/neooriginal/ARCS.git $InstallDir
 Set-Location $InstallDir
 
-Write-Host "[2/5] Cloning hardware drivers..." -ForegroundColor Cyan
-try {
-    git clone --depth 1 -b custom https://github.com/neooriginal/RoboCrew.git robots/xlerobot 2>$null
-} catch {
-    # Ignore if already exists or fails
-}
-
-Write-Host "[3/5] Creating virtual environment..." -ForegroundColor Cyan
+Write-Host "[2/4] Creating virtual environment..." -ForegroundColor Cyan
 python -m venv venv
 & .\venv\Scripts\Activate.ps1
 
-Write-Host "[4/5] Installing Python dependencies..." -ForegroundColor Cyan
+Write-Host "[3/4] Installing Python dependencies..." -ForegroundColor Cyan
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
-Write-Host "[5/5] Setting up environment..." -ForegroundColor Cyan
+Write-Host "[4/4] Setting up environment..." -ForegroundColor Cyan
 Copy-Item .env.example .env
 
 # Optional Auto-Start Task

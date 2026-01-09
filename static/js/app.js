@@ -1,5 +1,5 @@
 /**
- * RoboCrew Control - Client-side JavaScript
+ * ARCS - Client-side JavaScript
  * Dual-mode control: Drive (WASD + mouse head) and Arm (mouse + keyboard)
  */
 

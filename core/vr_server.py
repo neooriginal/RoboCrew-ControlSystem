@@ -1,4 +1,4 @@
-"""VR Socket Handler for RoboCrew - processes Quest 3 controller data via Socket.IO."""
+"""VR Socket Handler for ARCS"""
 
 import numpy as np
 import logging

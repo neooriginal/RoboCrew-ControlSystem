@@ -1,5 +1,5 @@
 """
-RoboCrew Control System - Movement Control
+ARCS - Movement Control
 Handles wheel movement commands and the continuous movement loop.
 """
 

@@ -1,5 +1,5 @@
 """
-RoboCrew Control System - Camera Module
+ARCS - Camera Module
 Handles camera initialization and MJPEG streaming.
 """
 

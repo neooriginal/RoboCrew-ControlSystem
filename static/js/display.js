@@ -1,5 +1,5 @@
 /**
- * RoboCrew Display Visualization - Enhanced Version
+ * ARCS - Enhanced Version
  * Animated eyes with particles and dynamic effects
  */
 

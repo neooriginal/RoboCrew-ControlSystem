@@ -1,5 +1,5 @@
 """
-RoboCrew Control System - Robot State Management
+ARCS - Robot State Management
 Thread-safe state container for robot hardware.
 """
 

@@ -54,22 +54,19 @@ if [ -d "$INSTALL_DIR" ]; then
 fi
 
 echo ""
-echo -e "${CYAN}[1/5]${NC} Cloning ARCS repository..."
+echo -e "${CYAN}[1/4]${NC} Cloning ARCS repository..."
 git clone --depth 1 https://github.com/neooriginal/ARCS.git "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-echo -e "${CYAN}[2/5]${NC} Cloning hardware drivers..."
-git clone --depth 1 -b custom https://github.com/neooriginal/RoboCrew.git robots/xlerobot 2>/dev/null || true
-
-echo -e "${CYAN}[3/5]${NC} Creating virtual environment..."
+echo -e "${CYAN}[2/4]${NC} Creating virtual environment..."
 python3 -m venv venv
 source venv/bin/activate
 
-echo -e "${CYAN}[4/5]${NC} Installing Python dependencies..."
+echo -e "${CYAN}[3/54]${NC} Installing Python dependencies..."
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
-echo -e "${CYAN}[5/5]${NC} Setting up environment..."
+echo -e "${CYAN}[4/4]${NC} Setting up environment..."
 cp .env.example .env
 
 # Prompt for API key (Moved to Settings UI)

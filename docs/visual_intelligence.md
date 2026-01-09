@@ -1,6 +1,6 @@
 # Visual Intelligence System
 
-The RoboCrew Control System uses a modular computer vision stack to understand its environment. This document details the subsystems for obstacle detection, precision maneuvering, and semantic context (QR codes).
+ARCS uses a modular computer vision stack to understand its environment. This document details the subsystems for obstacle detection, precision maneuvering, and semantic context (QR codes).
 
 ## 1. Obstacle Detection System
 **File**: `obstacle_detection.py`

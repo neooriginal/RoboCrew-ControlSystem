@@ -1,4 +1,4 @@
-# RoboCrew Control System Dependencies
+# ARCS Dependencies
 
 # Web Framework
 flask>=2.3.0

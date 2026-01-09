@@ -1,4 +1,4 @@
-"""RoboCrew Arm Control Module"""
+"""ARCS Arm Control Module"""
 
 from state import state
 from core.config_manager import get_config
