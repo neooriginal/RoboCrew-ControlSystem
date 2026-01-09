@@ -5,7 +5,9 @@ import cv2
 import time
 import numpy as np
 
+from typing import Any, Optional, Union
 from flask import Blueprint, Response, jsonify, request, render_template, redirect, make_response
+from functools import wraps
 
 from state import state
 from camera import generate_frames, generate_frames_right
@@ -35,24 +37,28 @@ PUBLIC_PATHS = [
 ]
 
 
+def get_token_from_request() -> Optional[str]:
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        token = request.cookies.get('auth_token', '')
+    return token if token else None
+
+
 @bp.before_request
-def check_auth():
+def check_auth() -> Optional[Union[Response, tuple[Response, int]]]:
     path = request.path
     
-    for public in PUBLIC_PATHS:
-        if path.startswith(public) or path == public.rstrip('/'):
-            return None
+    if any(path.startswith(public) or path == public.rstrip('/') for public in PUBLIC_PATHS):
+        return None
     
     if not is_auth_configured():
         if path.startswith('/api/'):
             return jsonify({'error': 'Auth not configured'}), 401
         return redirect('/login')
     
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        token = request.cookies.get('auth_token', '')
+    token = get_token_from_request()
     
-    if not verify_token(token):
+    if not token or not verify_token(token):
         if path.startswith('/api/'):
             return jsonify({'error': 'Unauthorized'}), 401
         return redirect('/login')
@@ -67,13 +73,11 @@ def login_page():
 
 
 @bp.route('/api/auth/status')
-def auth_status():
+def auth_status() -> Response:
     configured = is_auth_configured()
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        token = request.cookies.get('auth_token', '')
-    
+    token = get_token_from_request()
     valid = verify_token(token) is not None if token else False
+    
     return jsonify({
         'configured': configured,
         'authenticated': valid,
@@ -125,15 +129,13 @@ def auth_login():
 
 
 @bp.route('/api/auth/password', methods=['POST'])
-def auth_change_password():
+def auth_change_password() -> Union[Response, tuple[Response, int]]:
     if not is_auth_configured():
         return jsonify({'error': 'Not configured'}), 400
     
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        token = request.cookies.get('auth_token', '')
+    token = get_token_from_request()
+    username = verify_token(token) if token else None
     
-    username = verify_token(token)
     if not username:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -977,17 +979,17 @@ def list_ports():
         pass
     
     # Video devices
-    if platform.system() == 'Linux':
+    system = platform.system()
+    if system == 'Linux':
         for dev in sorted(glob.glob('/dev/video*')):
             result['video'].append({'device': dev, 'description': dev})
-    elif platform.system() == 'Windows':
-        # Probe first 5 indices
+    elif system == 'Windows':
         for i in range(5):
             cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
             if cap.isOpened():
                 result['video'].append({'device': str(i), 'description': f'Camera {i}'})
                 cap.release()
-    else:  # macOS
+    else:
         for i in range(5):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():

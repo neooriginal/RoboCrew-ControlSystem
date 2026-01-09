@@ -8,6 +8,7 @@
 
 {% block content %}
 <div class="memory-container">
+
     <div class="add-section">
         <select id="new-category">
             <option value="layout">Layout</option>
@@ -17,116 +18,17 @@
             <option value="other">Other</option>
         </select>
         <input type="text" id="new-content" placeholder="Add a new memory note...">
-        <button onclick="addNote()">Add</button>
+        <button id="add-note-btn">Add</button>
     </div>
 
     <div class="toolbar">
         <span class="stats" id="stats">Loading...</span>
-        <button class="clear-btn" onclick="clearAll()">Clear All</button>
+        <button class="clear-btn" id="clear-all-btn">Clear All</button>
     </div>
 
     <div class="memory-list" id="memory-list"></div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    function loadNotes() {
-        fetch('/api/memory')
-            .then(r => r.json())
-            .then(data => {
-                const list = document.getElementById('memory-list');
-                const stats = document.getElementById('stats');
-
-                if (!data.notes || data.notes.length === 0) {
-                    list.innerHTML = '<div class="empty-state">No memories yet. The AI will save notes as it explores.</div>';
-                    stats.textContent = '0 notes';
-                    return;
-                }
-
-                stats.textContent = data.notes.length + ' note' + (data.notes.length !== 1 ? 's' : '');
-
-                list.innerHTML = data.notes.map(note => `
-                    <div class="memory-item" data-id="${note.id}">
-                        <span class="category-badge ${note.category}">${note.category}</span>
-                        <div class="memory-content" id="content-${note.id}">${escapeHtml(note.content)}</div>
-                        <div class="memory-actions">
-                            <button class="btn-icon" onclick="editNote(${note.id})" title="Edit">✏️</button>
-                            <button class="btn-icon delete" onclick="deleteNote(${note.id})" title="Delete">🗑️</button>
-                        </div>
-                    </div>
-                `).join('');
-            });
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function addNote() {
-        const category = document.getElementById('new-category').value;
-        const content = document.getElementById('new-content').value.trim();
-
-        if (!content) return;
-
-        fetch('/api/memory', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category, content })
-        })
-            .then(r => r.json())
-            .then(() => {
-                document.getElementById('new-content').value = '';
-                loadNotes();
-            });
-    }
-
-    function deleteNote(id) {
-        if (!confirm('Delete this note?')) return;
-
-        fetch('/api/memory/' + id, { method: 'DELETE' })
-            .then(() => loadNotes());
-    }
-
-    function editNote(id) {
-        const el = document.getElementById('content-' + id);
-        const currentText = el.textContent;
-
-        el.classList.add('editing');
-        el.innerHTML = `
-            <input type="text" value="${escapeHtml(currentText)}" id="edit-input-${id}">
-            <button class="btn-icon save" onclick="saveNote(${id})">✓</button>
-            <button class="btn-icon" onclick="loadNotes()">✕</button>
-        `;
-
-        document.getElementById('edit-input-' + id).focus();
-    }
-
-    function saveNote(id) {
-        const content = document.getElementById('edit-input-' + id).value.trim();
-        if (!content) return;
-
-        fetch('/api/memory/' + id, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
-        })
-            .then(() => loadNotes());
-    }
-
-    function clearAll() {
-        if (!confirm('Delete ALL memories? This cannot be undone.')) return;
-
-        fetch('/api/memory/clear', { method: 'POST' })
-            .then(() => loadNotes());
-    }
-
-    document.getElementById('new-content').addEventListener('keypress', e => {
-        if (e.key === 'Enter') addNote();
-    });
-
-    loadNotes();
-</script>
+<script src="{{ url_for('static', filename='js/memory.js') }}"></script>
 {% endblock %}

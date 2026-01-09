@@ -39,7 +39,6 @@ class TTSEngine:
             logger.info("TTS disabled in config")
     
     def _find_audio_player(self):
-        """Find available audio player."""
         players = ['aplay', 'mpg123', 'ffplay', 'mpg321', 'play']
         
         for player in players:
@@ -76,7 +75,6 @@ class TTSEngine:
                 logger.error(f"TTS Worker error: {e}")
     
     def _detect_language(self, text):
-        """Auto-detect language, fallback to English."""
         if not LANGDETECT_AVAILABLE:
             return 'en'
         

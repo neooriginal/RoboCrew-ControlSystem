@@ -22,77 +22,61 @@ CAMERA_RIGHT_PORT = get_config("CAMERA_RIGHT_PORT")
 
 
 
-def init_camera():
-    print(f"📷 Connecting camera ({CAMERA_PORT})...", end=" ", flush=True)
+def _connect_camera_device(port, width, height, fps=30):
+    print(f"📷 Connecting camera ({port})...", end=" ", flush=True)
     try:
-        if state.camera is not None and state.camera.isOpened():
-            print("✓ (Already open)")
-            return True
-
-        # Use V4L2 backend
         try:
-            camera = cv2.VideoCapture(CAMERA_PORT, cv2.CAP_V4L2)
+            camera = cv2.VideoCapture(port, cv2.CAP_V4L2)
         except Exception:
-            # Fallback to default
-            camera = cv2.VideoCapture(CAMERA_PORT)
+            camera = cv2.VideoCapture(port)
             
-        # Request MJPEG format
         camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-        camera.set(cv2.CAP_PROP_FPS, 30)
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        camera.set(cv2.CAP_PROP_FPS, fps)
         camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
         if camera.isOpened():
             # Drain stale frames
             for _ in range(5):
                 camera.grab()
-            
             print("✓")
-            state.camera = camera
-            
-            # Start background capture thread
-            threading.Thread(target=_capture_loop, daemon=True).start()
+            return camera
         else:
             print("✗")
-            state.camera = None
-            return False
-
-        # Initialize Right Camera (Optional)
-        print(f"📷 Connecting right camera ({CAMERA_RIGHT_PORT})...", end=" ", flush=True)
-        try:
-            if state.camera_right is not None and state.camera_right.isOpened():
-                print("✓ (Already open)")
-            else:
-                camera_right = cv2.VideoCapture(CAMERA_RIGHT_PORT, cv2.CAP_V4L2)
-                
-                # Request MJPEG format
-                camera_right.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-                camera_right.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-                camera_right.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-                camera_right.set(cv2.CAP_PROP_FPS, 30)
-                camera_right.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                
-                if camera_right.isOpened():
-                    for _ in range(5):
-                        camera_right.grab()
-                    print("✓")
-                    state.camera_right = camera_right
-                    threading.Thread(target=_capture_loop_right, daemon=True).start()
-                else:
-                    print(f"⚠ (Not found)")
-                    state.camera_right = None
-        except Exception:
-            print(f"⚠ (Failed)")
-            state.camera_right = None
+            return None
             
+    except Exception as e:
+        print(f"⚠ ({e})")
+        return None
+
+
+def init_camera() -> bool:
+    try:
+        if state.camera and state.camera.isOpened():
+            print(f"📷 Camera ({CAMERA_PORT})... ✓ (Already open)")
+        else:
+            state.camera = _connect_camera_device(CAMERA_PORT, CAMERA_WIDTH, CAMERA_HEIGHT)
+            if state.camera:
+                threading.Thread(target=_capture_loop, daemon=True).start()
+
+        if state.camera_right and state.camera_right.isOpened():
+             print(f"📷 Camera Right ({CAMERA_RIGHT_PORT})... ✓ (Already open)")
+        else:
+            if CAMERA_RIGHT_PORT:
+                state.camera_right = _connect_camera_device(CAMERA_RIGHT_PORT, CAMERA_WIDTH, CAMERA_HEIGHT)
+                if state.camera_right:
+                    threading.Thread(target=_capture_loop_right, daemon=True).start()
+
         return True
 
     except Exception as e:
         print(f"✗ Failed: {e}")
-        state.camera = None
         state.last_error = f"Camera init failed: {e}"
-        return False
+        # We return True because partial failure (e.g. right camera) shouldn't block app? 
+        # Original returned False if MAIN camera failed.
+        return state.camera is not None
+
 
 
 # Frame synchronization

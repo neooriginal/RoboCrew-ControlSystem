@@ -16,23 +16,20 @@ Write-Host "Autonomous Robot Control System - Installer" -ForegroundColor Green
 Write-Host ""
 
 # Check Python
-try {
-    $pythonVersion = python --version 2>&1
-    Write-Host "✓ $pythonVersion detected" -ForegroundColor Green
-} catch {
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     Write-Host "Error: Python 3 is required but not installed." -ForegroundColor Red
     Write-Host "Please install Python 3.10+ from https://python.org and try again."
     exit 1
 }
+$pythonVersion = python --version 2>&1
+Write-Host "✓ $pythonVersion detected" -ForegroundColor Green
 
 # Check Git
-try {
-    $null = git --version
-    Write-Host "✓ Git detected" -ForegroundColor Green
-} catch {
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "Error: Git is required but not installed." -ForegroundColor Red
     exit 1
 }
+Write-Host "✓ Git detected" -ForegroundColor Green
 
 # Install directory
 $InstallDir = "$env:USERPROFILE\ARCS"
@@ -48,19 +45,19 @@ if (Test-Path $InstallDir) {
 }
 
 Write-Host ""
-Write-Host "[1/4] Cloning ARCS repository..." -ForegroundColor Cyan
+Write-Host "Cloning ARCS repository..." -ForegroundColor Cyan
 git clone --depth 1 https://github.com/neooriginal/ARCS.git $InstallDir
 Set-Location $InstallDir
 
-Write-Host "[2/4] Creating virtual environment..." -ForegroundColor Cyan
+Write-Host "Creating virtual environment..." -ForegroundColor Cyan
 python -m venv venv
 & .\venv\Scripts\Activate.ps1
 
-Write-Host "[3/4] Installing Python dependencies..." -ForegroundColor Cyan
+Write-Host "Installing Python dependencies..." -ForegroundColor Cyan
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
-Write-Host "[4/4] Setting up environment..." -ForegroundColor Cyan
+Write-Host "Setting up environment..." -ForegroundColor Cyan
 Copy-Item .env.example .env
 
 # Optional Auto-Start Task

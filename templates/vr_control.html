@@ -129,78 +129,9 @@
 </div>
 {% endblock %}
 
+{% endblock %}
+
 {% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const cameraImg = document.getElementById('cameraTexture');
-        const cameraPlane = document.getElementById('cameraPlane');
-        cameraImg.src = '/video_feed';
-
-        const cameraImgRight = document.getElementById('cameraTextureRight');
-        const cameraPlaneRight = document.getElementById('cameraPlaneRight');
-        if (cameraImgRight) cameraImgRight.src = '/video_feed_right';
-
-        setInterval(() => {
-            if (cameraPlane && cameraPlane.getObject3D('mesh')) {
-                const mat = cameraPlane.getObject3D('mesh').material;
-                if (mat.map) mat.map.needsUpdate = true;
-            }
-            if (cameraPlaneRight && cameraPlaneRight.getObject3D('mesh')) {
-                const mat = cameraPlaneRight.getObject3D('mesh').material;
-                if (mat.map) mat.map.needsUpdate = true;
-            }
-        }, 33);
-    });
-</script>
-
+<script src="{{ url_for('static', filename='js/vr_control_handlers.js') }}"></script>
 <script src="/static/js/vr_app.js"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const scene = document.querySelector('a-scene');
-
-        if (!navigator.xr) return;
-
-        Promise.all([
-            navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
-            navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
-        ]).then(([ar, vr]) => {
-            if (!ar && !vr) return;
-
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.style.position = 'absolute';
-            btn.style.bottom = '30px';
-            btn.style.left = '50%';
-            btn.style.transform = 'translateX(-50%)';
-            btn.style.zIndex = '2000';
-            btn.style.fontSize = '1.2rem';
-            btn.style.padding = '15px 30px';
-
-            btn.textContent = '🥽 Enter VR';
-            btn.onclick = async () => {
-                btn.textContent = 'Starting...';
-                btn.disabled = true;
-                try {
-                    await document.querySelector('a-scene').enterVR(true);
-                } catch (e) {
-                    btn.textContent = '🥽 Enter VR';
-                    btn.disabled = false;
-                    alert('VR Entry Failed: ' + e);
-                }
-            };
-
-            document.querySelector('.content-wrapper > div').appendChild(btn);
-
-            scene.addEventListener('enter-vr', () => {
-                btn.style.display = 'none';
-                document.getElementById('statusPanel').style.display = 'none';
-            });
-            scene.addEventListener('exit-vr', () => {
-                btn.style.display = 'block';
-                document.getElementById('statusPanel').style.display = 'block';
-            });
-        });
-    });
-</script>
 {% endblock %}

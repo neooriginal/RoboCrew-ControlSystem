@@ -17,10 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 def execute_movement(movement):
-    """
-    Execute a movement command based on the movement state dict.
-    Returns True if successful, False otherwise.
-    """
     if state.controller is None:
         return False
     
@@ -56,10 +52,6 @@ def execute_movement(movement):
 
 
 def movement_loop():
-    """
-    Continuous movement control thread.
-    Keeps wheels moving while key is held.
-    """
     last_stall_check = 0
     
     while state.running:

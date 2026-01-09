@@ -127,10 +127,7 @@ def _interruptible_sleep(duration: float, check_interval: float = 0.1, check_saf
         # --- CONTINUOUS SAFETY MONITORING ---
         if check_safety and movement_type == 'FORWARD' and robot_state.robot_system:
             try:
-                # 1. Get Frame (Thread Safe)
-                frame = robot_state.robot_system.get_frame()
                 if frame is not None:
-                    # 2. Check Detector (Shared History)
                     detector = robot_state.get_detector()
                     if detector:
                         safe_actions, _, _ = detector.process(frame)
@@ -472,17 +469,12 @@ def create_run_robot_policy():
         
         print(f"[TOOL] run_robot_policy({policy_name}, duration={duration_seconds})")
         
-        # 1. Load Policy
-        # Auto-detect device is handled in policy_executor.load_policy
         if not policy_executor.load_policy(policy_name):
             return f"Error: Failed to load policy '{policy_name}'. Check if it exists."
             
-        # 2. Start Execution
         if not policy_executor.start_execution():
             return "Error: Failed to start policy execution (maybe already running?)."
             
-        # 3. Wait for duration (Blocking the agent step is intended here)
-        # We monitor for early stop or errors
         step = 0.5
         elapsed = 0
         try:
@@ -500,7 +492,6 @@ def create_run_robot_policy():
             policy_executor.stop_execution()
             return f"Error during policy execution: {e}"
             
-        # 4. Stop
         policy_executor.stop_execution()
         return f"Policy '{policy_name}' executed for {duration_seconds} seconds. Task should be complete."
 

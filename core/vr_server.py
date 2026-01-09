@@ -1,8 +1,8 @@
 """VR Socket Handler for ARCS"""
 
-import numpy as np
 import logging
-from typing import Optional, Dict
+import numpy as np
+from typing import Optional, Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -41,17 +41,17 @@ class VRControllerState:
         self.hand = hand
         self.grip_active = False
         self.trigger_active = False
-        
+
         # Position tracking relative movement
-        self.origin_position = None
-        self.origin_quaternion = None
-        self.accumulated_rotation_quat = None
-        
+        self.origin_position: Optional[Dict] = None
+        self.origin_quaternion: Optional[np.ndarray] = None
+        self.accumulated_rotation_quat: Optional[np.ndarray] = None
+
         # Rotation tracking
         self.z_axis_rotation = 0.0
         self.x_axis_rotation = 0.0
-    
-    def reset_grip(self):
+
+    def reset_grip(self) -> None:
         self.grip_active = False
         self.origin_position = None
         self.origin_quaternion = None
@@ -61,46 +61,46 @@ class VRControllerState:
 
 
 class VRSocketHandler:
-    def __init__(self, goal_callback, config):
+    def __init__(self, goal_callback, config: Dict):
         self.goal_callback = goal_callback
         self.config = config
         self.right_controller = VRControllerState("right")
         self.connected_clients = 0
         self.is_running = False
-    
-    def on_connect(self):
+
+    def on_connect(self) -> None:
         self.connected_clients += 1
         self.is_running = True
         logger.info(f"VR client connected ({self.connected_clients})")
-    
-    def on_disconnect(self):
+
+    def on_disconnect(self) -> None:
         self.connected_clients = max(0, self.connected_clients - 1)
         self.is_running = self.connected_clients > 0
-        
+
         if self.right_controller.grip_active:
             self.right_controller.reset_grip()
             self._send_goal(ControlGoal(mode=ControlMode.IDLE))
         logger.info(f"VR client disconnected ({self.connected_clients})")
-    
-    def on_vr_data(self, data: Dict):
+
+    def on_vr_data(self, data: Dict) -> None:
         try:
             if 'rightController' in data:
-
                 right = data['rightController']
                 if right.get('position'):
                     self._process_controller(right)
                 elif not right.get('gripActive') and self.right_controller.grip_active:
                     self._handle_grip_release()
-                
+
                 if 'thumbstick' in right:
                     self._handle_head_control(right['thumbstick'])
-                
+
                 left = data.get('leftController', {})
                 left_grip = left.get('gripActive', False)
                 if 'thumbstick' in left:
                     self._handle_joystick(left['thumbstick'], right_grip=self.right_controller.grip_active, left_grip=left_grip)
                 return
-            
+
+            # Legacy/Fallback structure
             if data.get('gripReleased'):
                 self._handle_grip_release()
             elif data.get('triggerReleased'):
@@ -109,19 +109,20 @@ class VRSocketHandler:
                 self._process_controller(data)
         except Exception as e:
             logger.error(f"VR data error: {e}")
-    
-    def _process_controller(self, data: Dict):
+
+    def _process_controller(self, data: Dict) -> None:
         position = data.get('position', {})
         quaternion = data.get('quaternion', {})
         grip_active = data.get('gripActive', False)
         trigger = data.get('trigger', 0)
-        
+
         ctrl = self.right_controller
         scale = self.config.get('vr_scale', 1.0)
-        
+
         trigger_active = trigger > 0.5
-        
-        # Safety: Only allow INITITAL gripper close if side-grip matches requirements
+
+        # Safety: Only allow INITIAL gripper close if side-grip matches requirements
+        # (This logic ensures we don't accidentally drop things if we lose tracking for a split second)
         if trigger_active and not ctrl.trigger_active:
              if not (grip_active or ctrl.grip_active):
                  trigger_active = False
@@ -129,32 +130,33 @@ class VRSocketHandler:
         if trigger_active != ctrl.trigger_active:
             ctrl.trigger_active = trigger_active
             self._send_goal(ControlGoal(gripper_closed=trigger_active))
-        
+
         if grip_active:
             if not ctrl.grip_active:
                 ctrl.grip_active = True
                 ctrl.origin_position = position.copy()
-                
+
                 if quaternion:
                     ctrl.origin_quaternion = np.array([
                         quaternion.get('x', 0), quaternion.get('y', 0),
                         quaternion.get('z', 0), quaternion.get('w', 1)
                     ])
                     ctrl.accumulated_rotation_quat = ctrl.origin_quaternion
-                
+
                 self._send_goal(ControlGoal(mode=ControlMode.POSITION_CONTROL))
-            
+
             if ctrl.origin_position:
                 delta = compute_relative_position(position, ctrl.origin_position, scale)
-                
+
                 if quaternion and R:
                     current_quat = np.array([
                         quaternion.get('x', 0), quaternion.get('y', 0),
                         quaternion.get('z', 0), quaternion.get('w', 1)
                     ])
-                    
+
                     if ctrl.origin_quaternion is not None:
                         ctrl.accumulated_rotation_quat = current_quat
+                        # Note: We extract relative angles to map natural hand motion to robot joints
                         ctrl.z_axis_rotation = self._extract_relative_angle(current_quat, ctrl.origin_quaternion, 2, negate=True)
                         ctrl.x_axis_rotation = self._extract_relative_angle(current_quat, ctrl.origin_quaternion, 0)
 
@@ -164,39 +166,39 @@ class VRSocketHandler:
                     wrist_roll_deg=-ctrl.z_axis_rotation,
                     wrist_flex_deg=-ctrl.x_axis_rotation
                 ))
-    
-    def _handle_joystick(self, stick: Dict, right_grip=False, left_grip=False):
+
+    def _handle_joystick(self, stick: Dict, right_grip=False, left_grip=False) -> None:
         x, y = stick.get('x', 0), stick.get('y', 0)
-        
+
         # Apply deadzone per-axis
         final_fwd = -y if abs(y) > 0.1 else 0.0
         final_rot = -x * 0.1 if abs(x) > 0.1 else 0.0
-        
+
         if final_fwd != 0 or final_rot != 0:
             self._send_goal(ControlGoal(move_forward=final_fwd, move_rotation=final_rot))
         else:
             self._send_goal(ControlGoal(move_forward=0.0, move_rotation=0.0))
-    
-    def _handle_head_control(self, stick: Dict):
+
+    def _handle_head_control(self, stick: Dict) -> None:
         x, y = stick.get('x', 0), stick.get('y', 0)
-        
+
         # Apply deadzone per-axis
         yaw_delta = x * 2.0 if abs(x) > 0.15 else 0.0
         pitch_delta = y * 2.0 if abs(y) > 0.15 else 0.0
-        
+
         if yaw_delta != 0 or pitch_delta != 0:
             self._send_goal(ControlGoal(head_yaw_delta=yaw_delta, head_pitch_delta=pitch_delta))
-    
-    def _handle_grip_release(self):
+
+    def _handle_grip_release(self) -> None:
         if self.right_controller.grip_active:
             self.right_controller.reset_grip()
             self._send_goal(ControlGoal(mode=ControlMode.IDLE))
-    
-    def _handle_trigger_release(self):
+
+    def _handle_trigger_release(self) -> None:
         self.right_controller.trigger_active = False
         self._send_goal(ControlGoal(gripper_closed=False))
-    
-    def _send_goal(self, goal: ControlGoal):
+
+    def _send_goal(self, goal: ControlGoal) -> None:
         if self.goal_callback:
             try:
                 self.goal_callback(goal)
@@ -212,7 +214,7 @@ class VRSocketHandler:
             origin_rotation = R.from_quat(origin_quat)
             current_rotation = R.from_quat(current_quat)
             relative_rotation = current_rotation * origin_rotation.inv()
-            
+
             # Extract component
             rotvec = relative_rotation.as_rotvec()
             angle = np.degrees(rotvec[axis])

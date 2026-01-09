@@ -1,5 +1,6 @@
 """ARCS Arm Control Module"""
 
+from typing import Dict, List, Optional
 from state import state
 from core.config_manager import get_config
 
@@ -22,51 +23,52 @@ HOME_POSITIONS = {
 
 class ArmController:
     """Direct joint control for robot arm."""
-    
-    def __init__(self):
-        self.targets = HOME_POSITIONS.copy()
-    
-    def reset_to_home(self):
+
+    def __init__(self) -> None:
+        self.targets: Dict[str, float] = HOME_POSITIONS.copy()
+
+    def reset_to_home(self) -> Dict[str, float]:
         self.targets = HOME_POSITIONS.copy()
         return self.targets.copy()
-    
-    def handle_mouse_move(self, delta_x, delta_y):
+
+    def handle_mouse_move(self, delta_x: float, delta_y: float) -> Dict[str, float]:
         self.targets['shoulder_pan'] += delta_x * ARM_XY_SENSITIVITY
+        # Clamp values
         self.targets['shoulder_pan'] = max(-90, min(90, self.targets['shoulder_pan']))
-        
+
         self.targets['shoulder_lift'] += delta_y * ARM_XY_SENSITIVITY
         self.targets['shoulder_lift'] = max(-90, min(90, self.targets['shoulder_lift']))
-        
+
         return self.targets.copy()
-    
-    def handle_scroll(self, delta):
+
+    def handle_scroll(self, delta: float) -> float:
         self.targets['wrist_roll'] += delta * ARM_WRIST_SENSITIVITY
         self.targets['wrist_roll'] = max(-150, min(150, self.targets['wrist_roll']))
         return self.targets['wrist_roll']
-    
-    def handle_shoulder_pan(self, direction):
+
+    def handle_shoulder_pan(self, direction: float) -> float:
         self.targets['shoulder_pan'] += direction * ARM_SHOULDER_PAN_STEP
         self.targets['shoulder_pan'] = max(-90, min(90, self.targets['shoulder_pan']))
         return self.targets['shoulder_pan']
-    
-    def handle_wrist_flex(self, direction):
+
+    def handle_wrist_flex(self, direction: float) -> float:
         self.targets['wrist_flex'] += direction * ARM_WRIST_FLEX_STEP
         self.targets['wrist_flex'] = max(-90, min(90, self.targets['wrist_flex']))
         return self.targets['wrist_flex']
-    
-    def handle_elbow_flex(self, direction):
+
+    def handle_elbow_flex(self, direction: float) -> float:
         self.targets['elbow_flex'] += direction * ARM_ELBOW_STEP
         self.targets['elbow_flex'] = max(-90, min(90, self.targets['elbow_flex']))
         return self.targets['elbow_flex']
-    
-    def set_gripper(self, closed):
+
+    def set_gripper(self, closed: bool) -> float:
         self.targets['gripper'] = 2 if closed else 90
         return self.targets['gripper']
-    
-    def get_targets(self):
+
+    def get_targets(self) -> Dict[str, float]:
         return self.targets.copy()
-    
-    def set_from_current(self, positions):
+
+    def set_from_current(self, positions: Dict[str, float]) -> None:
         for joint, angle in positions.items():
             if joint in self.targets:
                 self.targets[joint] = angle

@@ -246,85 +246,83 @@ class TrainingManager:
         except Exception:
             return False
 
-    def delete_dataset(self, dataset_name: str) -> tuple:
+    def _delete_local_dataset(self, dataset_name: str) -> str:
+        dataset_path = DATASET_ROOT / dataset_name
+        if not dataset_path.exists():
+            return "Local files not found (already deleted?)."
+        try:
+            shutil.rmtree(dataset_path)
+            return f"Deleted local files for {dataset_name}."
+        except Exception as e:
+            return f"Failed to delete local files: {e}"
+
+    def _delete_remote_dataset(self, repo_id: str) -> str:
+        try:
+            api = HfApi()
+            api.delete_repo(repo_id=repo_id, repo_type="dataset")
+            return f"Deleted remote repo {repo_id}."
+        except Exception as e:
+            return f"Failed to delete remote repo {repo_id} (might not exist): {e}"
+
+    def delete_dataset(self, dataset_name: str) -> tuple[bool, str]:
         """Delete dataset locally and from HuggingFace Hub."""
         hf_username = get_hf_username()
-        success_local = False
-        success_hub = False
         msgs = []
 
-        # 1. Delete Local
-        dataset_path = DATASET_ROOT / dataset_name
-        if dataset_path.exists():
-            try:
-                shutil.rmtree(dataset_path)
-                msgs.append(f"Deleted local files for {dataset_name}.")
-                success_local = True
-            except Exception as e:
-                msgs.append(f"Failed to delete local files: {e}")
-        else:
-            msgs.append("Local files not found (already deleted?).")
-            success_local = True
+        msgs.append(self._delete_local_dataset(dataset_name))
 
-        # 2. Delete from Hub
         if hf_username:
             repo_id = f"{hf_username}/{dataset_name}"
-            try:
-                api = HfApi()
-                api.delete_repo(repo_id=repo_id, repo_type="dataset")
-                msgs.append(f"Deleted remote repo {repo_id}.")
-                success_hub = True
-            except Exception as e:
-                msgs.append(f"Failed to delete remote repo {repo_id} (might not exist): {e}")
+            msgs.append(self._delete_remote_dataset(repo_id))
         else:
             msgs.append("Could not delete from Hub (not logged in).")
 
         return True, " | ".join(msgs)
 
-    def rename_dataset(self, old_name: str, new_name: str) -> tuple:
-        """Rename dataset locally and on HuggingFace Hub."""
-        hf_username = get_hf_username()
-        msgs = []
-        success = False
-
-        # 1. Rename Local
+    def _rename_local_dataset(self, old_name: str, new_name: str) -> tuple[bool, str]:
         old_path = DATASET_ROOT / old_name
         new_path = DATASET_ROOT / new_name
         
         if not old_path.exists():
             return False, f"Dataset '{old_name}' not found locally."
-        
         if new_path.exists():
             return False, f"Destination '{new_name}' already exists."
 
         try:
             old_path.rename(new_path)
-            msgs.append(f"Renamed local folder to {new_name}.")
-            success = True
+            return True, f"Renamed local folder to {new_name}."
         except Exception as e:
             return False, f"Failed to rename local folder: {e}"
 
-        # 2. Rename on Hub
+    def _rename_remote_dataset(self, old_repo_id: str, new_repo_id: str) -> str:
+        try:
+            api = HfApi()
+            try:
+                api.dataset_info(old_repo_id)
+                api.move_repo(from_id=old_repo_id, to_id=new_repo_id, repo_type="dataset")
+                return f"Renamed remote repo to {new_repo_id}."
+            except Exception as e:
+                if "404" in str(e):
+                    return "Remote repo not found (skipped)."
+                return f"Failed to rename remote repo: {e}"
+        except Exception as e:
+             return f"Hub error: {e}"
+
+    def rename_dataset(self, old_name: str, new_name: str) -> tuple[bool, str]:
+        """Rename dataset locally and on HuggingFace Hub."""
+        hf_username = get_hf_username()
+        msgs = []
+
+        success_local, msg_local = self._rename_local_dataset(old_name, new_name)
+        msgs.append(msg_local)
+        
+        if not success_local:
+             return False, msg_local
+
         if hf_username:
             old_repo_id = f"{hf_username}/{old_name}"
             new_repo_id = f"{hf_username}/{new_name}"
-            
-            try:
-                api = HfApi()
-                # Check if old repo exists
-                try:
-                    api.dataset_info(old_repo_id)
-                    # Attempt move
-                    api.move_repo(from_id=old_repo_id, to_id=new_repo_id, repo_type="dataset")
-                    msgs.append(f"Renamed remote repo to {new_repo_id}.")
-                except Exception as e:
-                    # If it doesn't exist, just ignore
-                    if "404" in str(e):
-                        msgs.append("Remote repo not found (skipped).")
-                    else:
-                        msgs.append(f"Failed to rename remote repo: {e}")
-            except Exception as e:
-                msgs.append(f"Hub error: {e}")
+            msgs.append(self._rename_remote_dataset(old_repo_id, new_repo_id))
         else:
             msgs.append("Hub rename skipped (not logged in).")
 
