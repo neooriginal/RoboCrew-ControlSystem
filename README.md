@@ -16,7 +16,7 @@
 <p align="center">
   A robust control framework: Feature-rich, safe, and ready for autonomy.
   <br>
-  <em>Currently compatible with [XLeRobot](https://xlerobot.readthedocs.io/en/latest/index.html)-like devices.</em>
+  <em>Currently compatible with <a href="https://xlerobot.readthedocs.io/en/latest/index.html">XLeRobot</a>-like devices.</em>
 </p>
 
 
