@@ -16,11 +16,12 @@
 <p align="center">
   A robust control framework: Feature-rich, safe, and ready for autonomy.
   <br>
-  <em>Currently compatible with <a href="https://xlerobot.readthedocs.io/en/latest/index.html">XLeRobot</a>-like devices.</em>
 </p>
 
 
 ## ⚡ Quick Start
+
+**View the [Compatibility List](docs/compatibility.md) for supported robots.**
 
 **Linux / macOS:**
 ```bash
