@@ -9,7 +9,7 @@
 > Use the `main` branch for the latest tested version. Use the `exp` branch to try the latest features.
 
 <p align="center">
-  <strong>AI Agent • Remote Manipulation • Active Safety • Mobile Ready</strong>
+  <strong>AI Agent • Remote Manipulation • Active Safety</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  A robust control framework for ARCS. Feature-rich, safe, and ready for autonomy.
+  A robust control framework: Feature-rich, safe, and ready for autonomy.
 </p>
 
 ## 📚 Documentation
@@ -26,7 +26,6 @@ Full guides available in [`docs/`](docs/):
 
 - **[🚀 Setup Guide](docs/setup.md)**: Install & Calibrate.
 - **[🧭 Navigation](docs/navigation.md)**: Obstacle Detection, Precision Mode, & Holonomic Control.
-- **[📱 Mobile Control](docs/mobile_control.md)**: Virtual Joysticks & Touch-optimized FPV.
 - **[🥽 VR Control](docs/vr_control.md)**: Arm manipulation via Standalone VR Headsets (e.g., Quest 3 Browser).
 - **[🤖 VLA Guide](docs/vla_guide.md)**: Learn how to use Imitation Learning to train policies.
 - **[🛡️ Safety Architecture](docs/safety.md)**: Active perception & reflex systems.
@@ -38,8 +37,8 @@ Full guides available in [`docs/`](docs/):
 
 ```bash
 # 1. Clone
-git clone https://github.com/neooriginal/RoboCrew-ControlSystem.git
-cd RoboCrew-ControlSystem
+git clone https://github.com/neooriginal/ARCS.git
+cd ARCS
 
 # 2. Configure
 cp .env.example .env  # Add your OPENAI_API_KEY
