@@ -70,6 +70,36 @@ pip install -r requirements.txt -q
 Write-Host "[5/5] Setting up environment..." -ForegroundColor Cyan
 Copy-Item .env.example .env
 
+# Optional Auto-Start Task
+Write-Host ""
+Write-Host "Do you want ARCS to start automatically on login? (y/N)" -ForegroundColor Yellow
+$autoStart = Read-Host ""
+if ($autoStart -eq "y" -or $autoStart -eq "Y") {
+    $TaskName = "ARCS"
+    $PythonWPath = Join-Path $InstallDir "venv\Scripts\pythonw.exe"
+    $MainScriptPath = "main.py"
+    
+    Write-Host "Creating Scheduled Task '$TaskName'..." -ForegroundColor Cyan
+    
+    # Create the action
+    $Action = New-ScheduledTaskAction -Execute $PythonWPath -Argument $MainScriptPath -WorkingDirectory $InstallDir
+    
+    # Create the trigger (AtLogon)
+    $Trigger = New-ScheduledTaskTrigger -AtLogon
+    
+    # Create settings (Optional: Allow running on demand, etc.)
+    $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0
+    
+    # Register the task
+    try {
+        Register-ScheduledTask -Action $Action -Trigger $Trigger -Settings $Settings -TaskName $TaskName -Description "Runs ARCS at login" -Force
+        Write-Host "✓ Task created successfully!" -ForegroundColor Green
+    } catch {
+        Write-Host "Error creating task: $_" -ForegroundColor Red
+        Write-Host "You might need to run this script as Administrator to create scheduled tasks." -ForegroundColor Yellow
+    }
+}
+
 # Prompt for API key (Moved to Settings UI)
 Write-Host ""
 Write-Host "Note: Configure your OpenAI API Key in the Web UI Settings after installation." -ForegroundColor Yellow

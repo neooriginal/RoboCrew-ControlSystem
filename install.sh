@@ -86,6 +86,47 @@ if command -v apt-get &> /dev/null; then
     fi
 fi
 
+# Systemd Service Installation (Linux only)
+if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v systemctl &> /dev/null; then
+    echo ""
+    echo -e "${YELLOW}Install as a systemd service (auto-start)? Requires sudo. (y/N):${NC}"
+    read -p "" INSTALL_SERVICE
+    if [[ "$INSTALL_SERVICE" =~ ^[Yy]$ ]]; then
+        SERVICE_FILE="/etc/systemd/system/arcs.service"
+        USER_NAME=$(whoami)
+        
+        echo -e "${CYAN}Creating service file at $SERVICE_FILE...${NC}"
+
+        # Write service file with sudo
+        sudo bash -c "cat > $SERVICE_FILE" <<EOL
+[Unit]
+Description=ARCS - Autonomous Robot Control System
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=$USER_NAME
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/venv/bin/python main.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+        echo -e "${CYAN}Enabling and starting service...${NC}"
+        sudo systemctl daemon-reload
+        sudo systemctl enable arcs.service
+        sudo systemctl start arcs.service
+        
+        echo -e "${GREEN}✓ Service installed and started!${NC}"
+        echo "Check status with: sudo systemctl status arcs.service"
+        echo "View logs with: sudo journalctl -u arcs -f"
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║       Installation Complete! 🎉            ║${NC}"
