@@ -525,8 +525,43 @@
         loadDatasets();
         pollWorkers();
         checkActiveTraining();
+        checkAuthRequirement();
         setInterval(pollWorkers, 5000);
     });
+
+    async function checkAuthRequirement() {
+        try {
+            const res = await fetch('/api/auth/hf/status');
+            const data = await res.json();
+            if (!data.logged_in) {
+                // Block wizard
+                const wizard = document.getElementById('step-1');
+                if (wizard) {
+                    const overlay = document.createElement('div');
+                    overlay.style.position = 'absolute';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.right = '0';
+                    overlay.style.bottom = '0';
+                    overlay.style.background = 'rgba(0,0,0,0.8)';
+                    overlay.style.zIndex = '1000';
+                    overlay.style.display = 'flex';
+                    overlay.style.flexDirection = 'column';
+                    overlay.style.alignItems = 'center';
+                    overlay.style.justifyContent = 'center';
+                    overlay.innerHTML = `
+                        <h2>⚠️ Hugging Face Login Required</h2>
+                        <p style="color:#aaa; margin-bottom:20px;">You must be logged in to train policies.</p>
+                        <a href="/settings" class="btn btn-primary">Go to Settings</a>
+                     `;
+                    wizard.style.position = 'relative'; // Ensure positioning context
+                    wizard.appendChild(overlay);
+                }
+                // Disable Next button too just in case
+                document.getElementById('btn-next').disabled = true;
+            }
+        } catch (e) { }
+    }
 
     // ---- Wizard Logic ----
 

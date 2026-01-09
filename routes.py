@@ -709,6 +709,10 @@ def start_recording():
     if not dataset_name:
         return jsonify({'status': 'error', 'error': 'Dataset name required'}), 400
 
+    # Enforce HF Login for Recording
+    if not training_manager.get_hf_user():
+         return jsonify({'status': 'error', 'error': 'HuggingFace Login Required'}), 403
+
     # Lazy init recorder with current state cameras
     if recorder is None:
         recorder = DatasetRecorder(main_camera=state.camera)
@@ -834,6 +838,14 @@ def delete_dataset_route():
     
     success, msg = training_manager.delete_dataset(dataset_name)
     return jsonify({'status': 'ok' if success else 'error', 'message': msg})
+
+@bp.route('/api/auth/hf/status', methods=['GET'])
+def get_hf_auth_status():
+    user = training_manager.get_hf_user()
+    return jsonify({
+        'logged_in': bool(user),
+        'username': user
+    })
 
 @bp.route('/api/training/datasets/rename', methods=['POST'])
 def rename_dataset_route():

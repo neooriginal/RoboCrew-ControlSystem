@@ -13,6 +13,7 @@ AFRAME.registerComponent('vr-controller-updater', {
         this.rightStick = { x: 0, y: 0 };
         this.lastSend = 0;
         this.sendInterval = 50;
+        this.hfLoggedIn = false;
 
         this.connectSocket();
         this.setupEvents();
@@ -35,9 +36,24 @@ AFRAME.registerComponent('vr-controller-updater', {
         }
 
         setInterval(() => this.checkRecordingStatus(), 1000);
+        setInterval(() => this.checkAuthStatus(), 5000);
+        this.checkAuthStatus();
+    },
+
+    checkAuthStatus: async function () {
+        try {
+            const res = await fetch('/api/auth/hf/status');
+            const data = await res.json();
+            this.hfLoggedIn = data.logged_in;
+            this.updateRecordUI(this.isRecording);
+        } catch (e) { }
     },
 
     toggleRecording: async function () {
+        if (!this.hfLoggedIn) {
+            // Visual feedback?
+            return;
+        }
         const name = this.datasetNameInput.value.trim();
         if (!name) return;
 
@@ -94,6 +110,12 @@ AFRAME.registerComponent('vr-controller-updater', {
         } else {
             this.recordingStatus.style.display = 'none';
             this.datasetNameInput.disabled = false;
+            // Show Login Warning if needed
+            if (!this.hfLoggedIn) {
+                this.recordingStatus.style.display = 'block';
+                this.recordingStatus.innerHTML = '<span style="color:orange">⚠️ HF Login Required</span>';
+                this.datasetNameInput.disabled = true;
+            }
             if (this.vrRecIndicator) this.vrRecIndicator.setAttribute('visible', false);
         }
     },
