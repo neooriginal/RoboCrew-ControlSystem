@@ -86,7 +86,7 @@
 </div>
 
 <script>
-    // Poll for status updates on the dashboard
+    // Poll for status updates on the dashboard (System Status)
     setInterval(async () => {
         try {
             const res = await fetch('/display/state');
@@ -108,22 +108,49 @@
             const modeEl = document.getElementById('status-mode');
             if (modeEl) modeEl.textContent = (data.control_mode || 'IDLE').toUpperCase();
 
-            // Update Mini Log
-            if (data.ai_status && data.ai_status !== 'Idle') {
-                const logDiv = document.getElementById('mini-log');
-                const time = new Date().toLocaleTimeString();
-                // Simple deduplication
-                if (!logDiv.firstElementChild || !logDiv.firstElementChild.textContent.includes(data.ai_status)) {
-                    const entry = document.createElement('div');
-                    entry.className = 'log-entry';
-                    entry.textContent = `${time} - ${data.ai_status}`;
-                    logDiv.insertBefore(entry, logDiv.firstChild);
-                    if (logDiv.children.length > 20) logDiv.lastChild.remove();
-                }
-            } else if (data.ai_status === 'Idle' && document.getElementById('mini-log').children.length === 1 && document.getElementById('mini-log').children[0].textContent === 'Waiting for updates...') {
-                // Keep waiting
-            }
         } catch (e) { }
     }, 1000);
+
+    // Listen for log updates from the global LogManager (notifications.js)
+    document.addEventListener('log-update', (e) => {
+        const logs = e.detail;
+        const logDiv = document.getElementById('mini-log');
+        if (!logDiv) return;
+
+        // Clear "Initializing..." message if present
+        if (logDiv.children.length === 1 && logDiv.firstElementChild.textContent.includes('Initializing')) {
+            logDiv.innerHTML = '';
+        }
+
+        // Prepend new logs
+        logs.forEach(log => {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            // Format: [10:00:00] [INFO] Message ...
+            entry.innerHTML = `
+                <span class="log-timestamp">[${log.timestamp}]</span>
+                <span class="log-level ${log.level}">${log.level}</span>
+                <span class="log-message">${escapeHtml(log.message)}</span>
+            `;
+
+            logDiv.prepend(entry);
+        });
+
+        // Limit history to 50 items
+        while (logDiv.children.length > 50) {
+            logDiv.lastElementChild.remove();
+        }
+    });
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 </script>
 {% endblock %}

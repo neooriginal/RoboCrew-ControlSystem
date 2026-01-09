@@ -317,19 +317,26 @@ def create_look_around(servo_controller, main_camera):
     @tool
     def look_around() -> list:
         """ONLY use this if you are completely stuck and need to find a new path. Looks left, center, right."""
+        # Use dynamic state
+        controller = robot_state.controller
+        camera = robot_state.camera
+        
+        if not controller or not camera:
+             return "Error: Hardware (Head/Camera) not ready."
+        
         movement_delay = 0.8  # seconds
         print("Looking around...")
-        servo_controller.turn_head_yaw(-30)  # Safe left
+        controller.turn_head_yaw(-30)  # Safe left
         time.sleep(movement_delay)
-        image_left = capture_image(main_camera)
+        image_left = capture_image(camera)
         image_left64 = base64.b64encode(image_left).decode('utf-8')
-        servo_controller.turn_head_yaw(30)   # Safe right
+        controller.turn_head_yaw(30)   # Safe right
         time.sleep(movement_delay)
-        image_right = capture_image(main_camera)
+        image_right = capture_image(camera)
         image_right64 = base64.b64encode(image_right).decode('utf-8')  
-        servo_controller.turn_head_yaw(0)    # Center
+        controller.turn_head_yaw(0)    # Center
         time.sleep(movement_delay)
-        image_center = capture_image(main_camera)
+        image_center = capture_image(camera)
         image_center64 = base64.b64encode(image_center).decode('utf-8')
 
         return [
@@ -380,7 +387,8 @@ def create_vla_single_arm_manipulation(
     from lerobot.async_inference.configs import RobotClientConfig
     from lerobot.robots.so101_follower.config_so101_follower import SO101FollowerConfig
     from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
-
+    from state import state as robot_state
+    
     configured_cameras = {}
     for cam_name, cam_settings in camera_config.items():
         # Unpack the dictionary settings directly into the Config class
@@ -412,13 +420,19 @@ def create_vla_single_arm_manipulation(
     
     @tool
     def tool_name_to_override() -> str:
-        """Tood description to override."""
+        """Tool description to override."""
+        controller = robot_state.controller
+        if not controller:
+            return "Error: Robot controller not ready."
+            
         print("Manipulation tool activated")
-        servo_controller.turn_head_pitch(45)
-        servo_controller.turn_head_yaw(0)
-        # release main camera from agent, so arm policy can use it
-        main_camera_object.release()
-        time.sleep(1)  # give some time to release camera
+        controller.turn_head_pitch(45)
+        controller.turn_head_yaw(0)
+        
+        cam = robot_state.camera
+        if cam:
+             cam.release()
+        time.sleep(1)
 
         try:
             client = RobotClient(cfg)
@@ -431,11 +445,11 @@ def create_vla_single_arm_manipulation(
             
         
         finally:
-            # Re-open main camera for agent use. 
             time.sleep(1)
-            main_camera_object.open(main_camera_usb_port)
-            main_camera_object.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            servo_controller.reset_head_position()
+            # Camera re-initialization would handle this on next usage attempt or requires manual reset
+                
+            if controller:
+                controller.reset_head_position()
         
         return "Arm manipulation done"
     

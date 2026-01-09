@@ -16,6 +16,7 @@ from config import (
 from state import state
 
 
+
 def init_camera():
     print(f"📷 Connecting camera ({CAMERA_PORT})...", end=" ", flush=True)
     try:
@@ -23,10 +24,14 @@ def init_camera():
             print("✓ (Already open)")
             return True
 
-        # Use V4L2 backend for better buffer control on Linux
-        camera = cv2.VideoCapture(CAMERA_PORT, cv2.CAP_V4L2)
-        
-        # Request MJPEG format (hardware-encoded, faster)
+        # Use V4L2 backend
+        try:
+            camera = cv2.VideoCapture(CAMERA_PORT, cv2.CAP_V4L2)
+        except Exception:
+            # Fallback to default
+            camera = cv2.VideoCapture(CAMERA_PORT)
+            
+        # Request MJPEG format
         camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         camera.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
         camera.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
@@ -34,7 +39,7 @@ def init_camera():
         camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
         if camera.isOpened():
-            # Drain stale frames from buffer
+            # Drain stale frames
             for _ in range(5):
                 camera.grab()
             
@@ -42,8 +47,11 @@ def init_camera():
             state.camera = camera
             
             # Start background capture thread
-            capture_thread = threading.Thread(target=_capture_loop, daemon=True)
-            capture_thread.start()
+            threading.Thread(target=_capture_loop, daemon=True).start()
+        else:
+            print("✗")
+            state.camera = None
+            return False
 
         # Initialize Right Camera (Optional)
         print(f"📷 Connecting right camera ({CAMERA_RIGHT_PORT})...", end=" ", flush=True)
@@ -51,7 +59,6 @@ def init_camera():
             if state.camera_right is not None and state.camera_right.isOpened():
                 print("✓ (Already open)")
             else:
-                # Use V4L2 backend
                 camera_right = cv2.VideoCapture(CAMERA_RIGHT_PORT, cv2.CAP_V4L2)
                 
                 # Request MJPEG format
@@ -62,21 +69,16 @@ def init_camera():
                 camera_right.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 
                 if camera_right.isOpened():
-                    # Drain stale frames
                     for _ in range(5):
                         camera_right.grab()
-                    
                     print("✓")
                     state.camera_right = camera_right
-                    
-                    # Start background capture thread for right camera
-                    capture_thread_right = threading.Thread(target=_capture_loop_right, daemon=True)
-                    capture_thread_right.start()
+                    threading.Thread(target=_capture_loop_right, daemon=True).start()
                 else:
-                    print(f"⚠ (Not found on {CAMERA_RIGHT_PORT})")
+                    print(f"⚠ (Not found)")
                     state.camera_right = None
-        except Exception as e:
-            print(f"⚠ (Failed: {e})")
+        except Exception:
+            print(f"⚠ (Failed)")
             state.camera_right = None
             
         return True
@@ -200,26 +202,42 @@ def generate_frames():
     current_frame = encoded_frame
     last_sent_frame_id = 0
     
-    # Fallback if camera hasn't started yet
-    if current_frame is None:
-        try:
-            blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
-            cv2.putText(blank_frame, "STARTING...", (20, STREAM_HEIGHT//2), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            _, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
-            current_frame = buffer.tobytes()
-        except Exception:
-            pass
+    # Create fallback frames
+    blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(blank_frame, "STARTING...", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    _, buffer_starting = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+    starting_bytes = buffer_starting.tobytes()
 
-    if current_frame:
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+    error_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(error_frame, "NO SIGNAL", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+    _, buffer_error = cv2.imencode('.jpg', error_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+    error_bytes = buffer_error.tobytes()
+
+    # Initial frame
+    current_frame = encoded_frame if encoded_frame else starting_bytes
+
+    yield (b'--frame\r\n'
+           b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
     
     while state.running:
+        # Check if camera exists
+        if state.camera is None or not state.camera.isOpened():
+             time.sleep(1)
+             yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + error_bytes + b'\r\n')
+             continue
+
         with frame_condition:
-            frame_condition.wait(timeout=0.05)
+            notified = frame_condition.wait(timeout=0.1)
             
+            if not notified:
+                # Timeout implies no new frames coming -> might be stuck
+                pass
+
             if current_frame_id == last_sent_frame_id:
+                # No new frame yet
                 continue
             
             current_frame = encoded_frame
@@ -228,8 +246,6 @@ def generate_frames():
         if current_frame:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
-        else:
-            time.sleep(0.01)
 
 
 def generate_frames_right():
@@ -238,24 +254,38 @@ def generate_frames_right():
     current_frame = encoded_frame_right
     last_sent_frame_id = 0
     
-    # Fallback
-    if current_frame is None:
-        try:
-            blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
-            cv2.putText(blank_frame, "STARTING...", (20, STREAM_HEIGHT//2), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            _, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
-            current_frame = buffer.tobytes()
-        except Exception:
-            pass
+    # Create fallback frames
+    blank_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(blank_frame, "STARTING...", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    _, buffer_starting = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+    starting_bytes = buffer_starting.tobytes()
 
-    if current_frame:
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+    error_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(error_frame, "NO SIGNAL (RIGHT)", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+    _, buffer_error = cv2.imencode('.jpg', error_frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+    error_bytes = buffer_error.tobytes()
+
+    # Initial frame
+    current_frame = encoded_frame_right if encoded_frame_right else starting_bytes
+
+    yield (b'--frame\r\n'
+           b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
     
     while state.running:
+        # Check if right camera exists
+        if state.camera_right is None or not state.camera_right.isOpened():
+             time.sleep(1)
+             yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + error_bytes + b'\r\n')
+             continue
+
         with frame_condition_right:
-            frame_condition_right.wait(timeout=0.05)
+            notified = frame_condition_right.wait(timeout=0.1)
+            
+            if not notified:
+                pass
             
             if current_frame_id_right == last_sent_frame_id:
                 continue
@@ -266,8 +296,6 @@ def generate_frames_right():
         if current_frame:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
-        else:
-            time.sleep(0.01)
 
 
 

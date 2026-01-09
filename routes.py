@@ -58,6 +58,15 @@ def video_feed_right():
     return Response(generate_frames_right(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@bp.route('/api/logs')
+def get_logs():
+    """Get system logs, optionally filtered by timestamp."""
+    since = float(request.args.get('since', 0))
+    if state.log_handler:
+        return jsonify({'logs': state.log_handler.get_logs(since)})
+    return jsonify({'logs': []})
+
+
 @bp.route('/head_position')
 def get_head_position():
     if state.controller is None:
@@ -403,16 +412,30 @@ def generate_cv_frames():
     # Initialize detector (Shared)
     detector = state.get_detector()
     
+    # Pre-generate fallback frames
+    STREAM_WIDTH = 640
+    STREAM_HEIGHT = 480
+    
+    error_frame = np.zeros((STREAM_HEIGHT, STREAM_WIDTH, 3), np.uint8)
+    cv2.putText(error_frame, "AI VISION: NO SIGNAL", (20, STREAM_HEIGHT//2), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+    _, buffer_error = cv2.imencode('.jpg', error_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+    error_bytes = buffer_error.tobytes()
+
     while state.running:
         if state.robot_system is None:
-            time.sleep(0.1)
+            time.sleep(1)
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + error_bytes + b'\r\n')
             continue
         
         try:
             # Thread-safe frame capture
             frame = state.robot_system.get_frame()
             if frame is None:
-                time.sleep(0.02)
+                time.sleep(0.1)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + error_bytes + b'\r\n')
                 continue
             
             # Process frame using the new ObstacleDetector

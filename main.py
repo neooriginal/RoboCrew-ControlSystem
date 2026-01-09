@@ -27,7 +27,7 @@ import tts
 from core.robot_system import RobotSystem
 from core.navigation_agent import NavigationAgent
 
-from config import WEB_PORT, VR_ENABLED
+from config import WEB_PORT, VR_ENABLED, CAMERA_PORT
 from robots.xlerobot.tools import (
     create_move_forward, 
     create_move_backward, 
@@ -46,6 +46,8 @@ from robots.xlerobot.tools import (
     create_run_robot_policy
 )
 
+from core.log_handler import CircularLogHandler
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -56,6 +58,11 @@ logging.basicConfig(
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
+
+# Add Circular Log Handler
+log_handler = CircularLogHandler()
+logging.getLogger().addHandler(log_handler)
+state.log_handler = log_handler
 
 def create_app():
     app = Flask(__name__)
@@ -91,27 +98,28 @@ def cleanup(signum=None, frame=None):
     if state.robot_system:
         state.robot_system.cleanup()
     
+    # Lazy import to avoid circular dependency
+    import tts
+    tts.shutdown()
+    
     sys.exit(0)
 
 def main():
-    print("=" * 50)
-    print("🤖 ARCS System Starting")
-    print("=" * 50)
-    
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     
     # Initialize Robot System
-    print("🔧 Initializing Robot System...")
+    logger.info("Initializing Robot System...")
     robot = RobotSystem()
     state.robot_system = robot
     
     # Initialize TTS
+    logger.info("Initializing TTS...")
     tts.init()
     
     # Initialize AI Agent
-    if robot.controller:
-        print("💡 Initializing AI Agent...")
+    if robot.controller or True: # Allow agent init even if controller is lazy loading
+        logger.info("Initializing AI Agent...")
         # Minimal tools - no individual camera controls to avoid confusion
         tools = [
             create_move_forward(robot.controller),
@@ -136,14 +144,14 @@ def main():
         try:
             agent = NavigationAgent(robot, model_name, tools)
             state.agent = agent
-            print("✓ AI Agent ready")
+            logger.info("AI Agent ready")
         except Exception as e:
             logger.warning(f"AI Agent init failed: {e}")
     else:
         logger.warning("Robot controller not ready, AI disabled")
 
     # Start Threads
-    print("🔄 Starting background threads...", end=" ", flush=True)
+    logger.info("Starting background threads...")
     
     # Movement thread (manual control)
     threading.Thread(target=movement_loop, daemon=True).start()
@@ -151,35 +159,40 @@ def main():
     # AI Agent thread
     threading.Thread(target=agent_loop, daemon=True).start()
     
-
     
     # Initialize VR Control (if enabled)
     vr_controller = None
-    arm_available = robot.controller and hasattr(robot.controller, 'arm_enabled') and robot.controller.arm_enabled
     
-    if VR_ENABLED and SOCKETIO_AVAILABLE and robot.controller:
-        if arm_available:
-            print("🥽 Initializing VR Control...")
-            try:
-                from vr_arm_controller import VRArmController
-                import vr_arm_controller as vr_module
-                
-                # Movement callback for joystick
-                def vr_movement_callback(forward, lateral, rotation):
-                    if robot.controller:
-                        robot.controller.set_velocity_vector(forward, lateral, rotation)
-                
-                vr_controller = VRArmController(robot.controller, vr_movement_callback)
-                vr_module.vr_arm_controller = vr_controller
-                print("✓ VR Control initialized")
-            except Exception as e:
-                logger.warning(f"VR Control init failed: {e}")
-                logger.debug(sys.exc_info()) # Log trace to debug
+    # Check if camera exists (vital for VR)
+    camera_exists = False
+    if isinstance(CAMERA_PORT, str) and os.path.exists(CAMERA_PORT):
+        camera_exists = True
+    elif isinstance(CAMERA_PORT, int):
+         # If integer index, check typical usage
+         camera_exists = os.path.exists(f"/dev/video{CAMERA_PORT}")
+    
+    if VR_ENABLED and SOCKETIO_AVAILABLE:
+        if not camera_exists:
+             logger.warning(f"VR Control disabled: Camera {CAMERA_PORT} not found")
         else:
-            logger.warning("VR Control disabled (arm not enabled on controller)")
+            logger.info("Initializing VR Control...")
+        try:
+            from vr_arm_controller import VRArmController
+            import vr_arm_controller as vr_module
+            
+            # Movement callback for joystick
+            def vr_movement_callback(forward, lateral, rotation):
+                if state.robot_system and state.robot_system.controller:
+                    state.robot_system.controller.set_velocity_vector(forward, lateral, rotation)
+            
+            # Late-binding of hardware controller
+            vr_controller = VRArmController(None, vr_movement_callback)
+            vr_module.vr_arm_controller = vr_controller
+            logger.info("VR Control initialized")
+        except Exception as e:
+            logger.warning(f"VR Control init failed: {e}")
     elif VR_ENABLED and not SOCKETIO_AVAILABLE:
         logger.warning("VR Control disabled (flask-socketio not installed)")
-        print("   Install with: pip install flask-socketio")
     
     # TTS Startup Announcement
     tts.speak("System ready")
@@ -204,10 +217,14 @@ def main():
             
             @socketio.on('vr_connect')
             def handle_vr_connect():
-                print("🥽 VR client connected")
+                logger.info("VR client connected")
             
             @socketio.on('vr_data')
             def handle_vr_data(data):
+                # Late binding check for controller
+                if vr_controller.controller is None and state.robot_system and state.robot_system.controller:
+                    vr_controller.controller = state.robot_system.controller
+                
                 vr_controller.vr_handler.on_vr_data(data)
     
     print()
@@ -233,15 +250,15 @@ def main():
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                print("📺 Display opened on main screen")
+                logger.info("Display opened on main screen")
             except FileNotFoundError:
                 try:
                     # Fallback to firefox
                     subprocess.Popen(['firefox', '--kiosk', display_url], env=env,
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    print("📺 Display opened on main screen")
+                    logger.info("Display opened on main screen")
                 except FileNotFoundError:
-                    print("⚠ Could not auto-open display (no browser found)")
+                    logger.warning("Could not auto-open display (no browser found)")
         threading.Thread(target=open_display, daemon=True).start()
     
     try:

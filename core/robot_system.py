@@ -1,35 +1,34 @@
 import threading
-
-
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from state import state
 from robots.xlerobot.servo_controls import ServoControler
-from config import WHEEL_USB, HEAD_USB, CAMERA_PORT, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_BUFFER_SIZE
+from config import WHEEL_USB, HEAD_USB
 
 logger = logging.getLogger(__name__)
 
 class RobotSystem:
-    """
-    Central management for RoboCrew hardware and state.
-    Handles Servos, Camera, and shared State.
-    """
     def __init__(self):
         self.controller: Optional[ServoControler] = None
         self.camera = None
         self.camera_lock = threading.Lock()
         self.running = True
         
-        # Initialize hardware
-        self._init_camera()
-        self._init_servos()
+        # Start hardware initialization in background to allow UI to load
+        threading.Thread(target=self._init_hardware, daemon=True).start()
         
         state.robot_system = self
         
+    def _init_hardware(self):
+        """Background initialization sequence."""
+        logger.info("Starting hardware initialization sequence...")
+        self._init_camera()
+        self._init_servos()
+        logger.info("Hardware initialization complete")
+
     def _init_camera(self):
         try:
-            # Lazy import to avoid circular dependency
             from camera import init_camera
             if init_camera():
                 self.camera = state.camera
@@ -84,9 +83,12 @@ class RobotSystem:
         if not self.camera:
             return None
         with self.camera_lock:
-            ret, frame = self.camera.read()
-            if ret:
-                return frame
+            try:
+                ret, frame = self.camera.read()
+                if ret:
+                    return frame
+            except Exception:
+                pass
             return None
 
     def get_right_frame(self):
@@ -112,6 +114,8 @@ class RobotSystem:
         """Immediate stop of all movement."""
         if self.controller:
             # Stop wheels
-            self.controller._wheels_stop()
-            # We might want to relax arm or hold position depending on safety
-            # For now, just stopping wheels is critical
+            try:
+                self.controller._wheels_stop()
+            except Exception:
+                pass
+

@@ -5,8 +5,11 @@ import queue
 import tempfile
 import os
 import subprocess
+import logging
 from gtts import gTTS
 from config import TTS_ENABLED, TTS_AUDIO_DEVICE, TTS_TLD
+
+logger = logging.getLogger(__name__)
 
 try:
     from langdetect import detect
@@ -22,18 +25,14 @@ class TTSEngine:
         self.tld = TTS_TLD
         self.speech_queue = queue.Queue()
         self.worker_thread = None
+        self.audio_player = None
         
         if self.enabled:
-            self.audio_player = self._find_audio_player()
-            if self.audio_player:
-                self.worker_thread = threading.Thread(target=self._worker, daemon=True)
-                self.worker_thread.start()
-                print(f"[TTS] Initialized with Google voices (using {self.audio_player})")
-            else:
-                print("[TTS] No audio player found")
-                self.enabled = False
+            # Start background initialization and worker
+            self.worker_thread = threading.Thread(target=self._worker, daemon=True)
+            self.worker_thread.start()
         else:
-            print("[TTS] TTS disabled in config")
+            logger.info("TTS disabled in config")
     
     def _find_audio_player(self):
         """Find available audio player."""
@@ -52,6 +51,15 @@ class TTSEngine:
     
     def _worker(self):
         """Background worker processing speech queue."""
+        # Detect audio player
+        self.audio_player = self._find_audio_player()
+        if self.audio_player:
+            logger.info(f"TTS Initialized with Google voices (using {self.audio_player})")
+        else:
+            logger.warning("TTS: No audio player found, speech disabled")
+            self.enabled = False
+            return
+
         while True:
             try:
                 text = self.speech_queue.get(timeout=1)
@@ -61,7 +69,7 @@ class TTSEngine:
             except queue.Empty:
                 continue
             except Exception as e:
-                print(f"[TTS] Worker error: {e}")
+                logger.error(f"TTS Worker error: {e}")
     
     def _detect_language(self, text):
         """Auto-detect language, fallback to English."""
@@ -82,8 +90,7 @@ class TTSEngine:
         
         try:
             lang = self._detect_language(text)
-            print(f"[TTS] Speaking ({lang}): '{text}'")
-            sys.stdout.flush()
+            logger.info(f"Speaking ({lang}): '{text}'")
             
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
                 temp_mp3 = fp.name
@@ -100,8 +107,7 @@ class TTSEngine:
                          timeout=5)
             
             if result.returncode != 0:
-                print(f"[TTS] MP3 decode failed")
-                sys.stdout.flush()
+                logger.error(f"TTS MP3 decode failed")
                 return
             
             # Play at max volume on HDMI
@@ -110,15 +116,10 @@ class TTSEngine:
                          stderr=subprocess.DEVNULL,
                          timeout=10)
             
-            print(f"[TTS] ✓")
-            sys.stdout.flush()
-                
         except subprocess.TimeoutExpired:
-            print(f"[TTS] Timeout")
-            sys.stdout.flush()
+            logger.warning("TTS Timeout")
         except Exception as e:
-            print(f"[TTS] Error: {e}")
-            sys.stdout.flush()
+            logger.error(f"TTS Error: {e}")
         finally:
             if temp_mp3:
                 try:
@@ -133,7 +134,7 @@ class TTSEngine:
     
     def speak(self, text):
         """Queue text for speech."""
-        if self.enabled and text:
+        if self.enabled and text and self.worker_thread and self.worker_thread.is_alive():
             self.speech_queue.put(text)
     
     def shutdown(self):

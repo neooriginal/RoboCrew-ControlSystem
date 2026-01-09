@@ -64,6 +64,7 @@ class RobotState:
         # Remote control tracking
         self.last_remote_activity = 0   # Last input timestamp
         self.last_movement_activity = 0 # Last movement command timestamp
+        self.log_handler = None
         
         # Wheel speed control
         self.default_wheel_speed = 10000 

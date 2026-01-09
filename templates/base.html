@@ -73,7 +73,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
-                <h2 class="page-title">{% block title %}{% endblock %}</h2>
+                <h2 class="page-title">{{ self.title() }}</h2>
                 <div class="top-actions">
                     {% block actions %}{% endblock %}
                 </div>
@@ -86,6 +86,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 
