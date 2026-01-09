@@ -89,6 +89,40 @@ def agent_loop():
 
 
 
+# Global VR controller reference for socket handlers
+vr_controller = None
+
+def init_vr_control():
+    """Initialize VR controller (called from deferred_init)."""
+    global vr_controller
+    
+    camera_exists = False
+    if isinstance(CAMERA_PORT, str) and os.path.exists(CAMERA_PORT):
+        camera_exists = True
+    elif isinstance(CAMERA_PORT, int):
+        camera_exists = os.path.exists(f"/dev/video{CAMERA_PORT}")
+    
+    if VR_ENABLED and SOCKETIO_AVAILABLE:
+        if not camera_exists:
+            logger.warning(f"VR Control disabled: Camera {CAMERA_PORT} not found")
+            return
+        
+        logger.info("Initializing VR Control...")
+        try:
+            from vr_arm_controller import VRArmController
+            import vr_arm_controller as vr_module
+            
+            def vr_movement_callback(forward, lateral, rotation):
+                if state.robot_system and state.robot_system.controller:
+                    state.robot_system.controller.set_velocity_vector(forward, lateral, rotation)
+            
+            vr_controller = VRArmController(None, vr_movement_callback)
+            vr_module.vr_arm_controller = vr_controller
+            logger.info("VR Control initialized")
+        except Exception as e:
+            logger.warning(f"VR Control init failed: {e}")
+    elif VR_ENABLED and not SOCKETIO_AVAILABLE:
+        logger.warning("VR Control disabled (flask-socketio not installed)")
 
 
 def cleanup(signum=None, frame=None):
@@ -114,94 +148,59 @@ def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     
-    # Initialize Robot System
-    logger.info("Initializing Robot System...")
-    robot = RobotSystem()
-    state.robot_system = robot
-    
-    # Initialize TTS
-    logger.info("Initializing TTS...")
-    tts.init()
-    
-    # Initialize AI Agent
-    if robot.controller:
-        logger.info("Initializing AI Agent...")
-        # Minimal tools - no individual camera controls to avoid confusion
-        tools = [
-            create_move_forward(robot.controller),
-            create_move_backward(robot.controller),
-            create_turn_left(robot.controller),
-            create_turn_right(robot.controller),
-            create_slide_left(robot.controller),
-            create_slide_right(robot.controller),
-            create_look_around(robot.controller, robot.camera),
-            create_end_task(),
-            create_enable_precision_mode(),
-            create_disable_precision_mode(),
-            create_save_note(),
-            create_enable_approach_mode(),
-            create_disable_approach_mode(),
-            create_speak(),
-            create_run_robot_policy()
-        ]
-
-        model_name = os.getenv("AI_MODEL", "openai/gpt-5.2") 
+    def deferred_init():
+        """Initialize hardware in background so web UI is available immediately."""
+        logger.info("Initializing Robot System...")
+        robot = RobotSystem()
+        state.robot_system = robot
         
-        try:
-            agent = NavigationAgent(robot, model_name, tools)
-            state.agent = agent
-            logger.info("AI Agent ready")
-        except Exception as e:
-            logger.warning(f"AI Agent init failed: {e}")
-    else:
-        logger.warning("Robot controller not ready, AI disabled")
+        logger.info("Initializing TTS...")
+        tts.init()
+        
+        # Initialize AI Agent
+        if robot.controller:
+            logger.info("Initializing AI Agent...")
+            tools = [
+                create_move_forward(robot.controller),
+                create_move_backward(robot.controller),
+                create_turn_left(robot.controller),
+                create_turn_right(robot.controller),
+                create_slide_left(robot.controller),
+                create_slide_right(robot.controller),
+                create_look_around(robot.controller, robot.camera),
+                create_end_task(),
+                create_enable_precision_mode(),
+                create_disable_precision_mode(),
+                create_save_note(),
+                create_enable_approach_mode(),
+                create_disable_approach_mode(),
+                create_speak(),
+                create_run_robot_policy()
+            ]
 
-    # Start Threads
-    logger.info("Starting background threads...")
-    
-    # Movement thread (manual control)
-    threading.Thread(target=movement_loop, daemon=True).start()
-    
-    # AI Agent thread
-    threading.Thread(target=agent_loop, daemon=True).start()
-    
-    
-    # Initialize VR Control (if enabled)
-    vr_controller = None
-    
-    # Check if camera exists (vital for VR)
-    camera_exists = False
-    if isinstance(CAMERA_PORT, str) and os.path.exists(CAMERA_PORT):
-        camera_exists = True
-    elif isinstance(CAMERA_PORT, int):
-         # If integer index, check typical usage
-         camera_exists = os.path.exists(f"/dev/video{CAMERA_PORT}")
-    
-    if VR_ENABLED and SOCKETIO_AVAILABLE:
-        if not camera_exists:
-             logger.warning(f"VR Control disabled: Camera {CAMERA_PORT} not found")
+            model_name = os.getenv("AI_MODEL", "openai/gpt-5.2") 
+            
+            try:
+                agent = NavigationAgent(robot, model_name, tools)
+                state.agent = agent
+                logger.info("AI Agent ready")
+            except Exception as e:
+                logger.warning(f"AI Agent init failed: {e}")
         else:
-            logger.info("Initializing VR Control...")
-        try:
-            from vr_arm_controller import VRArmController
-            import vr_arm_controller as vr_module
-            
-            # Movement callback for joystick
-            def vr_movement_callback(forward, lateral, rotation):
-                if state.robot_system and state.robot_system.controller:
-                    state.robot_system.controller.set_velocity_vector(forward, lateral, rotation)
-            
-            # Late-binding of hardware controller
-            vr_controller = VRArmController(None, vr_movement_callback)
-            vr_module.vr_arm_controller = vr_controller
-            logger.info("VR Control initialized")
-        except Exception as e:
-            logger.warning(f"VR Control init failed: {e}")
-    elif VR_ENABLED and not SOCKETIO_AVAILABLE:
-        logger.warning("VR Control disabled (flask-socketio not installed)")
+            logger.warning("Robot controller not ready, AI disabled")
+
+        # Start movement and agent threads
+        threading.Thread(target=movement_loop, daemon=True).start()
+        threading.Thread(target=agent_loop, daemon=True).start()
+        
+        # Initialize VR Control (if enabled)
+        init_vr_control()
+        
+        tts.speak("System ready")
+        logger.info("Hardware initialization complete")
     
-    # TTS Startup Announcement
-    tts.speak("System ready")
+    # Start hardware init in background
+    threading.Thread(target=deferred_init, daemon=True).start()
     
     # Start Web Server
     app = create_app()
@@ -211,27 +210,30 @@ def main():
     if SOCKETIO_AVAILABLE:
         socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
         
-        # Register VR socket events
-        if vr_controller:
-            @socketio.on('connect')
-            def handle_connect():
+        # Register VR socket events (handlers check vr_controller at runtime)
+        @socketio.on('connect')
+        def handle_connect():
+            if vr_controller:
                 vr_controller.vr_handler.on_connect()
-            
-            @socketio.on('disconnect')
-            def handle_disconnect():
+        
+        @socketio.on('disconnect')
+        def handle_disconnect():
+            if vr_controller:
                 vr_controller.vr_handler.on_disconnect()
+        
+        @socketio.on('vr_connect')
+        def handle_vr_connect():
+            logger.info("VR client connected")
+        
+        @socketio.on('vr_data')
+        def handle_vr_data(data):
+            if not vr_controller:
+                return
+            # Late binding check for controller
+            if vr_controller.controller is None and state.robot_system and state.robot_system.controller:
+                vr_controller.controller = state.robot_system.controller
             
-            @socketio.on('vr_connect')
-            def handle_vr_connect():
-                logger.info("VR client connected")
-            
-            @socketio.on('vr_data')
-            def handle_vr_data(data):
-                # Late binding check for controller
-                if vr_controller.controller is None and state.robot_system and state.robot_system.controller:
-                    vr_controller.controller = state.robot_system.controller
-                
-                vr_controller.vr_handler.on_vr_data(data)
+            vr_controller.vr_handler.on_vr_data(data)
     
     print()
     print(f"🌐 http://localhost:{WEB_PORT}")
