@@ -35,18 +35,17 @@ Full guides available in [`docs/`](docs/):
 
 ## ⚡ Quick Start
 
+**Linux / macOS:**
 ```bash
-# 1. Clone
-git clone https://github.com/neooriginal/ARCS.git
-cd ARCS
-
-# 2. Configure
-cp .env.example .env  # Add your OPENAI_API_KEY
-
-# 3. Run
-python main.py
+curl -fsSL https://raw.githubusercontent.com/neooriginal/ARCS/main/install.sh | bash
 ```
-> UI available at `http://localhost:5000`
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/neooriginal/ARCS/main/install.ps1 | iex
+```
+
+> After installation, open `http://localhost:5000/settings` to configure hardware.
 
 ## 📋 Requirements
 - Python 3.10+

@@ -2,6 +2,7 @@
 Configuration Manager
 Reads/writes config.json with fallback to config.py defaults.
 """
+import os
 import json
 import logging
 from pathlib import Path
@@ -13,6 +14,9 @@ CONFIG_JSON_PATH = Path("config.json")
 
 # Default values (matching config.py)
 DEFAULTS = {
+    # AI Config
+    "OPENAI_API_KEY": "",
+
     # Hardware ports
     "CAMERA_PORT": "/dev/video2",
     "CAMERA_RIGHT_PORT": "/dev/video0",
@@ -85,6 +89,12 @@ class ConfigManager:
             # Auto-create with defaults
             self._save()
             logger.info("Created default config.json")
+            
+        # Inject API Key into Environment for LangChain/OpenAI
+        api_key = self._cache.get("OPENAI_API_KEY", "")
+        if api_key:
+            os.environ["OPENAI_API_KEY"] = api_key
+            logger.info("OPENAI_API_KEY loaded from config")
     
     def _save(self):
         """Write current config to JSON."""
