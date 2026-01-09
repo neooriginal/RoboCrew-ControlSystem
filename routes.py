@@ -536,8 +536,17 @@ def display_state():
         'ai_status': state.ai_status,
         'current_task': state.agent.current_task if state.agent and hasattr(state.agent, 'current_task') else None,
         'controller_connected': state.controller is not None,
-        'camera_connected': state.camera is not None and state.camera.isOpened() if state.camera else False,
+        
+        # Detailed Motor Status
+        'wheels_connected': state.controller is not None,
+        'head_connected': state.controller is not None,
         'arm_connected': state.arm_connected,
+        
+        # Detailed Camera Status
+        'camera_connected': state.camera is not None and state.camera.isOpened() if state.camera else False, # Keep for backward compatibility
+        'camera_main_connected': state.camera is not None and state.camera.isOpened() if state.camera else False,
+        'camera_right_connected': state.camera_right is not None and state.camera_right.isOpened() if state.camera_right else False,
+        
         'control_mode': control_mode,
         'precision_mode': state.precision_mode,
         'blockage': state.get_detector().latest_blockage if state.detector else {}

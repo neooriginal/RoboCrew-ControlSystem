@@ -14,26 +14,52 @@
         </div>
 
         <div style="display: grid; gap: 12px;">
+            <!-- Motors Section -->
             <div
-                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
-                <span style="font-weight: 500;">Controller</span>
-                <span id="status-controller" class="status-dot"></span>
+                style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">
+                Motors</div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Wheels</span>
+                <span id="status-wheels" class="status-dot"></span>
             </div>
             <div
-                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
-                <span style="font-weight: 500;">Camera</span>
-                <span id="status-camera" class="status-dot"></span>
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Head</span>
+                <span id="status-head" class="status-dot"></span>
             </div>
             <div
-                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
-                <span style="font-weight: 500;">Arm</span>
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Right Arm</span>
                 <span id="status-arm" class="status-dot"></span>
             </div>
+
+            <!-- Vision Section -->
             <div
-                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
-                <span style="font-weight: 500;">Active Mode</span>
-                <span id="status-mode"
-                    style="color: var(--primary); font-weight: 700; text-shadow: 0 0 10px rgba(0, 242, 255, 0.4);">LOADING...</span>
+                style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;">
+                Vision</div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Main Camera</span>
+                <span id="status-camera-main" class="status-dot"></span>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Right Arm Cam</span>
+                <span id="status-camera-right" class="status-dot"></span>
+            </div>
+
+            <!-- System Section -->
+            <div
+                style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;">
+                System</div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                <span style="font-weight: 500;">Control Mode</span>
+                <span id="status-mode" style="color: var(--primary); font-weight: 700;">LOADING...</span>
             </div>
         </div>
     </div>
@@ -100,10 +126,14 @@
                 }
             };
 
-            setStatus('status-controller', data.controller_connected);
-            setStatus('status-camera', data.camera_connected);
-            setStatus('status-uplink', data.camera_connected); // Link uplink to camera
+            setStatus('status-wheels', data.wheels_connected);
+            setStatus('status-head', data.head_connected);
             setStatus('status-arm', data.arm_connected);
+
+            setStatus('status-camera-main', data.camera_main_connected);
+            setStatus('status-camera-right', data.camera_right_connected);
+
+            setStatus('status-uplink', data.camera_main_connected); // Link uplink to main camera
 
             const modeEl = document.getElementById('status-mode');
             if (modeEl) modeEl.textContent = (data.control_mode || 'IDLE').toUpperCase();

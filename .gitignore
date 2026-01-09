@@ -147,3 +147,4 @@ robocrew_memory.db
 ./start.sh
 .env
 ./logs.sh
+config.json
