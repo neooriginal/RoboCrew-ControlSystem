@@ -3,17 +3,19 @@ import logging
 from typing import Optional
 
 from state import state
-from robots.xlerobot.servo_controls import ServoControler
+from robots import load_robot
+from robots.base import BaseRobot
 from core.config_manager import get_config
 
 WHEEL_USB = get_config("WHEEL_USB")
 HEAD_USB = get_config("HEAD_USB")
+ROBOT_TYPE = get_config("ROBOT_TYPE", "xlerobot")
 
 logger = logging.getLogger(__name__)
 
 class RobotSystem:
     def __init__(self):
-        self.controller: Optional[ServoControler] = None
+        self.robot: Optional[BaseRobot] = None
         self.camera = None
         self.camera_lock = threading.Lock()
         self.running = True
@@ -27,7 +29,7 @@ class RobotSystem:
         """Background initialization sequence."""
         logger.info("Starting hardware initialization sequence...")
         self._init_camera()
-        self._init_servos()
+        self._init_robot()
         logger.info("Hardware initialization complete")
 
     def _init_camera(self):
@@ -46,38 +48,51 @@ class RobotSystem:
             logger.error(f"Camera init error: {e}")
             self.camera = None
 
-    def _init_servos(self):
-        """Initialize servo controller."""
-        logger.info(f"Connecting servos ({WHEEL_USB}, {HEAD_USB})...")
+    def _init_robot(self):
+        """Initialize robot driver using factory."""
+        logger.info(f"Loading robot type '{ROBOT_TYPE}'...")
         try:
-            self.controller = ServoControler(
-                WHEEL_USB, 
-                HEAD_USB,
-                enable_arm=True
+            self.robot = load_robot(
+                ROBOT_TYPE,
+                wheel_usb=WHEEL_USB,
+                head_usb=HEAD_USB,
+                enable_arm=True,
             )
-            state.controller = self.controller
+            self.robot.connect()
+            
+            # Update state for backwards compatibility
+            if hasattr(self.robot, 'controller'):
+                state.controller = self.robot.controller
             
             # Initial readings
-            if self.controller.arm_enabled:
+            if self.robot.has_arm:
                 state.arm_connected = True
                 try:
-                    pos = self.controller.get_arm_position()
+                    pos = self.robot.get_arm_joints()
                     state.update_arm_positions(pos)
                 except Exception as e:
                     logger.warning(f"Could not read arm: {e}")
             
-            try:
-                pos = self.controller.get_head_position()
-                state.head_yaw = round(pos.get(7, 0), 1)
-                state.head_pitch = round(pos.get(8, 0), 1)
-            except Exception as e:
-                logger.warning(f"Could not read head: {e}")
-                
-            logger.info("Servos connected successfully")
+            if self.robot.has_head:
+                try:
+                    pos = self.robot.get_head_position()
+                    state.head_yaw = round(pos.get("yaw", 0), 1)
+                    state.head_pitch = round(pos.get("pitch", 0), 1)
+                except Exception as e:
+                    logger.warning(f"Could not read head: {e}")
+                    
+            logger.info(f"Robot '{self.robot.name}' connected successfully")
         except Exception as e:
-            logger.error(f"Servo connection failed: {e}")
+            logger.error(f"Robot connection failed: {e}")
             state.last_error = str(e)
-            self.controller = None
+            self.robot = None
+
+    # Backwards compatibility: expose controller from robot
+    @property
+    def controller(self):
+        if self.robot and hasattr(self.robot, 'controller'):
+            return self.robot.controller
+        return None
 
     def get_frame(self):
         if hasattr(state, 'latest_frame') and state.latest_frame is not None:
@@ -103,11 +118,11 @@ class RobotSystem:
     def cleanup(self):
         """Release resources."""
         self.running = False
-        if self.controller:
+        if self.robot:
             try:
-                self.controller.disconnect()
+                self.robot.disconnect()
             except Exception as e:
-                logger.error(f"Error disconnecting servos: {e}")
+                logger.error(f"Error disconnecting robot: {e}")
         
         # Lazy import to avoid circular dependency
         from camera import release_camera
@@ -115,10 +130,8 @@ class RobotSystem:
             
     def emergency_stop(self):
         """Immediate stop of all movement."""
-        if self.controller:
-            # Stop wheels
+        if self.robot:
             try:
-                self.controller._wheels_stop()
+                self.robot.stop_wheels()
             except Exception:
                 pass
-

@@ -23,6 +23,9 @@ DEFAULTS = {
     "WHEEL_USB": "/dev/robot_acm0",
     "HEAD_USB": "/dev/robot_acm1",
     
+    # Robot type (see robots/ folder for available types)
+    "ROBOT_TYPE": "xlerobot",
+    
     # Web server
     "WEB_PORT": 5000,
     
