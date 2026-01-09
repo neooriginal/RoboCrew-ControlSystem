@@ -607,6 +607,10 @@ def recording_status():
 def training_page():
     return render_template('training.html')
 
+@bp.route('/settings')
+def settings_page():
+    return render_template('settings.html')
+
 @bp.route('/api/training/datasets')
 def list_datasets():
     datasets = training_manager.list_datasets()
@@ -623,6 +627,7 @@ def start_training():
     dataset = data.get('dataset')
     job_name = data.get('job_name')
     device = data.get('device', 'auto') 
+    steps = int(data.get('steps', 2000))
     
     if not dataset:
         return jsonify({'status': 'error', 'error': 'Dataset required'}), 400
@@ -631,9 +636,9 @@ def start_training():
         return jsonify({'status': 'error', 'error': 'Job Name required'}), 400
 
     if device == 'remote':
-         success, msg = training_manager.queue_remote_training(dataset, job_name)
+         success, msg = training_manager.queue_remote_training(dataset, job_name, steps)
     else:
-         success, msg = training_manager.start_training(dataset, job_name, device)
+         success, msg = training_manager.start_training(dataset, job_name, device, steps)
          
     if success:
         return jsonify({'status': 'ok', 'job_name': msg})

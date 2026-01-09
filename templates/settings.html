@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block head %}
+<style>
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 20px;
+    }
+
+    .settings-card {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .settings-card h3 {
+        margin-top: 0;
+        color: #ddd;
+        border-bottom: 1px solid #333;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        color: #aaa;
+        font-size: 0.9em;
+    }
+
+    input,
+    select {
+        width: 100%;
+        background: #333;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+
+    .status-active {
+        color: #00ff9d;
+    }
+
+    .status-inactive {
+        color: #ff2a2a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-grid">
+
+    <!-- HuggingFace Authentication -->
+    <div class="settings-card">
+        <h3>🤗 HuggingFace Hub</h3>
+        <p style="color:#888; font-size:0.9em; margin-bottom:15px;">
+            Connect your HuggingFace account to upload datasets and sync trained policies.
+        </p>
+
+        <div id="hfAuthPanel">
+            <div style="padding:10px; text-align:center; color:#666;">Checking status...</div>
+        </div>
+    </div>
+
+    <!-- General Configuration (Future) -->
+    <div class="settings-card">
+        <h3>⚙️ General Configuration</h3>
+        <div style="padding:20px; text-align:center; color:#666; border: 1px dashed #444; border-radius:4px;">
+            More settings coming soon...
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ---- Auth Logic (Ported from training.html) ----
+
+    async function checkAuthStatus() {
+        try {
+            const res = await fetch('/api/training/auth');
+            const data = await res.json();
+            const panel = document.getElementById('hfAuthPanel');
+
+            if (data.username) {
+                panel.innerHTML = `
+                    <div style="background:#252525; padding:15px; border-radius:4px; border-left: 3px solid #00ff9d; margin-bottom:15px;">
+                        <div style="font-size:0.85em; color:#aaa; margin-bottom:4px;">Logged in as</div>
+                        <div style="font-size:1.1em; font-weight:bold; color:#fff;">${data.username}</div>
+                    </div>
+                    <button class="btn btn-danger" onclick="hfLogout()" style="width:100%">Disconnect Account</button>
+                `;
+            } else {
+                panel.innerHTML = `
+                    <label>HF Write Token</label>
+                    <input type="password" id="hfToken" placeholder="hf_..." style="margin-bottom:15px;">
+                    <button class="btn btn-primary" onclick="hfLogin()" style="width:100%">Login to HuggingFace</button>
+                    <div style="margin-top:10px; font-size:0.8em; color:#666; text-align:center;">
+                        Token must have "Write" permissions.
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error("Auth check failed", e);
+            document.getElementById('hfAuthPanel').innerHTML = "<div style='color:red'>Failed to connect to server.</div>";
+        }
+    }
+
+    async function hfLogin() {
+        const token = document.getElementById('hfToken').value.trim();
+        if (!token) return alert("Please enter a token");
+
+        const btn = document.querySelector('#hfAuthPanel button');
+        const originalText = btn.innerText;
+        btn.innerText = "Verifying...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/training/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                checkAuthStatus();
+            } else {
+                alert("Login Failed: " + data.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Error: " + e);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    async function hfLogout() {
+        if (!confirm("Disconnect from HuggingFace? This will stop auto-sync options.")) return;
+        await fetch('/api/training/auth/logout', { method: 'POST' });
+        checkAuthStatus();
+    }
+
+    document.addEventListener('DOMContentLoaded', checkAuthStatus);
+</script>
+{% endblock %}

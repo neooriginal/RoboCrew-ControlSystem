@@ -79,8 +79,7 @@ class TrainingManager:
         return {"job_available": False}
 
     def cleanup_stale_workers(self, timeout: int = 300):
-        """Remove workers/fail jobs if no heartbeat for timeout seconds.
-           Increased to 300s to prevent dropouts during heavy logging."""
+        """Remove workers/fail jobs if no heartbeat for timeout seconds."""
         now = time.time()
         to_remove = []
         for wid, info in self.workers.items():
@@ -122,17 +121,29 @@ class TrainingManager:
             self.workers[wid]['status'] = 'working'
             
         if self.current_job and self.current_job['name'] == job_name:
+            # Check for cancellation signal
+            if self.current_job.get('status') == 'cancelling':
+                return {"abort": True}
+
             self.logs.append(line)
             # Update Device Info if not present
             if 'worker_info' not in self.current_job and wid in self.workers:
                  self.current_job['worker_info'] = self.workers[wid]['gpu']
             logger.info(f"[REMOTE] {line}")
+            return {"abort": False}
         else:
              logger.debug(f"[REMOTE IGNORED] {job_name}: {line}")
+             # If job mismatches (e.g. server restarted or job killed), tell worker to stop
+             return {"abort": True}
 
     def remote_complete(self, data: dict):
         job_name = data.get('job_name')
         status = data.get('status')
+        
+        # Determine strict status
+        if self.current_job and self.current_job.get('status') == 'cancelling':
+             status = "cancelled"
+
         if self.current_job and self.current_job['name'] == job_name:
             self.is_training = False
             self.current_job['status'] = status
@@ -140,7 +151,7 @@ class TrainingManager:
             self.job_history.append(self.current_job)
             self.current_job = None
 
-    def queue_remote_training(self, dataset_name: str, job_name: str):
+    def queue_remote_training(self, dataset_name: str, job_name: str, steps: int = 2000):
         """Queue a job for a remote worker."""
         if self.is_training:
             return False, "Training in progress"
@@ -153,7 +164,6 @@ class TrainingManager:
         policy_repo = f"{hf_user}/{job_name}"
         
         # Using lerobot.scripts.lerobot_train based on pip show file list
-        # Reduced steps for real-world small datasets (prevents massive overfit)
         cmd = (
             f"python -m lerobot.scripts.lerobot_train "
             f"--dataset.repo_id={repo_id} "
@@ -161,7 +171,7 @@ class TrainingManager:
             f"--policy.repo_id={policy_repo} "
             f"--job_name={job_name} "
             f"--policy.device=cuda "
-            f"--steps=2000 "
+            f"--steps={steps} "
             f"--save_freq=500 "
             f"--eval_freq=10000 "
             f"--log_freq=50 "
@@ -201,20 +211,16 @@ class TrainingManager:
              if hf_user:
                  api = HfApi()
                  models = api.list_models(author=hf_user, sort="lastModified", direction=-1, limit=10) 
-                 # Limit to 10 most recent to avoid massive list? Or maybe 20.
                  for m in models:
                      policies.append(m.modelId)
         except Exception as e:
              logger.warning(f"Failed to list HF models: {e}")
              
-        # Dedup? Local "test" vs Remote "user/test". They are distinct strings.
         return policies
 
     def push_dataset_to_hub(self, dataset_name: str) -> tuple:
         """Attempt to upload local dataset to Hub."""
         try:
-             # Reuse DatasetRecorder logic or call command
-             # Easier to invoke command
              dataset_path = DATASET_ROOT / dataset_name
              hf_user = get_hf_username()
              if not hf_user: return False, "No HF User"
@@ -324,7 +330,7 @@ class TrainingManager:
 
         return True, " | ".join(msgs)
 
-    def start_training(self, dataset_name: str, job_name: str, device: str = "auto"):
+    def start_training(self, dataset_name: str, job_name: str, device: str = "auto", steps: int = 2000):
         if self.is_training:
             return False, "Training already in progress"
         
@@ -371,6 +377,7 @@ class TrainingManager:
             f"--output_dir={str(output_dir.absolute())}",
             f"--job_name={job_name}",
             f"--policy.device={device}",
+            f"--steps={steps}",
             "--wandb.enable=false",
             "--policy.push_to_hub=false"
         ]
@@ -411,6 +418,23 @@ class TrainingManager:
             return False, str(e)
 
     def stop_training(self):
+        # Handle Pending Remote Job
+        if self.current_job and self.current_job.get('status') == 'pending':
+            self.current_job['status'] = "cancelled"
+            self.is_training = False
+            # Clear pending queue
+            with self.pending_jobs.mutex:
+                self.pending_jobs.queue.clear()
+            logger.info("Cancelled pending remote job.")
+            return True
+
+        # Handle Running Remote Job - Signal Cancellation
+        if self.current_job and self.current_job.get('mode') == 'remote':
+            self.current_job['status'] = "cancelling"
+            logger.info("Signalling remote job cancellation...")
+            return True
+
+        # Handle Running Local Process
         if self.process and self.is_training:
             self.process.terminate()
             # Wait a bit then kill if needed
@@ -418,8 +442,6 @@ class TrainingManager:
             self.is_training = False
             return True
         return False
-
-    # Monitor Training (Remote & Local)
 
     def _monitor_training(self):
         if not self.process:

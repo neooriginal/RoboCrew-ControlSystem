@@ -1,233 +1,622 @@
 {% extends "base.html" %}
 
-{% block title %}Training Dashboard (BETA){% endblock %}
+{% block title %}Training Dashboard{% endblock %}
 
 {% block head %}
 <style>
-    .split-view {
+    /* Layout & Tabs */
+    .train-container {
         display: flex;
-        gap: 20px;
-        height: calc(100vh - 80px);
+        flex-direction: column;
+        height: calc(100vh - 140px);
+        max-width: 1200px;
+        margin: 0 auto;
     }
 
-    .panel {
+    .tabs {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 25px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 10px;
+    }
+
+    .tab-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+        background: rgba(0, 242, 255, 0.1);
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .tab-content {
+        display: none;
+        flex: 1;
+        overflow-y: hidden;
+        /* Changed from auto to hidden to let inner panels manage scroll */
+        height: 100%;
+        flex-direction: column;
+    }
+
+    .tab-content.active {
+        display: flex;
+        flex-direction: column;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Wizard Steps */
+    .wizard-progress {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        position: relative;
+        padding: 0 20px;
+    }
+
+    .wizard-progress::before {
+        content: '';
+        position: absolute;
+        top: 14px;
+        left: 40px;
+        right: 40px;
+        height: 2px;
+        background: #333;
+        z-index: 0;
+    }
+
+    .step-dot {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #222;
+        border: 2px solid #444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-weight: bold;
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s;
+    }
+
+    .step-dot.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #000;
+        box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    }
+
+    .step-dot.completed {
+        background: #224433;
+        border-color: var(--success);
+        color: var(--success);
+    }
+
+    .step-label {
+        position: absolute;
+        top: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        color: #aaa;
+        white-space: nowrap;
+    }
+
+    .step-dot.active .step-label {
+        color: var(--primary);
+    }
+
+    /* Cards & Selection */
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+    }
+
+    .selection-card {
         background: #1e1e1e;
         border: 1px solid #333;
         border-radius: 8px;
         padding: 20px;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-        /* Allow scrolling if content overflows */
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
     }
 
-    .panel h2 {
-        margin-top: 0;
-        color: #ddd;
-        border-bottom: 1px solid #333;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
-    }
-
-    .list-container {
-        /* Allow list to grow and let parent .panel scroll */
-        width: 100%;
-        margin-bottom: 20px;
-    }
-
-    .item-row {
-        background: #2a2a2a;
-        padding: 10px;
-        margin-bottom: 8px;
-        border-radius: 4px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .item-row:hover {
-        background: #333;
-    }
-
-    .status-badge {
-        font-size: 0.8em;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: #444;
-        color: #aaa;
-    }
-
-    .logs-panel {
-        background: #000;
-        color: #0f0;
-        font-family: monospace;
-        padding: 10px;
-        overflow-y: auto;
-        flex: 1;
-        font-size: 0.9em;
-        border: 1px solid #333;
-    }
-
-    .train-controls {
+    .selection-card:hover {
         background: #252525;
-        padding: 15px;
-        border-radius: 8px;
+        border-color: #555;
+    }
+
+    .selection-card.selected {
+        background: rgba(0, 242, 255, 0.05);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .card-icon {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+
+    .card-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #fff;
+    }
+
+    .card-meta {
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+    /* Form Elements */
+    .form-group {
         margin-bottom: 20px;
+        max-width: 500px;
     }
 
     label {
         display: block;
-        margin-bottom: 5px;
-        color: #aaa;
-        font-size: 0.9em;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        font-size: 0.9rem;
     }
 
-    input,
+    input[type="text"],
+    input[type="number"],
     select {
         width: 100%;
-        background: #333;
-        border: 1px solid #444;
+        background: #111;
+        border: 1px solid #333;
+        padding: 12px;
+        border-radius: 6px;
         color: #fff;
-        padding: 8px;
-        border-radius: 4px;
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    input:focus {
+        border-color: var(--primary);
+        outline: none;
+    }
+
+    /* Monitoring */
+    .monitor-panel {
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .monitor-header {
+        padding: 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #161616;
+    }
+
+    .progress-section {
+        padding: 30px;
+        text-align: center;
+    }
+
+    .progress-bar-container {
+        height: 6px;
+        background: #222;
+        border-radius: 3px;
+        margin: 20px 0 10px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), #00a8ff);
+        width: 0%;
+        transition: width 0.5s ease;
+    }
+
+    .logs-container {
+        flex: 1;
+        background: #000;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        color: #aaa;
+        padding: 15px;
+        overflow-y: auto;
+        border-top: 1px solid #333;
+        min-height: 0;
+        /* Important for flex child scrolling */
+    }
+
+    .log-line {
+        margin-bottom: 4px;
+        border-bottom: 1px solid #111;
+        padding-bottom: 2px;
+    }
+
+    .log-line.info {
+        color: #aaa;
+    }
+
+    .log-line.error {
+        color: #ff5555;
+    }
+
+    .log-line.success {
+        color: #55ff55;
+    }
+
+    /* Policy List */
+    .policy-item {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
         margin-bottom: 10px;
+        transition: all 0.2s;
+    }
+
+    .policy-item:hover {
+        transform: translateX(5px);
+        border-color: #555;
+    }
+
+    .policy-info {
+        flex: 1;
+    }
+
+    .policy-name {
+        font-weight: 600;
+        color: #fff;
+        font-size: 1.1em;
+    }
+
+    .policy-meta {
+        color: #666;
+        font-size: 0.85em;
+        margin-top: 4px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 50px;
+        color: #444;
+        border: 2px dashed #333;
+        border-radius: 12px;
+    }
+
+    /* Wizard Actions */
+    .wizard-footer {
+        margin-top: auto;
+        padding-top: 20px;
+        border-top: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="padding: 20px;">
+<div class="train-container">
 
-    <!-- Active Training Monitor (Top) -->
-    <div id="activeJobPanel"
-        style="display: none; background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #444;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; color: #fff;">🏃 Active Training Job: <span id="jobName"
-                    style="color: #00d2ff;">...</span></h3>
-            <button class="btn btn-danger" onclick="stopTraining()">Stop Training</button>
-        </div>
-
-        <!-- Progress Bar -->
-        <div id="progressContainer"
-            style="background: #333; height: 20px; border-radius: 10px; margin-bottom: 10px; position: relative; overflow: hidden; display:none;">
-            <div id="progressBar"
-                style="background: linear-gradient(90deg, #00d2ff, #007acc); height: 100%; width: 0%; transition: width 0.5s;">
-            </div>
-            <div id="progressText"
-                style="position: absolute; top: 0; left: 0; width: 100%; text-align: center; font-size: 12px; color: #fff; line-height: 20px; text-shadow: 1px 1px 2px black;">
-                Initializing...
-            </div>
-        </div>
-
-        <div class="logs-panel" id="trainingLogs" style="height: 200px;">
-            <div>> Waiting for logs...</div>
-        </div>
+    <!-- Tab Navigation -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('train')" id="tab-train"><span>🚀</span> Create
+            Policy</button>
+        <button class="tab-btn" onclick="switchTab('monitor')" id="tab-monitor"><span>📊</span> Monitor</button>
+        <button class="tab-btn" onclick="switchTab('run')" id="tab-run"><span>🤖</span> Run Policies</button>
     </div>
 
-    <div class="split-view">
-        <!-- Datasets Panel -->
-        <div class="panel">
-            <h2>HuggingFace Hub</h2>
-            <div id="hfAuthPanel" style="background:#252525; padding:10px; border-radius:4px; margin-bottom:15px;">
-                Checking login status...
+    <!-- TRAIN TAB (WIZARD) -->
+    <div id="content-train" class="tab-content active">
+
+        <!-- Steps Indicator -->
+        <div class="wizard-progress">
+            <div class="step-dot active" id="dot-1">1 <span class="step-label">Dataset</span></div>
+            <div class="step-dot" id="dot-2">2 <span class="step-label">Config</span></div>
+            <div class="step-dot" id="dot-3">3 <span class="step-label">Compute</span></div>
+            <div class="step-dot" id="dot-4">4 <span class="step-label">Finish</span></div>
+        </div>
+
+        <!-- Step 1: Dataset Selection -->
+        <div id="step-1" class="wizard-step">
+            <h3 style="margin-bottom:20px;">Select Source Dataset</h3>
+            <div id="dataset-list" class="card-grid">
+                <div style="padding:20px; color:#666;">Loading datasets...</div>
+            </div>
+        </div>
+
+        <!-- Step 2: Configuration -->
+        <div id="step-2" class="wizard-step" style="display:none;">
+            <h3 style="margin-bottom:20px;">Policy Configuration</h3>
+
+            <div class="form-group">
+                <label>Job Name</label>
+                <input type="text" id="jobName" placeholder="e.g. pick_place_v1">
+                <div style="font-size:0.8em; color:#666; margin-top:5px;">Unique identifier for this policy run.</div>
             </div>
 
-            <h2>Remote Workers <span id="workerCount" class="status-badge" style="display:none">0</span></h2>
-            <div id="workerPanel" style="background:#252525; padding:10px; border-radius:4px; margin-bottom:15px;">
-                <div style="color:#aaa; font-size:0.9em; margin-bottom:10px;">Connect a powerful PC to speed up
-                    training.</div>
-                <div id="workerList" style="margin-bottom:10px;"></div>
-                <div style="display:flex; gap:8px;">
-                    <a href="/static/train_remote.bat" download
-                        style="flex:1; background:#007acc; color:#fff; padding:8px 12px; border-radius:4px; text-align:center; text-decoration:none; font-size:0.9em;">📥
-                        Windows</a>
-                    <a href="/static/train_remote.sh" download
-                        style="flex:1; background:#444; color:#fff; padding:8px 12px; border-radius:4px; text-align:center; text-decoration:none; font-size:0.9em;">📥
-                        macOS</a>
+            <div class="form-group">
+                <label>Training Steps</label>
+                <input type="number" id="trainSteps" value="2000" min="500" max="100000" step="500">
+                <div style="font-size:0.8em; color:#666; margin-top:5px;">Steps. 2000 for tests, 20k+ for production.
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Compute -->
+        <div id="step-3" class="wizard-step" style="display:none;">
+            <h3 style="margin-bottom:20px;">Select Compute Backend</h3>
+
+            <div class="card-grid">
+                <!-- Remote User is Encouraged to Use -->
+                <div class="selection-card" onclick="selectCompute('remote', this)" id="compute-remote">
+                    <div class="card-icon">☁️</div>
+                    <div class="card-title">Remote Worker</div>
+                    <div class="card-meta">Offload to a powerful GPU workstation.</div>
+                    <div id="worker-status" style="margin-top:10px; font-size:0.8em; color:#888;">Checking workers...
+                    </div>
                 </div>
             </div>
 
-            <h2>Reference Datasets (Local)</h2>
-            <div class="train-controls">
-                <label>Job Name (Required)</label>
-                <input type="text" id="newJobName" placeholder="e.g. policy_test_1">
-                <small style="color:#666; display:block; margin-top:-5px; margin-bottom:10px;">Device will be
-                    auto-detected.</small>
+            <!-- Worker Downloads -->
+            <div style="margin-top:20px; border-top:1px solid #333; padding-top:20px;">
+                <h4 style="color:#aaa; margin-bottom:10px; font-size:0.9em;">Connect New Worker</h4>
+                <div style="display:flex; gap:10px;">
+                    <a href="/static/train_remote.bat" download class="btn"
+                        style="background:#333; color:#fff; border:1px solid #555; font-size:0.9em; padding:8px 12px; text-decoration:none;">📥
+                        Windows Script</a>
+                    <a href="/static/train_remote.sh" download class="btn"
+                        style="background:#333; color:#fff; border:1px solid #555; font-size:0.9em; padding:8px 12px; text-decoration:none;">📥
+                        Linux/Mac Script</a>
+                </div>
             </div>
-            <div class="list-container" id="datasetList">
-                <div style="color: #666; padding: 10px; text-align: center;">Loading datasets...</div>
+
+            <!-- Advanced / Local Hidden -->
+            <div style="margin-top:25px;">
+                <a href="#"
+                    onclick="document.getElementById('local-option').style.display='block'; this.style.display='none'; return false;"
+                    style="color:#555; font-size:0.85em; text-decoration:underline;">Show Advanced Options (Local
+                    Training)</a>
+
+                <div id="local-option" style="display:none; margin-top:15px;" class="card-grid">
+                    <div class="selection-card" onclick="selectCompute('local', this)" id="compute-local">
+                        <div class="card-icon">🖥️</div>
+                        <div class="card-title">Local Machine</div>
+                        <div class="card-meta">Train on this device.</div>
+                        <div style="margin-top:5px; font-size:0.8em; color:#ffaa00;">⚠️ Not Recommended (Slow/Laggy)
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Trained Policies Panel -->
-        <div class="panel">
-            <h2>Trained Policies</h2>
-            <div class="list-container" id="policyList">
-                <div style="color: #666; padding: 10px; text-align: center;">Loading policies...</div>
+        <!-- Step 4: Review -->
+        <div id="step-4" class="wizard-step" style="display:none;">
+            <h3 style="margin-bottom:20px;">Ready to Train?</h3>
+
+            <div style="background:#1e1e1e; padding:20px; border-radius:8px; margin-bottom:20px;">
+                <div style="margin-bottom:10px;"><strong>Dataset:</strong> <span id="review-dataset"
+                        style="color:var(--primary);">...</span></div>
+                <div style="margin-bottom:10px;"><strong>Job Name:</strong> <span id="review-job">...</span></div>
+                <div style="margin-bottom:10px;"><strong>Steps:</strong> <span id="review-steps">...</span></div>
+                <div><strong>Compute:</strong> <span id="review-compute">...</span></div>
+            </div>
+        </div>
+
+        <!-- Footer Navigation -->
+        <div class="wizard-footer">
+            <button class="btn" id="btn-back" onclick="moveStep(-1)"
+                style="display:none; background:#333; color:#fff;">Back</button>
+            <div style="flex:1;"></div>
+            <button class="btn btn-primary" id="btn-next" onclick="moveStep(1)">Next Step →</button>
+            <button class="btn btn-success" id="btn-start" onclick="startTraining()" style="display:none;">🚀 Start
+                Training</button>
+        </div>
+    </div>
+
+    <!-- MONITOR TAB -->
+    <div id="content-monitor" class="tab-content">
+        <div class="monitor-panel">
+            <div class="monitor-header">
+                <div>
+                    <h2 id="monitor-title" style="margin:0; font-size:1.2rem;">No Active Job</h2>
+                    <span id="monitor-status" style="color:#666; font-size:0.9em;">Idle</span>
+                </div>
+                <button class="btn btn-danger" id="btn-stop" onclick="stopTraining()"
+                    style="display:none;">Stop</button>
+            </div>
+
+            <div id="monitor-active-view" style="display:none; flex-direction:column; flex:1;">
+                <div class="progress-section">
+                    <div style="font-size:2rem; font-weight:bold; color:var(--primary);" id="progress-pct">0%</div>
+                    <div style="color:#888; font-size:0.9em;" id="progress-details">Initializing...</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                </div>
+                <div class="logs-container" id="training-logs">
+                    <div class="log-line info">Waiting for logs...</div>
+                </div>
+            </div>
+
+            <div id="monitor-empty-view" class="empty-state" style="margin:50px;">
+                <div style="font-size:3rem; margin-bottom:20px;">💤</div>
+                <h3>No training in progress</h3>
+                <p>Start a new policy training in the "Create Policy" tab.</p>
             </div>
         </div>
     </div>
+
+    <!-- RUN TAB -->
+    <div id="content-run" class="tab-content">
+        <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+            <h3>Available Policies</h3>
+            <button class="btn" onclick="loadPolicies()"
+                style="background:#333; color:#fff; font-size:0.9em; padding:8px 12px;">🔄 Refresh</button>
+        </div>
+
+        <div id="policy-list-container">
+            <div class="empty-state">Loading...</div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // ---- State ----
+    let currentStep = 1;
+    let wizardData = {
+        dataset: null,
+        jobName: '',
+        steps: 2000,
+        compute: null // Force selection
+    };
     let isTraining = false;
     let logInterval = null;
-    let policyInterval = null;
+    let logIndex = 0;
+    let workerCount = 0;
 
-    async function loadData() {
-        checkAuthStatus();
+    // ---- Init ----
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDatasets();
+        pollWorkers();
+        checkActiveTraining();
+        setInterval(pollWorkers, 5000);
+    });
 
-        // Load Datasets
-        try {
-            const res = await fetch('/api/training/datasets');
-            const data = await res.json();
-            const container = document.getElementById('datasetList');
-            container.innerHTML = '';
+    // ---- Wizard Logic ----
 
-            if (data.datasets.length === 0) {
-                container.innerHTML = '<div style="color:#666; padding:10px;">No datasets found in logs/datasets/</div>';
-            }
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-            data.datasets.forEach(name => {
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `
-                    <span style="font-weight: bold; color: #fff;">📄 ${name}</span>
-                    <div>
-                        <button class="btn btn-sm btn-primary" onclick="requestTrain('${name}')" style="margin-right:8px;">Train ACT</button>
-                        <button class="btn btn-sm" onclick="renameDataset('${name}')" style="margin-right:8px; background: #666;">Rename</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteDataset('${name}')" style="padding: 2px 8px;">🗑️</button>
-                    </div>
-                `;
-                container.appendChild(row);
-            });
-        } catch (e) { console.error(e); }
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        document.getElementById(`content-${tab}`).classList.add('active');
 
-        // Load Policies
-        try {
-            const res = await fetch('/api/training/policies');
-            const data = await res.json();
-            const container = document.getElementById('policyList');
-            container.innerHTML = '';
-
-            if (data.policies.length === 0) {
-                container.innerHTML = '<div style="color:#666; padding:10px;">No policies found in logs/policies/</div>';
-            }
-
-            data.policies.forEach(name => {
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `
-                    <span style="font-weight: bold; color: #0f0;">🧠 ${name}</span>
-                    <button class="btn btn-sm btn-success" onclick="runPolicy('${name}')">Run Policy</button>
-                `;
-                container.appendChild(row);
-            });
-        } catch (e) { console.error(e); }
+        if (tab === 'run') loadPolicies();
     }
+
+    function moveStep(delta) {
+        // Validation
+        if (delta > 0) {
+            if (currentStep === 1 && !wizardData.dataset) return alert("Please select a dataset.");
+            if (currentStep === 2) {
+                const name = document.getElementById('jobName').value.trim();
+                if (!name) return alert("Please enter a Job Name.");
+                wizardData.jobName = name;
+                wizardData.steps = document.getElementById('trainSteps').value;
+            }
+            if (currentStep === 3) {
+                if (!wizardData.compute) return alert("Please select a compute backend (Local or Remote).");
+                if (wizardData.compute === 'remote' && workerCount === 0) {
+                    return alert("No workers connected. Please connect a worker or use Local (Advanced).");
+                }
+            }
+        }
+
+        currentStep += delta;
+
+        // Update UI
+        document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+        document.getElementById(`step-${currentStep}`).style.display = 'block';
+
+        // Update Dots
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            dot.classList.remove('active', 'completed');
+            if (i === currentStep) dot.classList.add('active');
+            if (i < currentStep) dot.classList.add('completed');
+        }
+
+        // Show/Hide Buttons
+        document.getElementById('btn-back').style.display = currentStep > 1 ? 'block' : 'none';
+
+        if (currentStep === 4) {
+            document.getElementById('btn-next').style.display = 'none';
+            document.getElementById('btn-start').style.display = 'block';
+            updateReview();
+        } else {
+            document.getElementById('btn-next').style.display = 'block';
+            document.getElementById('btn-start').style.display = 'none';
+        }
+    }
+
+    function selectDataset(name, el) {
+        wizardData.dataset = name;
+        document.querySelectorAll('#dataset-list .selection-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+
+        // Auto-fill Job Name if empty
+        const jobInput = document.getElementById('jobName');
+        if (!jobInput.value) {
+            const date = new Date();
+            const ts = `${date.getMonth() + 1}${date.getDate()}_${date.getHours()}${date.getMinutes()}`;
+            jobInput.value = `policy_${name}_${ts}`;
+        }
+    }
+
+    function selectCompute(type, el) {
+        if (type === 'remote' && workerCount === 0) {
+            alert("No workers connected. Please connect a worker script first.");
+            return;
+        }
+        wizardData.compute = type;
+        document.querySelectorAll('#step-3 .selection-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function updateReview() {
+        document.getElementById('review-dataset').innerText = wizardData.dataset;
+        document.getElementById('review-job').innerText = wizardData.jobName;
+        document.getElementById('review-steps').innerText = wizardData.steps;
+        document.getElementById('review-compute').innerText = wizardData.compute === 'local' ? 'Local Machine' : 'Remote Worker';
+    }
+
+    // ---- CRUD Actions ----
 
     async function renameDataset(oldName) {
         const newName = prompt("Enter new name for dataset '" + oldName + "':", oldName);
@@ -241,8 +630,7 @@
             });
             const data = await res.json();
             if (data.status === 'ok') {
-                alert("Renamed: " + data.message);
-                loadData();
+                loadDatasets();
             } else {
                 alert("Error: " + data.message);
             }
@@ -250,7 +638,7 @@
     }
 
     async function deleteDataset(name) {
-        if (!confirm(`⚠️ PERMANENTLY DELETE '${name}'?\n\nThis will delete:\n1. Local copy in /logs/datasets/\n2. Remote repo on HuggingFace Hub\n\nAre you sure?`)) return;
+        if (!confirm(`⚠️ PERMANENTLY DELETE '${name}'?`)) return;
 
         try {
             const res = await fetch('/api/training/datasets/delete', {
@@ -260,323 +648,230 @@
             });
             const data = await res.json();
             if (data.status === 'ok') {
-                alert("Deleted: " + data.message);
-                loadData();
+                loadDatasets();
             } else {
                 alert("Error: " + data.message);
             }
         } catch (e) { alert("Req error: " + e); }
     }
 
-    async function requestTrain(datasetName) {
-        const jobName = document.getElementById('newJobName').value.trim();
+    // ---- Data Loading ----
 
-        if (isTraining) {
-            alert("A training job is already active.");
-            return;
-        }
-
-        if (!jobName) {
-            alert("Please provide a Job Name for the new policy.");
-            document.getElementById('newJobName').focus();
-            return;
-        }
-
-        let device = 'auto';
-
-        // Remote Worker Logic
-        if (window.activeWorkers && window.activeWorkers.length > 0) {
-            device = 'remote';
-            if (window.activeWorkers.length === 1) {
-                let w = window.activeWorkers[0];
-                if (!confirm(`🚀 Train on ${w.gpu}?\n\nDataset: ${datasetName}\nJob: ${jobName}`)) return;
-            } else {
-                let info = window.activeWorkers.map((w, i) => `${i + 1}. ${w.gpu}`).join('\n');
-                let choice = prompt(`Select Worker:\n${info}`);
-                if (!choice) return;
-            }
-        }
-
+    async function loadDatasets() {
         try {
-            const res = await fetch('/api/training/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    dataset: datasetName,
-                    job_name: jobName,
-                    device: device
-                })
-            });
+            const res = await fetch('/api/training/datasets');
             const data = await res.json();
+            const container = document.getElementById('dataset-list');
 
-            if (data.status === 'ok') {
-                startMonitoring();
-            } else {
-                alert("Error: " + data.error);
+            if (data.datasets.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No datasets found.<br><small>Record a new dataset in Remote Control -> Record</small></div>';
+                return;
             }
-        } catch (e) { alert("Req error: " + e); }
+
+            container.innerHTML = data.datasets.map(name => `
+                <div class="selection-card" style="display:flex; flex-direction:column;">
+                    <div style="flex:1; cursor:pointer;" onclick="selectDataset('${name}', this.parentElement)">
+                        <div class="card-icon">💾</div>
+                        <div class="card-title">${name}</div>
+                        <div class="card-meta">Local Dataset</div>
+                    </div>
+                    <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px; display:flex; justify-content:space-between; gap:5px;">
+                         <button class="btn btn-sm" onclick="event.stopPropagation(); renameDataset('${name}')" style="background:#333; color:#fff; font-size:0.85em; padding:6px 10px; border:1px solid #555;">Rename</button>
+                         <button class="btn btn-sm" onclick="event.stopPropagation(); deleteDataset('${name}')" style="background:rgba(255,50,50,0.2); color:#ff5555; font-size:0.85em; padding:6px 10px; border:1px solid rgba(255,50,50,0.3);">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    async function loadPolicies() {
+        try {
+            const res = await fetch('/api/training/policies');
+            const data = await res.json();
+            const container = document.getElementById('policy-list-container');
+
+            if (data.policies.length === 0) {
+                container.innerHTML = '<div class="empty-state">No trained policies found. Start training!</div>';
+                return;
+            }
+
+            container.innerHTML = data.policies.map(name => `
+                <div class="policy-item">
+                    <div class="policy-info">
+                        <div class="policy-name">${name}</div>
+                        <div class="policy-meta">Ready to deploy</div>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-sm btn-success" onclick="runPolicy('${name}')">▶ Run</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
     }
 
     async function pollWorkers() {
         try {
             const res = await fetch('/api/training/worker_status');
             const data = await res.json();
-            window.activeWorkers = data.workers || [];
+            workerCount = data.workers ? data.workers.length : 0;
+            const statusEl = document.getElementById('worker-status');
+            const remoteCard = document.getElementById('compute-remote');
 
-            const list = document.getElementById('workerList');
-            const badge = document.getElementById('workerCount');
-
-            if (window.activeWorkers.length > 0) {
-                badge.innerText = window.activeWorkers.length;
-                badge.style.display = 'inline-block';
-                badge.style.background = '#00d2ff';
-                badge.style.color = '#000';
-
-                list.innerHTML = window.activeWorkers.map(w => `
-                    <div style="background:#333; padding:5px; margin-bottom:5px; border-left:3px solid #0f0; font-size:0.9em;">
-                        🖥️ <strong>${w.gpu}</strong><br>
-                        Status: ${w.status}
-                    </div>
-                `).join('');
+            if (workerCount > 0) {
+                statusEl.innerHTML = `<span style="color:#00ff9d;">● ${workerCount} Worker(s) online</span>`;
+                if (remoteCard) remoteCard.style.opacity = '1';
             } else {
-                badge.style.display = 'none';
-                list.innerHTML = '<div style="color:#666; font-size:0.8em;">No workers connected...</div>';
-            }
-        } catch (e) { }
-    }
-
-    setInterval(pollWorkers, 3000);
-
-    // ---- Execution Monitoring ----
-
-    async function stopTraining() {
-        if (!confirm("Stop training process?")) return;
-        await fetch('/api/training/stop', { method: 'POST' });
-    }
-
-    async function startMonitoring() {
-        showPanel("training");
-        isTraining = true;
-
-        // Reset Progress
-        document.getElementById('progressContainer').style.display = 'block';
-        document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('progressText').innerText = "Starting...";
-        window.maxSteps = 0;
-        window.currentStep = 0;
-        window.logIndex = 0; // Reset Log Index
-
-        if (logInterval) clearInterval(logInterval);
-        logInterval = setInterval(pollTrainingStatus, 1000);
-    }
-
-    async function pollTrainingStatus() {
-        try {
-            const res = await fetch(`/api/training/status?since=${window.logIndex || 0}`);
-            const data = await res.json();
-            isTraining = data.status.is_training;
-
-            // Logs
-            const logPanel = document.getElementById('trainingLogs');
-            if (data.logs && data.logs.length > 0) {
-                window.logIndex = (window.logIndex || 0) + data.logs.length;
-                data.logs.forEach(line => {
-                    const div = document.createElement('div');
-                    div.innerText = line;
-                    logPanel.appendChild(div);
-
-                    // Parse Progress
-                    const maxMatch = line.match(/cfg\.steps=(\d+)/);
-                    if (maxMatch) window.maxSteps = parseInt(maxMatch[1]);
-
-                    const stepMatch = line.match(/'step':\s*(\d+)/);
-                    if (stepMatch) {
-                        window.currentStep = parseInt(stepMatch[1]);
-                        if (window.maxSteps > 0) {
-                            const pct = Math.min(100, (window.currentStep / window.maxSteps) * 100).toFixed(1);
-                            document.getElementById('progressBar').style.width = pct + '%';
-                            document.getElementById('progressText').innerText = `${window.currentStep} / ${window.maxSteps} Steps (${pct}%)`;
-                        }
+                statusEl.innerHTML = `<span style="color:#888;">● No workers connected</span>`;
+                if (remoteCard) {
+                    if (wizardData.compute === 'remote') {
+                        // Don't auto-deselect just yet to avoid jumping, but user can't click next
                     }
-                });
-                logPanel.scrollTop = logPanel.scrollHeight;
-            }
-
-            if (data.status.current_job) {
-                document.getElementById('jobName').innerText = data.status.current_job.name;
-            }
-
-            if (!isTraining) {
-                clearInterval(logInterval);
-                document.getElementById('activeJobPanel').style.display = 'none';
-                loadData();
-                if (data.status.current_job && data.status.current_job.status === 'completed') {
-                    alert("Training Completed Successfully!");
+                    remoteCard.style.opacity = '0.4';
                 }
             }
         } catch (e) { }
     }
 
-    // ---- Policy Execution ----
+    // ---- Training Actions ----
 
-    async function runPolicy(name) {
-        if (!confirm(`Run policy '${name}' on Robot?`)) return;
+    async function startTraining() {
+        const payload = {
+            dataset: wizardData.dataset,
+            job_name: wizardData.jobName,
+            device: wizardData.compute === 'local' ? 'auto' : 'remote',
+            steps: parseInt(wizardData.steps)
+        };
 
         try {
-            showPanel("policy", name);
-
-            // 1. Load
-            let res = await fetch('/api/policies/load', {
+            const res = await fetch('/api/training/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ policy_name: name, device: 'auto' })
+                body: JSON.stringify(payload)
             });
-            let data = await res.json();
-            if (data.status !== 'ok') {
-                alert("Load Failed: " + data.error);
-                hidePanel();
-                return;
-            }
-
-            // 2. Run
-            res = await fetch('/api/policies/run', { method: 'POST' });
-            data = await res.json();
-            if (data.status === 'ok') {
-                startPolicyMonitoring(name);
-            } else {
-                alert("Run Failed: " + data.error);
-                hidePanel();
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Error starting policy");
-            hidePanel();
-        }
-    }
-
-    function startPolicyMonitoring(name) {
-        if (policyInterval) clearInterval(policyInterval);
-        policyInterval = setInterval(pollPolicyStatus, 1000);
-        showPanel("policy", name);
-    }
-
-    async function pollPolicyStatus() {
-        try {
-            const res = await fetch('/api/policies/status');
             const data = await res.json();
 
-            if (!data.is_running) {
-                clearInterval(policyInterval);
-                hidePanel();
+            if (data.status === 'ok') {
+                switchTab('monitor');
+                setTimeout(() => {
+                    currentStep = 1;
+                    moveStep(0);
+                }, 1000);
+                startMonitoring(true);
             } else {
-                showPanel("policy", data.current_policy);
+                alert("Error: " + data.error);
+            }
+        } catch (e) { alert("Request Error: " + e); }
+    }
+
+    async function stopTraining() {
+        if (!confirm("Stop current training job?")) return;
+        try {
+            await fetch('/api/training/stop', { method: 'POST' });
+            setTimeout(() => startMonitoring(), 1000);
+        } catch (e) { alert("Stop failed: " + e); }
+    }
+
+    // ---- Monitoring Logic ----
+
+    function checkActiveTraining() {
+        fetch('/api/training/status').then(r => r.json()).then(d => {
+            if (d.status.is_training) {
+                switchTab('monitor');
+                startMonitoring();
+            }
+        });
+    }
+
+    function startMonitoring(reset = false) {
+        if (logInterval) clearInterval(logInterval);
+
+        document.getElementById('monitor-empty-view').style.display = 'none';
+        document.getElementById('monitor-active-view').style.display = 'flex';
+        document.getElementById('btn-stop').style.display = 'block';
+
+        if (reset) {
+            document.getElementById('training-logs').innerHTML = '';
+            logIndex = 0;
+        }
+
+        logInterval = setInterval(pollStatus, 1000);
+    }
+
+    async function pollStatus() {
+        try {
+            const res = await fetch(`/api/training/status?since=${logIndex}`);
+            const data = await res.json();
+
+            const job = data.status.current_job;
+            if (job) {
+                document.getElementById('monitor-title').innerText = job.name;
+
+                if (job.status === 'pending') {
+                    document.getElementById('monitor-status').innerHTML = '<span style="color:#ffaa00">Waiting for Worker...</span>';
+                    document.getElementById('progress-details').innerText = "Queued in Cloud...";
+                } else {
+                    document.getElementById('monitor-status').innerText = data.status.is_training ? "Running..." : job.status;
+                }
+            }
+
+            if (data.logs && data.logs.length > 0) {
+                logIndex += data.logs.length;
+                const container = document.getElementById('training-logs');
+
+                data.logs.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'log-line';
+                    div.innerText = line;
+                    container.appendChild(div);
+
+                    const stepsMatch = line.match(/'step':\s*(\d+)/);
+                    if (stepsMatch) {
+                        const current = parseInt(stepsMatch[1]);
+                        if (!window.maxSteps) {
+                            const maxMatch = line.match(/cfg\.steps=(\d+)/);
+                            if (maxMatch) window.maxSteps = parseInt(maxMatch[1]);
+                        }
+                        const max = window.maxSteps || wizardData.steps || 2000;
+
+                        const pct = Math.min(100, (current / max) * 100).toFixed(1);
+                        document.getElementById('progress-bar').style.width = pct + '%';
+                        document.getElementById('progress-pct').innerText = pct + '%';
+                        document.getElementById('progress-details').innerText = `Step ${current} / ${max}`;
+                    }
+                });
+                container.scrollTop = container.scrollHeight;
+            }
+
+            if (!data.status.is_training) {
+                clearInterval(logInterval);
+                document.getElementById('monitor-status').innerText = job ? job.status : "Stopped";
+                document.getElementById('btn-stop').style.display = 'none';
+                if (job && job.status === 'completed') {
+                    document.getElementById('progress-pct').innerText = "100%";
+                    document.getElementById('progress-bar').style.width = "100%";
+                    document.getElementById('progress-details').innerText = "Training Complete";
+                }
             }
         } catch (e) { }
     }
 
-    async function stopPolicy() {
-        await fetch('/api/policies/stop', { method: 'POST' });
-        hidePanel();
+    // ---- Policy Running ----
+    async function runPolicy(name) {
+        if (!confirm(`Run policy '${name}'? Robot will start moving!`)) return;
+
+        fetch('/api/policies/load', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ policy_name: name })
+        }).then(r => r.json()).then(d => {
+            if (d.status === 'ok') {
+                return fetch('/api/policies/run', { method: 'POST' });
+            } else throw d.error;
+        }).then(r => r.json()).then(d => {
+            if (d.status === 'ok') alert("Policy Running! Check Dashboard/Display.");
+            else alert("Error: " + d.error);
+        }).catch(e => alert("Error: " + e));
     }
 
-    // ---- Shared UI ----
-
-    function showPanel(type, name = "") {
-        const panel = document.getElementById('activeJobPanel');
-        panel.style.display = 'block';
-
-        const title = panel.querySelector('h3');
-        const btn = panel.querySelector('button');
-        const list = panel.querySelector('#trainingLogs');
-        const prog = panel.querySelector('#progressContainer');
-
-        if (type === 'training') {
-            title.innerHTML = `🏃 Active Training Job: <span id="jobName" style="color: #00d2ff;">${name || '...'}</span>`;
-            btn.innerText = "Stop Training";
-            btn.onclick = stopTraining;
-            btn.className = "btn btn-danger";
-            list.style.display = 'block';
-            prog.style.display = 'block';
-        } else {
-            title.innerHTML = `🤖 Running Policy: <span style="color: #0f0;">${name}</span>`;
-            btn.innerText = "Stop Policy";
-            btn.onclick = stopPolicy;
-            btn.className = "btn btn-danger";
-            list.style.display = 'none';
-            prog.style.display = 'none';
-        }
-    }
-
-    function hidePanel() {
-        document.getElementById('activeJobPanel').style.display = 'none';
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        loadData();
-        pollWorkers();
-
-        fetch('/api/training/status').then(r => r.json()).then(d => {
-            if (d.status.is_training) startMonitoring();
-        });
-
-        fetch('/api/policies/status').then(r => r.json()).then(d => {
-            if (d.is_running) startPolicyMonitoring(d.current_policy);
-        });
-    });
-
-    // ---- Auth ----
-
-    async function checkAuthStatus() {
-        try {
-            const res = await fetch('/api/training/auth');
-            const data = await res.json();
-            const panel = document.getElementById('hfAuthPanel');
-
-            if (data.username) {
-                panel.innerHTML = `
-                    <div style="margin-bottom:5px; color:#aaa;">Logged in as: <strong style="color:#0f0;">${data.username}</strong></div>
-                    <button class="btn btn-sm btn-danger" onclick="hfLogout()">Logout</button>
-                `;
-            } else {
-                panel.innerHTML = `
-                    <div style="margin-bottom:5px; font-size:0.9em; color:#aaa;">Enter HF Write Token:</div>
-                    <input type="password" id="hfToken" placeholder="hf_..." style="width:100%; margin-bottom:5px;">
-                    <button class="btn btn-sm btn-primary" onclick="hfLogin()" style="width:100%;">Login to HuggingFace</button>
-                `;
-            }
-        } catch (e) {
-            console.error("Auth check failed", e);
-            document.getElementById('hfAuthPanel').innerHTML = "Auth check failed.";
-        }
-    }
-
-    async function hfLogin() {
-        const token = document.getElementById('hfToken').value.trim();
-        if (!token) return alert("Please enter a token");
-
-        document.getElementById('hfAuthPanel').innerHTML = "Logging in...";
-
-        try {
-            const res = await fetch('/api/training/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: token })
-            });
-            const data = await res.json();
-            if (data.status === 'ok') {
-                alert(data.message);
-                checkAuthStatus();
-            } else {
-                alert("Login Failed: " + data.message);
-                checkAuthStatus();
-            }
-        } catch (e) { alert("Error: " + e); checkAuthStatus(); }
-    }
-
-    async function hfLogout() {
-        if (!confirm("Logout from HuggingFace?")) return;
-        await fetch('/api/training/auth/logout', { method: 'POST' });
-        checkAuthStatus();
-    }
 </script>
 {% endblock %}

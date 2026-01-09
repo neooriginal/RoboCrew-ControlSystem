@@ -102,9 +102,19 @@ def run_job(server_url, job, worker_id):
             if clean_line:
                 print(f"[train] {clean_line}")
                 try:
-                    requests.post(f"{server_url}/api/worker/log", json={
+                try:
+                    res = requests.post(f"{server_url}/api/worker/log", json={
                         "worker_id": worker_id, "job_name": job_name, "log": clean_line
                     }, timeout=2)
+                    
+                    # Check for abort signal
+                    if res.status_code == 200:
+                        data = res.json()
+                        if data.get("abort"):
+                            print("\n🛑 Received ABORT signal from server.")
+                            process.terminate()
+                            break
+                            
                 except Exception:
                     pass
                 

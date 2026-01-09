@@ -48,6 +48,10 @@
                     <span class="nav-icon">🧠</span>
                     <span class="nav-text">AI Agent</span>
                 </a>
+                <a href="/training" class="nav-item {{ 'active' if request.path == '/training' else '' }}">
+                    <span class="nav-icon">🎓</span>
+                    <span class="nav-text">Imitation</span>
+                </a>
                 <a href="/vr" class="nav-item {{ 'active' if request.path == '/vr' else '' }}">
                     <span class="nav-icon">🥽</span>
                     <span class="nav-text">VR Control</span>
@@ -56,13 +60,14 @@
                     <span class="nav-icon">💾</span>
                     <span class="nav-text">Memory</span>
                 </a>
-                <a href="/training" class="nav-item {{ 'active' if request.path == '/training' else '' }}">
-                    <span class="nav-icon">🎓</span>
-                    <span class="nav-text">Imitation</span>
-                </a>
             </nav>
 
             <div class="sidebar-footer">
+                <a href="/settings" class="nav-item {{ 'active' if request.path == '/settings' else '' }}"
+                    style="margin-bottom: 10px; color: #666; font-size: 0.85em;">
+                    <span class="nav-icon" style="font-size: 1rem;">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
                 <div class="connection-status">
                     <div class="connection-dot" id="connection-dot"></div>
                     <span id="global-status-text">Connected</span>
