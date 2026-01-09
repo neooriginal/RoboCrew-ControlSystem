@@ -179,6 +179,35 @@
         display: block;
     }
 
+    .input-with-icon {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .input-with-icon input {
+        flex: 1;
+    }
+
+    .btn-icon {
+        background: #333;
+        border: 1px solid #444;
+        color: #ddd;
+        padding: 10px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        transition: background 0.2s;
+    }
+
+    .btn-icon:hover {
+        background: #444;
+        border-color: #555;
+    }
+
     .advanced-toggle {
         background: none;
         border: none;
@@ -382,26 +411,18 @@
     </div>
 
     <!-- AI Configuration -->
-    <div class="panel">
-        <div class="panel-header" onclick="toggleSection('ai-config')">
+    <div class="settings-grid">
+        <div class="settings-card" style="width: 100%; max-width: 800px;">
             <h3>🧠 AI Configuration</h3>
-            <div class="toggle-icon">▼</div>
-        </div>
-        <div class="panel-content" id="ai-config">
-            <div class="setting-group">
+            <div class="form-group">
                 <label>OpenAI API Key</label>
                 <div class="input-with-icon">
-                    <input type="password" id="OPENAI_API_KEY" placeholder="sk-..." onchange="markDirty()">
-                    <button class="btn-icon" onclick="togglePassword('OPENAI_API_KEY')" title="Show/Hide">
+                    <input type="password" id="cfg_OPENAI_API_KEY" placeholder="sk-..." onchange="markDirty()">
+                    <button class="btn-icon" onclick="togglePassword('cfg_OPENAI_API_KEY')" title="Show/Hide">
                         👁️
                     </button>
                 </div>
-                <small>Required for AI Agent navigation and reasoning.</small>
-            </div>
-            <div class="setting-group">
-                <label>Minimum Brightness for AI</label>
-                <input type="number" id="AI_MIN_BRIGHTNESS" min="0" max="255" onchange="markDirty()">
-                <small>If brightness drops below this, AI will refuse to move safely.</small>
+                <div class="hint">Required for AI Agent navigation and reasoning.</div>
             </div>
         </div>
     </div>
