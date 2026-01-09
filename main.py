@@ -70,6 +70,7 @@ def create_app():
     app = Flask(__name__)
     app.register_blueprint(routes.bp)
     app.config['SECRET_KEY'] = 'robocrew-vr-secret'
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
     return app
 
 # Global SocketIO instance
