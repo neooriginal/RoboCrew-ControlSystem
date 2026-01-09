@@ -359,25 +359,6 @@
         } catch (e) { alert("Req error: " + e); }
     }
 
-    async function renamePolicy(oldName) {
-        const newName = prompt("Enter new name for policy '" + oldName + "':", oldName);
-        if (!newName || newName === oldName) return;
-
-        try {
-            const res = await fetch('/api/training/policies/rename', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_name: oldName, new_name: newName })
-            });
-            const data = await res.json();
-            if (data.status === 'ok') {
-                loadPolicies();
-            } else {
-                alert("Error: " + data.message);
-            }
-        } catch (e) { alert("Req error: " + e); }
-    }
-
     // ---- Data Loading ----
 
     async function loadDatasets() {
@@ -425,7 +406,6 @@
                         <div class="policy-meta">Ready to deploy</div>
                     </div>
                     <div style="display:flex; gap:10px;">
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); renamePolicy('${name}')" style="background:#444; color:#ccc; font-size:0.85em; padding:6px 10px; border:1px solid #555;">Rename</button>
                         <button class="btn btn-sm btn-success" onclick="runPolicy('${name}')">▶ Run</button>
                     </div>
                 </div>
