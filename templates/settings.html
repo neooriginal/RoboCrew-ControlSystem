@@ -80,6 +80,50 @@
                 </div>
             </div>
 
+            <!-- Lidar Sensor -->
+            <div class="settings-card">
+                <h3>📡 Lidar Sensor</h3>
+                <p style="color:#888; font-size:0.85em; margin-bottom:15px;">TF-Luna single-point distance sensor.
+                    Auto-detects if connected.</p>
+
+                <div class="form-group">
+                    <label>Protocol</label>
+                    <select id="cfg_LIDAR_PROTOCOL" onchange="onLidarProtocolChange()">
+                        <option value="uart">UART (Serial)</option>
+                        <option value="i2c">I2C</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="lidarPortGroup">
+                    <label>Serial Port</label>
+                    <div class="port-row">
+                        <select id="cfg_LIDAR_PORT"></select>
+                        <button type="button" class="manual-btn" onclick="toggleManual('LIDAR_PORT')">✏️</button>
+                    </div>
+                    <input type="text" id="cfg_LIDAR_PORT_manual" class="manual-input" placeholder="/dev/ttyUSB0">
+                </div>
+
+                <div class="form-group" id="lidarBaudGroup">
+                    <label>Baud Rate</label>
+                    <select id="cfg_LIDAR_BAUD_RATE">
+                        <option value="9600">9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="57600">57600</option>
+                        <option value="115200">115200</option>
+                        <option value="230400">230400</option>
+                        <option value="460800">460800</option>
+                    </select>
+                    <div class="hint">TF-Luna default: 115200</div>
+                </div>
+
+                <div class="form-group" id="lidarI2CGroup" style="display: none;">
+                    <label>I2C Address (decimal)</label>
+                    <input type="number" id="cfg_LIDAR_I2C_ADDRESS" min="1" max="127" value="16">
+                    <div class="hint">TF-Luna default: 16 (0x10)</div>
+                </div>
+            </div>
+
             <!-- TTS -->
             <div class="settings-card">
                 <h3>🗣️ Text-to-Speech</h3>
@@ -381,6 +425,9 @@
 
         // Update quality display
         document.getElementById('quality_val').innerText = config.STREAM_JPEG_QUALITY || 50;
+
+        // Initialize lidar UI state after config loaded
+        initLidarUI();
     }
 
     async function loadPorts() {
@@ -396,7 +443,7 @@
         el.innerHTML = '';
 
         const isVideo = key.includes('CAMERA');
-        const isSerial = key.includes('USB');
+        const isSerial = key.includes('USB') || key === 'LIDAR_PORT';
 
         const list = isVideo ? ports.video : (isSerial ? ports.serial : []);
 
@@ -471,6 +518,18 @@
         arrow.textContent = content.classList.contains('visible') ? '▼' : '▶';
     }
 
+    function onLidarProtocolChange() {
+        const protocol = document.getElementById('cfg_LIDAR_PROTOCOL').value;
+        const isUart = protocol === 'uart';
+        document.getElementById('lidarPortGroup').style.display = isUart ? 'block' : 'none';
+        document.getElementById('lidarBaudGroup').style.display = isUart ? 'block' : 'none';
+        document.getElementById('lidarI2CGroup').style.display = isUart ? 'none' : 'block';
+    }
+
+    function initLidarUI() {
+        onLidarProtocolChange();
+    }
+
     async function saveConfig() {
         // Gather all values
         const data = {};
@@ -490,6 +549,9 @@
                 value = el.checked;
             } else if (el.type === 'number' || el.type === 'range') {
                 value = parseFloat(el.value);
+            } else if (key === 'LIDAR_BAUD_RATE') {
+                // Baud rate from select needs to be integer
+                value = parseInt(el.value, 10);
             } else {
                 value = el.value;
             }

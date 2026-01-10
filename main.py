@@ -131,6 +131,13 @@ def cleanup(signum=None, frame=None) -> NoReturn:
         vr_kinematics.cleanup()
     except Exception:
         pass
+    
+    # Cleanup lidar
+    if state.lidar:
+        try:
+            state.lidar.disconnect()
+        except Exception:
+            pass
 
     import tts
     tts.shutdown()
@@ -184,6 +191,16 @@ def _deferred_init() -> None:
     threading.Thread(target=agent_loop, daemon=True).start()
 
     init_vr_control()
+    
+    # Initialize lidar sensor (auto-detects connection)
+    try:
+        from core.lidar import init_lidar
+        if init_lidar():
+            logger.info("Lidar sensor connected")
+        else:
+            logger.debug("Lidar sensor not available")
+    except Exception as e:
+        logger.debug(f"Lidar init skipped: {e}")
 
     tts.speak("System ready")
     logger.info("Hardware initialization complete")

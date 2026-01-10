@@ -69,6 +69,12 @@ DEFAULTS = {
     "VR_WEBSOCKET_PORT": 8442,
     "VR_TO_ROBOT_SCALE": 1.0,
     "VR_SEND_INTERVAL": 0.05,
+    
+    # Lidar Sensor (TF-Luna single-point)
+    "LIDAR_PORT": "",              # Serial port (e.g., /dev/ttyUSB0)
+    "LIDAR_PROTOCOL": "uart",      # "uart" or "i2c"
+    "LIDAR_BAUD_RATE": 115200,     # For UART mode
+    "LIDAR_I2C_ADDRESS": 16,       # Default TF-Luna I2C address (0x10 = 16)
 }
 
 

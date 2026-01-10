@@ -76,6 +76,10 @@ class RobotState:
         
         # Position tracking (for QR code location logging)
         self.pose = None
+        
+        # Lidar sensor state
+        self.lidar = None
+        self.lidar_distance = None  # Last distance reading in cm
 
     
     def update_movement(self, data):

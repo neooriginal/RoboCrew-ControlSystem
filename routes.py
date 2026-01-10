@@ -548,6 +548,10 @@ def display_state():
         'camera_main_connected': state.camera is not None and state.camera.isOpened() if state.camera else False,
         'camera_right_connected': state.camera_right is not None and state.camera_right.isOpened() if state.camera_right else False,
         
+        # Lidar Status
+        'lidar_connected': state.lidar is not None and state.lidar.connected if state.lidar else False,
+        'lidar_distance': state.lidar_distance,
+        
         'control_mode': control_mode,
         'precision_mode': state.precision_mode,
         'blockage': state.get_detector().latest_blockage if state.detector else {}
