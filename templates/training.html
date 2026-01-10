@@ -399,17 +399,48 @@
                 return;
             }
 
-            container.innerHTML = data.policies.map(name => `
-                <div class="policy-item">
-                    <div class="policy-info">
-                        <div class="policy-name">${name}</div>
-                        <div class="policy-meta">Ready to deploy</div>
+            container.innerHTML = data.policies.map(p => `
+                <div class="policy-item" style="${p.enabled ? '' : 'opacity:0.6; border:1px solid #444;'}">
+                    <div class="policy-info" style="width:100%;">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div class="policy-name">${p.name}</div>
+                            <label style="font-size:0.85em; cursor:pointer;">
+                                <input type="checkbox" ${p.enabled ? 'checked' : ''} 
+                                    onchange="updatePolicy('${p.name}', 'enabled', this.checked)"> Enabled
+                            </label>
+                        </div>
+                        
+                        <div style="margin-top:5px;">
+                            <input type="text" value="${p.description || ''}" placeholder="Add description for AI..." 
+                                onblur="updatePolicy('${p.name}', 'description', this.value)"
+                                style="background:rgba(0,0,0,0.2); border:1px solid #444; color:#ddd; padding:4px 8px; width:100%; border-radius:4px; font-size:0.9em;">
+                        </div>
                     </div>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn btn-sm btn-success" onclick="runPolicy('${name}')">▶ Run</button>
+                    <div style="display:flex; gap:10px; align-items:center; margin-left:15px;">
+                        <button class="btn btn-sm btn-success" onclick="runPolicy('${p.name}')" ${p.enabled ? '' : 'disabled'}>▶ Run</button>
                     </div>
                 </div>
             `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    async function updatePolicy(name, field, value) {
+        try {
+            const payload = { name: name };
+            payload[field] = value;
+
+            const res = await fetch('/api/policies/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                console.error("Update failed:", data.error);
+                // alert("Update failed: " + data.error);
+            } else {
+                if (field === 'enabled') loadPolicies(); // Refresh to update visual state/button
+            }
         } catch (e) { console.error(e); }
     }
 
