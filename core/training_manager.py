@@ -1,3 +1,4 @@
+import json
 import logging
 import threading
 import subprocess
@@ -6,12 +7,13 @@ import time
 import shutil
 import torch
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Any, Dict, Optional, List
 from huggingface_hub import HfApi
 
 
 DATASET_ROOT = Path("logs/datasets")
 POLICY_ROOT = Path("logs/policies")
+POLICY_METADATA_FILE = POLICY_ROOT / "policy_metadata.json"
 
 logger = logging.getLogger(__name__)
 
@@ -199,24 +201,73 @@ class TrainingManager:
             return []
         return [d.name for d in DATASET_ROOT.iterdir() if d.is_dir()]
 
-    def list_policies(self) -> List[str]:
-        policies = []
+    def _load_policy_metadata(self) -> Dict[str, Dict[str, Any]]:
+        """Load policy metadata from JSON file."""
+        if POLICY_METADATA_FILE.exists():
+            try:
+                with open(POLICY_METADATA_FILE, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load policy metadata: {e}")
+        return {}
+
+    def _save_policy_metadata(self, metadata: Dict[str, Dict[str, Any]]) -> bool:
+        """Save policy metadata to JSON file."""
+        try:
+            POLICY_ROOT.mkdir(parents=True, exist_ok=True)
+            with open(POLICY_METADATA_FILE, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save policy metadata: {e}")
+            return False
+
+    def update_policy_metadata(self, policy_name: str, update_data: Dict[str, Any]) -> bool:
+        """Update metadata (enabled, description) for a policy."""
+        metadata = self._load_policy_metadata()
+        if policy_name not in metadata:
+            metadata[policy_name] = {'enabled': True, 'description': ''}
+        metadata[policy_name].update(update_data)
+        return self._save_policy_metadata(metadata)
+
+    def list_policies(self) -> List[Dict[str, Any]]:
+        """Return list of policy objects with name, enabled, and description."""
+        policy_names = []
+        
         # Local
         if POLICY_ROOT.exists():
-             policies.extend([d.name for d in POLICY_ROOT.iterdir() if d.is_dir()])
-             
+            policy_names.extend([d.name for d in POLICY_ROOT.iterdir() if d.is_dir()])
+
         # Remote (HuggingFace)
         try:
-             hf_user = get_hf_username()
-             if hf_user:
-                 api = HfApi()
-                 models = api.list_models(author=hf_user, sort="lastModified", direction=-1, limit=10) 
-                 for m in models:
-                     policies.append(m.modelId)
+            hf_user = get_hf_username()
+            if hf_user:
+                api = HfApi()
+                models = api.list_models(author=hf_user, sort="lastModified", direction=-1, limit=10)
+                for m in models:
+                    policy_names.append(m.modelId)
         except Exception as e:
-             logger.warning(f"Failed to list HF models: {e}")
-             
-        return policies
+            logger.warning(f"Failed to list HF models: {e}")
+
+        # Load metadata and build result
+        metadata = self._load_policy_metadata()
+        result = []
+        for name in policy_names:
+            meta = metadata.get(name, {})
+            result.append({
+                'name': name,
+                'enabled': meta.get('enabled', True),
+                'description': meta.get('description', '')
+            })
+        return result
+
+    def get_policies_for_ai(self) -> List[Dict[str, str]]:
+        """Return only enabled policies with name and description for AI tool generation."""
+        all_policies = self.list_policies()
+        return [
+            {'name': p['name'], 'description': p['description']}
+            for p in all_policies if p.get('enabled', True)
+        ]
 
     def push_dataset_to_hub(self, dataset_name: str) -> tuple:
         """Attempt to upload local dataset to Hub."""

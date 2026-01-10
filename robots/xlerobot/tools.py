@@ -457,24 +457,42 @@ def create_vla_single_arm_manipulation(
 
 
 def create_run_robot_policy():
+    from core.training_manager import training_manager
+
+    # Build dynamic docstring with available policies
+    policies = training_manager.get_policies_for_ai()
+    policy_list = ""
+    if policies:
+        policy_list = "\n\nAvailable policies:\n" + "\n".join(
+            f"  - {p['name']}: {p['description'] or 'No description'}"
+            for p in policies
+        )
+
     @tool
     def run_robot_policy(policy_name: str, duration_seconds: int = 45) -> str:
-        """Executes a trained robot policy to perform a physical task using the arms. 
+        f"""Executes a trained robot policy to perform a physical task using the arms. 
         Use this when the user asks to perform a specific learned skill (e.g. 'pickup_cup', 'wipe_table').
-        The policy will take control of the arms and base for the specified duration.
+        The policy will take control of the arms and base for the specified duration.{policy_list}
         """
         from state import state
         from core.policy_executor import policy_executor
+        from core.training_manager import training_manager
         import time
-        
+
         print(f"[TOOL] run_robot_policy({policy_name}, duration={duration_seconds})")
-        
+
+        # Check if policy is enabled
+        enabled_policies = training_manager.get_policies_for_ai()
+        enabled_names = [p['name'] for p in enabled_policies]
+        if policy_name not in enabled_names:
+            return f"Error: Policy '{policy_name}' is disabled or does not exist. Available policies: {', '.join(enabled_names) or 'None'}"
+
         if not policy_executor.load_policy(policy_name):
             return f"Error: Failed to load policy '{policy_name}'. Check if it exists."
-            
+
         if not policy_executor.start_execution():
             return "Error: Failed to start policy execution (maybe already running?)."
-            
+
         step = 0.5
         elapsed = 0
         try:
@@ -484,15 +502,16 @@ def create_run_robot_policy():
                 if not state.ai_enabled:
                     policy_executor.stop_execution()
                     return "Policy execution interrupted by stop command."
-                    
+
                 time.sleep(step)
                 elapsed += step
-                
+
         except Exception as e:
             policy_executor.stop_execution()
             return f"Error during policy execution: {e}"
-            
+
         policy_executor.stop_execution()
         return f"Policy '{policy_name}' executed for {duration_seconds} seconds. Task should be complete."
 
     return run_robot_policy
+

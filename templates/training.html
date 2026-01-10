@@ -388,6 +388,7 @@
         } catch (e) { console.error(e); }
     }
 
+
     async function loadPolicies() {
         try {
             const res = await fetch('/api/training/policies');
@@ -399,30 +400,36 @@
                 return;
             }
 
-            container.innerHTML = data.policies.map(p => `
+            container.innerHTML = data.policies.map(p => {
+                const escapedName = p.name.replace(/'/g, "\\'");
+                const escapedDesc = (p.description || '').replace(/"/g, '&quot;');
+                const displayName = p.name.includes('/') ? p.name.split('/').pop() : p.name;
+
+                return `
                 <div class="policy-item" style="${p.enabled ? '' : 'opacity:0.6; border:1px solid #444;'}">
                     <div class="policy-info" style="width:100%;">
                         <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <div class="policy-name">${p.name}</div>
+                            <div class="policy-name" title="${p.name}">${displayName}</div>
                             <label style="font-size:0.85em; cursor:pointer;">
                                 <input type="checkbox" ${p.enabled ? 'checked' : ''} 
-                                    onchange="updatePolicy('${p.name}', 'enabled', this.checked)"> Enabled
+                                    onchange="updatePolicy('${escapedName}', 'enabled', this.checked)"> Enabled
                             </label>
                         </div>
                         
                         <div style="margin-top:5px;">
-                            <input type="text" value="${p.description || ''}" placeholder="Add description for AI..." 
-                                onblur="updatePolicy('${p.name}', 'description', this.value)"
+                            <input type="text" value="${escapedDesc}" placeholder="Add description for AI..." 
+                                onblur="updatePolicy('${escapedName}', 'description', this.value)"
                                 style="background:rgba(0,0,0,0.2); border:1px solid #444; color:#ddd; padding:4px 8px; width:100%; border-radius:4px; font-size:0.9em;">
                         </div>
                     </div>
                     <div style="display:flex; gap:10px; align-items:center; margin-left:15px;">
-                        <button class="btn btn-sm btn-success" onclick="runPolicy('${p.name}')" ${p.enabled ? '' : 'disabled'}>▶ Run</button>
+                        <button class="btn btn-sm btn-success" onclick="runPolicy('${escapedName}')" ${p.enabled ? '' : 'disabled'}>▶ Run</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         } catch (e) { console.error(e); }
     }
+
 
     async function updatePolicy(name, field, value) {
         try {
