@@ -102,7 +102,6 @@ def run_job(server_url, job, worker_id):
             if clean_line:
                 print(f"[train] {clean_line}")
                 try:
-                try:
                     res = requests.post(f"{server_url}/api/worker/log", json={
                         "worker_id": worker_id, "job_name": job_name, "log": clean_line
                     }, timeout=2)
