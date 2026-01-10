@@ -31,24 +31,21 @@
                 <div class="form-group">
                     <label>Main Camera</label>
                     <div class="port-row">
-                        <select id="cfg_CAMERA_PORT" onchange="onCameraChange('CAMERA_PORT', this.value)"></select>
+                        <select id="cfg_CAMERA_PORT"></select>
                         <button type="button" class="manual-btn" onclick="toggleManual('CAMERA_PORT')">✏️</button>
                     </div>
                     <input type="text" id="cfg_CAMERA_PORT_manual" class="manual-input"
                         placeholder="/dev/video0 or index">
-                    <div class="camera-preview" id="preview_CAMERA_PORT"><span>Select to preview</span></div>
                 </div>
 
                 <div class="form-group">
                     <label>Right Hand Camera</label>
                     <div class="port-row">
-                        <select id="cfg_CAMERA_RIGHT_PORT"
-                            onchange="onCameraChange('CAMERA_RIGHT_PORT', this.value)"></select>
+                        <select id="cfg_CAMERA_RIGHT_PORT"></select>
                         <button type="button" class="manual-btn" onclick="toggleManual('CAMERA_RIGHT_PORT')">✏️</button>
                     </div>
                     <input type="text" id="cfg_CAMERA_RIGHT_PORT_manual" class="manual-input"
                         placeholder="/dev/video0 or index">
-                    <div class="camera-preview" id="preview_CAMERA_RIGHT_PORT"><span>Select to preview</span></div>
                 </div>
 
                 <div class="form-group">
@@ -427,14 +424,6 @@
 
         // Initialize lidar UI state after config loaded
         initLidarUI();
-
-        // Trigger previews for configured cameras
-        if (config.CAMERA_PORT) {
-            onCameraChange('CAMERA_PORT', config.CAMERA_PORT);
-        }
-        if (config.CAMERA_RIGHT_PORT) {
-            onCameraChange('CAMERA_RIGHT_PORT', config.CAMERA_RIGHT_PORT);
-        }
     }
 
     async function loadPorts() {
@@ -499,19 +488,7 @@
         }
     }
 
-    function onCameraChange(key, value) {
-        if (!value) return;
 
-        const previewEl = document.getElementById(`preview_${key}`);
-        previewEl.innerHTML = '<span>Loading...</span>';
-
-        // Use query parameter to avoid path encoding issues
-        const encodedPort = encodeURIComponent(value);
-        const img = new Image();
-        img.onload = () => { previewEl.innerHTML = ''; previewEl.appendChild(img); };
-        img.onerror = () => { previewEl.innerHTML = '<span style="color:#ff5555">Failed</span>'; };
-        img.src = `/api/camera/preview?port=${encodedPort}&t=${Date.now()}`;
-    }
 
     function onWebPortChange() {
         const newPort = parseInt(document.getElementById('cfg_WEB_PORT').value);

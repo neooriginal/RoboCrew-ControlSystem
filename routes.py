@@ -1035,42 +1035,4 @@ def list_ports():
     
     return jsonify(result)
 
-@bp.route('/api/camera/preview')
-def camera_preview():
-    """Return a single JPEG snapshot from the specified camera."""
-    port = request.args.get('port', '')
-    
-    try:
-        # Handle integer index or path
-        if port.isdigit():
-            cap = cv2.VideoCapture(int(port))
-        elif 'dev/video' in port:
-             # Allow explicit linux device paths (handle missing leading slash)
-            if not port.startswith('/'):
-                port = '/' + port
-            cap = cv2.VideoCapture(port)
-        else:
-            return jsonify({'error': 'Invalid camera port'}), 400
-        
-        if not cap.isOpened():
-            return jsonify({'error': 'Cannot open camera'}), 500
-        
-        # Grab a few frames to let the camera settle
-        for _ in range(3):
-            cap.grab()
-        
-        ret, frame = cap.read()
-        cap.release()
-        
-        if not ret:
-            return jsonify({'error': 'Cannot read frame'}), 500
-        
-        # Resize for preview
-        frame = cv2.resize(frame, (320, 180))
-        
-        # Encode to JPEG
-        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-        
-        return Response(buffer.tobytes(), mimetype='image/jpeg')
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
