@@ -33,6 +33,8 @@ PUBLIC_PATHS = [
     '/login',
     '/api/auth/',
     '/static/',
+    '/display',
+    '/display/state',
 ]
 
 
