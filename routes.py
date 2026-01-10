@@ -889,6 +889,17 @@ def rename_policy_route():
     success, msg = training_manager.rename_policy(old_name, new_name)
     return jsonify({'status': 'ok' if success else 'error', 'message': msg})
 
+@bp.route('/api/training/policies/delete', methods=['POST'])
+def delete_policy_route():
+    data = request.json
+    policy_name = data.get('policy_name')
+    
+    if not policy_name:
+        return jsonify({'status': 'error', 'error': 'Policy Name required'}), 400
+        
+    success, msg = training_manager.delete_policy(policy_name)
+    return jsonify({'status': 'ok' if success else 'error', 'message': msg})
+
 @bp.route('/api/training/auth', methods=['GET'])
 def get_hf_auth_status():
     user = training_manager.get_hf_user()

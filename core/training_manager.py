@@ -424,6 +424,46 @@ class TrainingManager:
 
         return True, " | ".join(msgs)
 
+    def delete_policy(self, policy_name: str) -> tuple[bool, str]:
+        """Delete policy locally and from HuggingFace Hub."""
+        hf_username = get_hf_username()
+        msgs = []
+
+        # Delete local
+        policy_path = POLICY_ROOT / policy_name
+        if policy_path.exists():
+            try:
+                shutil.rmtree(policy_path)
+                msgs.append(f"Deleted local files for {policy_name}.")
+            except Exception as e:
+                msgs.append(f"Failed to delete local files: {e}")
+        else:
+            msgs.append("Local files not found (already deleted?).")
+
+        # Delete remote
+        if hf_username:
+            repo_id = f"{hf_username}/{policy_name}"
+            try:
+                api = HfApi()
+                api.delete_repo(repo_id=repo_id, repo_type="model")
+                msgs.append(f"Deleted remote model {repo_id}.")
+            except Exception as e:
+                if "404" in str(e):
+                    msgs.append("Remote model not found (skipped).")
+                else:
+                    msgs.append(f"Failed to delete remote model: {e}")
+        else:
+            msgs.append("Hub delete skipped (not logged in).")
+
+        # Clean metadata
+        metadata = self._load_policy_metadata()
+        if policy_name in metadata:
+            del metadata[policy_name]
+            self._save_policy_metadata(metadata)
+            msgs.append("Metadata cleaned.")
+
+        return True, " | ".join(msgs)
+
     def start_training(self, dataset_name: str, job_name: str, device: str = "auto", steps: int = 2000):
         if self.is_training:
             return False, "Training already in progress"
