@@ -83,8 +83,7 @@
             <!-- Lidar Sensor -->
             <div class="settings-card">
                 <h3>📡 Lidar Sensor</h3>
-                <p style="color:#888; font-size:0.85em; margin-bottom:15px;">TF-Luna single-point distance sensor.
-                    Auto-detects if connected.</p>
+                <p style="color:#888; font-size:0.85em; margin-bottom:15px;">TF-Luna single-point distance sensor.</p>
 
                 <div class="form-group">
                     <label>Protocol</label>
@@ -428,6 +427,14 @@
 
         // Initialize lidar UI state after config loaded
         initLidarUI();
+
+        // Trigger previews for configured cameras
+        if (config.CAMERA_PORT) {
+            onCameraChange('CAMERA_PORT', config.CAMERA_PORT);
+        }
+        if (config.CAMERA_RIGHT_PORT) {
+            onCameraChange('CAMERA_RIGHT_PORT', config.CAMERA_RIGHT_PORT);
+        }
     }
 
     async function loadPorts() {
@@ -451,7 +458,8 @@
         list.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.device;
-            opt.textContent = p.description;
+            // Show device path + description (e.g. "COM3 - USB Serial Port" or "/dev/ttyUSB0 - UART")
+            opt.textContent = `${p.device} (${p.description})`;
             if (p.device === currentValue) opt.selected = true;
             el.appendChild(opt);
         });
