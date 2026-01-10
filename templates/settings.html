@@ -458,8 +458,16 @@
         list.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.device;
-            // Show device path + description (e.g. "COM3 - USB Serial Port" or "/dev/ttyUSB0 - UART")
-            opt.textContent = `${p.device} (${p.description})`;
+
+            // Smart Label: Only show description if it differs from device
+            let label = p.description;
+            if (p.device !== p.description) {
+                label = `${p.device} (${p.description})`;
+            } else {
+                label = p.device;
+            }
+            opt.textContent = label;
+
             if (p.device === currentValue) opt.selected = true;
             el.appendChild(opt);
         });
@@ -497,12 +505,12 @@
         const previewEl = document.getElementById(`preview_${key}`);
         previewEl.innerHTML = '<span>Loading...</span>';
 
-        // URL encode the path
+        // Use query parameter to avoid path encoding issues
         const encodedPort = encodeURIComponent(value);
         const img = new Image();
         img.onload = () => { previewEl.innerHTML = ''; previewEl.appendChild(img); };
         img.onerror = () => { previewEl.innerHTML = '<span style="color:#ff5555">Failed</span>'; };
-        img.src = `/api/camera/preview/${encodedPort}?t=${Date.now()}`;
+        img.src = `/api/camera/preview?port=${encodedPort}&t=${Date.now()}`;
     }
 
     function onWebPortChange() {
